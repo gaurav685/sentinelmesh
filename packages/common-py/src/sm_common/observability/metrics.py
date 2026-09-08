@@ -51,6 +51,19 @@ class Metrics:
             ("service", "action"),
             registry=registry,
         )
+        self.rate_limited = Counter(
+            "sm_rate_limited_total",
+            "Requests rejected with 429 by the rate limiter",
+            ("service",),
+            registry=registry,
+        )
+        self.rate_limiter_errors = Counter(
+            "sm_rate_limiter_errors_total",
+            "Rate-limit checks that failed (the limiter failed open). Non-zero "
+            "means the limiter's store was unavailable.",
+            ("service",),
+            registry=registry,
+        )
         self.dependency_up = Gauge(
             "sm_dependency_up",
             "1 if a required dependency was reachable at the last readiness check",

@@ -6,7 +6,10 @@ Middleware order (outermost first) is deliberate:
    and error body, including ones produced by the layers below it.
 2. `CORSMiddleware` — preflight is answered before any work is done.
 3. `SecurityHeadersMiddleware` — headers are added to every response.
-4. `BodySizeLimitMiddleware` — an oversized body is rejected before routing.
+4. `RateLimitMiddleware` — a limited caller is rejected before the body is read
+   or the request is routed, but after the request id exists so the 429 carries
+   one.
+5. `BodySizeLimitMiddleware` — an oversized body is rejected before routing.
 
 Starlette applies `add_middleware` in reverse, so they are registered bottom-up.
 
@@ -30,6 +33,7 @@ from sm_common.config import AppSettings, load_settings
 from sm_common.db import Database
 from sm_common.fastapi import (
     BodySizeLimitMiddleware,
+    RateLimitMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
     build_cors_kwargs,
@@ -83,7 +87,11 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         owns_services = services is None
-        app.state.services = services or build_services(resolved_settings)
+        resolved_services = services or build_services(resolved_settings)
+        app.state.services = resolved_services
+        # The rate-limit middleware, registered before this runs, reads these.
+        app.state.rate_limit_redis = resolved_services.cache.client
+        app.state.rate_limit_metrics = resolved_services.metrics
         _log.info(
             "service_start",
             service=SERVICE_NAME,
@@ -116,6 +124,7 @@ def create_app(
 
     # Registered bottom-up; see the module docstring for the effective order.
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=resolved_settings.http_max_body_bytes)
+    app.add_middleware(RateLimitMiddleware, settings=resolved_settings)
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     # `build_cors_kwargs` returns a plain mapping; Starlette's `add_middleware`
     # signature cannot be matched against **kwargs by the type checker.
