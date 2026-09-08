@@ -624,6 +624,16 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Verification method:** integration tests; ADR-011 boundary assertions.
 - **Phase:** P6. **Status:** ARCHITECTURE DEFINED. Relationship to R19/R21/R15/R29: **RESOLVED** (ADR-011).
 
+### R23a — HTTP hardening (foundation)
+- **Note:** not a numbered architecture requirement; recorded because Phase 1
+  implemented it. Body-size cap, security headers, restrictive CORS (prod
+  wildcard rejected at config validation), request/correlation IDs, and
+  **per-caller fixed-window rate limiting** (`RateLimitMiddleware`, keyed on the
+  resolved client IP, fails open with `sm_rate_limiter_errors_total`). Implemented
+  and unit-verified (`services/api-gateway`, `packages/common-py`); the
+  window-TTL behaviour has an integration test that is **skipped** for want of
+  Redis.
+
 ### R38 — Enterprise Deployment & Scalability Layer
 - **Purpose:** Kubernetes deployment, RBAC, SSO, Prometheus + Grafana — topology, namespaces, services, ingress, secrets, probes, resources, autoscaling, network policies, storage, backup/recovery, rollout.
 - **Subsystem:** Platform / SRE.
