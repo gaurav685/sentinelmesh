@@ -23,8 +23,10 @@ class Body(BaseModel):
 @pytest.fixture
 def client() -> TestClient:
     app = FastAPI()
-    app.add_middleware(SecurityHeadersMiddleware)
+    # Same registration order as the real services (add_middleware prepends, so
+    # this makes RequestContext outermost and BodySizeLimit innermost).
     app.add_middleware(BodySizeLimitMiddleware, max_bytes=64)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(RequestContextMiddleware)
     install_exception_handlers(app)
 
@@ -93,3 +95,14 @@ def test_body_size_limit(client: TestClient):
     r = client.post("/echo", json={"n": 1, "pad": "x" * 200})
     assert r.status_code == 413
     assert r.json()["error"]["code"] == "payload_too_large"
+
+
+def test_body_limit_returns_canonical_413_with_a_real_request_id(client: TestClient):
+    rid = "22222222-2222-2222-2222-222222222222"
+    r = client.post("/echo", json={"n": 1, "pad": "x" * 200}, headers={"x-request-id": rid})
+    assert r.status_code == 413
+    body = r.json()["error"]
+    assert body["code"] == "payload_too_large"
+    # the id is the caller's, not a zeroed placeholder
+    assert body["request_id"] == rid
+    assert r.headers["x-content-type-options"] == "nosniff"

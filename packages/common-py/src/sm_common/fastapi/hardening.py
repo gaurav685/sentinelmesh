@@ -10,10 +10,12 @@
 from __future__ import annotations
 
 import json
+from uuid import uuid4
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from ..config import AppSettings
+from ..context import get_correlation_id, get_request_id
 from ..errors import PayloadTooLarge
 
 __all__ = ["BodySizeLimitMiddleware", "SecurityHeadersMiddleware", "build_cors_kwargs"]
@@ -67,6 +69,7 @@ class BodySizeLimitMiddleware:
             return
 
         seen = 0
+        response_started = False
 
         async def receive_capped() -> Message:
             nonlocal seen
@@ -77,20 +80,36 @@ class BodySizeLimitMiddleware:
                     raise PayloadTooLarge()
             return message
 
+        async def send_watch(message: Message) -> None:
+            nonlocal response_started
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
         try:
-            await self.app(scope, receive_capped, send)
+            await self.app(scope, receive_capped, send_watch)
         except PayloadTooLarge:
+            if response_started:
+                # The handler already began a response before reading the
+                # oversized chunk. A second `http.response.start` is an ASGI
+                # protocol violation, so re-raise and let the server abort the
+                # connection rather than corrupt the stream.
+                raise
             await self._reject(send)
 
     async def _reject(self, send: Send) -> None:
         err = PayloadTooLarge()
+        # The ids come from the ambient request context set by
+        # RequestContextMiddleware, which runs outside this one.
+        request_id = get_request_id() or uuid4()
+        correlation_id = get_correlation_id() or uuid4()
         payload = json.dumps(
             {
                 "error": {
                     "code": str(err.code),
                     "message": err.message,
-                    "request_id": "00000000-0000-0000-0000-000000000000",
-                    "correlation_id": "00000000-0000-0000-0000-000000000000",
+                    "request_id": str(request_id),
+                    "correlation_id": str(correlation_id),
                     "details": [],
                 }
             }
