@@ -265,8 +265,9 @@ real status, real setup commands, explicit honesty note).
 
 | Check | Command | Result |
 |---|---|---|
-| Tests | `python -m pytest packages services tests -q` | **172 passed, 49 skipped** |
+| Tests | `python -m pytest packages services tests -q` | **184 passed, 49 skipped** |
 | CI config (offline) | `python -m pytest tests/contract/test_ci_config.py -q` | **14 passed** |
+| Type check | `python -m mypy --strict --python-version 3.11` over all three packages | **Success: no issues found in 68 source files** |
 | Lint | `python -m ruff check packages services tests migrations scripts` | **All checks passed** |
 | Skip-guard behaves | same module with and without `SM_REQUIRE_INTEGRATION=1` | **11 skipped** vs **11 errors** — the guard works |
 
@@ -277,9 +278,25 @@ tests with `SM_REQUIRE_INTEGRATION=1`), and `image` (builds `Dockerfile.app`,
 asserts uid 10001, and asserts the production config guard rejects a CORS
 wildcard **inside the built image**).
 
+### Pre-output engineering review (Constitution §23) — done while the run is blocked
+
+The review found six defects in Phase-1 code that has never run against real
+infrastructure. All fixed, each with a regression test; the login-counter one
+was proven red/green.
+
+| # | Defect | Fix | Commit |
+|---|---|---|---|
+| 1 | Login lockout incremented `failed_login_count` twice — 3 failed attempts left the count at 4 | Split `record_login_failure` (counter) from `set_lockout` (lock) | `5f29957` |
+| 2 | An authorization denial became a 500 when the audit write failed, hiding the refusal | Guard the audit write; always return 403; new `sm_audit_write_failures_total` counter | `5f29957` |
+| 3 | Client IP taken from `request.client.host` — spoofable / wrong behind a proxy | `resolve_client_ip` honours `X-Forwarded-For` only for `SM_TRUSTED_PROXY_HOPS` (default 0) | `6e5becc` |
+| 4 | 413 body carried a zeroed `request_id` | Read the id from the ambient request context | `6e5becc` |
+| 5 | `BodySizeLimitMiddleware` could emit a second `http.response.start` (ASGI violation) | Track `response_started`; re-raise instead of double-sending | `6e5becc` |
+| 6 | Audit advisory lock keyed on `hashtext` (int4) — 2^-32 tenant collision | `hashtextextended(key, 0)` (int8) — 2^-64 | `6e5becc` |
+
 **Not verified (Phase 1, Unit 6):** the workflow has never run — no job, no
 image build, no integration execution. Everything listed under *Not verified
-(Phase 1, Unit 5)* still stands.
+(Phase 1, Unit 5)* still stands. The six review fixes are covered by unit tests;
+the ones touching SQL (1, 6) also have integration tests that are still skipped.
 
 ## APIs
 
@@ -635,6 +652,7 @@ Original Phase-1 step list (for reference):
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
 | 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
 | 2026-09-08 | 1 (Unit 2) | `packages/common-py` infra clients: `db` (async SQLAlchemy 2 engine, `Database` session/`transaction()`/`ping`), `cache.redis` (`Cache` + key prefix + `ping`), `security.oidc` (`OidcClient` — discovery cache, PKCE `S256`, auth URL, code exchange, ID-token verify via `PyJWKClient`+`anyio.to_thread`), `observability.metrics` (`Metrics` + per-process registry), `observability.tracing` (OTLP bootstrap, no-op without endpoint), `audit.hashing` (per-tenant hash chain primitives). Verified: **pytest 81 passed** (19+62), mypy --strict clean (27 files), ruff clean. Deps added: sqlalchemy[asyncio], asyncpg, redis, prometheus-client, opentelemetry-sdk + otlp-http, httpx, anyio; dev respx. |
+| 2026-09-09 | 1 (review) | Pre-output engineering review (§23) of Phase-1 code while the integration run stays blocked: 6 defects found and fixed with regression tests — login-lockout double count (proven red/green), a 403 masked as 500 on audit failure, a spoofable client IP, a zeroed request_id in the 413 body, a possible duplicate `http.response.start`, and an int4 audit advisory lock. Verified: **pytest 184 passed / 49 skipped**, mypy --strict clean (68 files), ruff clean. Commits `5f29957`, `6e5becc`. |
 | 2026-09-08 | 1 (Unit 6, partial) | `.github/workflows/ci.yml` (static / unit / integration with postgres+redis service containers / image build with non-root and production-config-guard assertions); `SM_REQUIRE_INTEGRATION=1` makes an unreachable dependency a failure rather than a skip, so CI cannot go green on a missing database; 14 offline CI-config checks; `README.md` rewritten with real status and setup. Verified: **pytest 172 passed / 49 skipped**, ruff clean, and the skip-guard exercised directly (11 skipped vs 11 errors). **Workflow never run; no image built; 49 integration tests still unexecuted.** |
 | 2026-09-08 | 1 (Unit 5) | `deploy/docker` compose stack (core: postgres/redis/migrate/app; profiles: oidc/obs/graph/bus/objects), multi-stage non-root `Dockerfile.app`, Keycloak dev realm (confidential client, PKCE S256, password grant off), Prometheus config, `.dockerignore`, `Makefile`, `/metrics` route, 49 integration tests and 15 offline deployment-config checks. Verified: **pytest 158 passed / 49 skipped**, mypy --strict clean (67 files), ruff clean. **Docker not installed — no image built, no container started, zero integration tests executed.** |
 | 2026-09-08 | 1 (Unit 4) | `services/api-gateway`: app factory + hardening stack, `/healthz` `/readyz` `/health/deps` `/api/v1/meta`, Redis-backed sessions + CSRF double-submit, `get_principal` (privileges re-resolved per request), deny-by-default `require_permission` with metered + audited denials, tenant-scoped repositories, Argon2id local login with lockout and no enumeration/timing oracle, OIDC authorization-code + PKCE + state + nonce with no auto-provisioning, `/me`, audited admin user/role routes, explicit ORM→contract mappers. Verified: **pytest 143 passed**, mypy --strict clean (66 files), ruff clean. **No real Postgres/Redis/OIDC yet.** |
