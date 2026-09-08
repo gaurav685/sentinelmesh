@@ -12,12 +12,14 @@ Update it at the end of every coherent implementation unit.
 
 ## Current implementation unit
 
-Phase 1, Unit 3 — ORM models for the 8 Phase-1 tables, Alembic migrations
-(`0001_initial`, `0002_seed_rbac`), and the DB-bound `AuditWriter`.
-**Done + verified offline.** Next: Unit 4 (`services/api-gateway`).
+Phase 1, Unit 4 — `services/api-gateway`: the first running service. App factory
+with the full hardening stack, health/readiness/deps/meta, server-side sessions
++ CSRF, deny-by-default `require_permission`, tenant-scoped repositories, local
+and OIDC login, `/me`, and audited admin routes. **Done + verified with
+in-memory infrastructure fakes.** Next: Unit 5 (`deploy/docker`).
 
 Phase 1 units: 1 ✅ primitives · 2 ✅ infra clients · 3 ✅ models+migrations ·
-4 `services/api-gateway` · 5 `deploy/docker` · 6 e2e tests + `Makefile`/CI + doc promotion.
+4 ✅ api-gateway · 5 `deploy/docker` · 6 e2e tests + `Makefile`/CI + doc promotion.
 
 ## Architecture lock status
 
@@ -152,6 +154,48 @@ rationale), `.gitignore` (generated TS), `docs/IMPLEMENTATION_STATE.md`,
 **Modified:** `packages/common-py/src/sm_common/db/__init__.py` (model exports),
 `packages/common-py/src/sm_common/audit/__init__.py` (`AuditWriter` export),
 `packages/common-py/README.md`.
+
+## Completed files (Phase 1, Unit 4)
+
+**Created:** `services/api-gateway/{pyproject.toml,README.md}`,
+`src/sm_api_gateway/{__init__,__main__,version,app,deps,mappers}.py`,
+`src/sm_api_gateway/security/{__init__,principal,session,cookies,login}.py`,
+`src/sm_api_gateway/repositories/{__init__,protocols,sql}.py`,
+`src/sm_api_gateway/routes/{__init__,health,auth,admin}.py`,
+`services/api-gateway/tests/{conftest,test_health,test_auth_login,test_authz,test_tenant_isolation}.py`.
+
+**Modified:** `packages/common-py/src/sm_common/config.py` (session cookie names,
+idle/absolute session lifetimes, OIDC state TTL, login lockout settings),
+`.env.example` (7 new keys), `pyproject.toml` (ruff `flake8-bugbear
+extend-immutable-calls` for the FastAPI dependency idiom, `sm_api_gateway`
+first-party).
+
+## Verification performed (Phase 1, Unit 4 — api-gateway)
+
+| Check | Command | Result |
+|---|---|---|
+| Tests | `python -m pytest packages services tests -q` | **143 passed** (41 new) |
+| Type check | `python -m mypy --strict --python-version 3.11` over all three packages | **Success: no issues found in 66 source files** |
+| Lint | `python -m ruff check packages services tests migrations` | **All checks passed** |
+| Contract schema | `python scripts/gen_contracts.py --check` | up to date |
+
+Covered by tests: login success (cookies + CSRF header + permissions, no
+password echoed); failure counter reset; wrong password / unknown user /
+unknown tenant returning byte-identical generic errors; lockout at the
+threshold; suspended tenant; non-active user; federated-only account;
+invalid-payload and unknown-field rejection through the canonical error
+contract; no session / unknown session / missing CSRF / wrong CSRF; missing
+permission denied **and audited**; granted permission allowed; role revocation
+taking effect on the next request; deactivated-user session dropped; invalid
+cursor and over-cap limit rejected; liveness unaffected by a dead dependency;
+readiness returning 503 with the failing dependency named; `/health/deps`
+gated on `ops:read`; and cross-tenant isolation on user list, user create, role
+grant and `/me`, with `not_found` (never `forbidden`) for another tenant's user.
+
+**Not verified (Phase 1, Unit 4):** nothing has run against a real Postgres,
+Redis or OIDC provider. The SQL repositories, the Redis session store and the
+OIDC client are exercised only through in-memory fakes. Docker is being
+installed; integration tests land in Unit 5.
 
 ## APIs
 
@@ -336,7 +380,41 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 1, Unit 4 — `services/api-gateway`:**
+**PHASE 1, Unit 5 — `deploy/docker` (local infrastructure):**
+
+- `deploy/docker/docker-compose.yml`: `postgres:16`, `redis:7`,
+  `quay.io/keycloak/keycloak` (dev realm `sentinelmesh`), `prom/prometheus`,
+  `grafana/grafana`, and the `app` (api-gateway) built from
+  `deploy/docker/Dockerfile.app`. Neo4j / Redpanda / MinIO / MLflow are declared
+  but not required until their phase. Healthchecks plus
+  `depends_on: condition: service_healthy`. **Container-to-container addressing
+  uses service names** (`SM_PG_HOST=postgres`, `SM_REDIS_URL=redis://redis:6379/0`,
+  `SM_OIDC_ISSUER=http://keycloak:8080/realms/sentinelmesh`), never `localhost`.
+  Named volumes for postgres/redis data, git-ignored.
+- `deploy/docker/Dockerfile.app`: multi-stage, non-root user, installs the three
+  packages, entrypoint `python -m sm_api_gateway`.
+- A Keycloak realm import file for the dev IdP (`sentinelmesh` realm, the
+  `sentinelmesh-api` confidential client, one test user).
+- `deploy/prometheus/prometheus.yml` scraping the gateway.
+- **Then run the integration work this unlocks** (the first non-offline
+  verification in the project):
+  - `alembic -c migrations/postgres/alembic.ini upgrade head`, then
+    `downgrade base`, then `upgrade head` against the compose Postgres.
+  - `tests/integration/`: `AuditWriter` chain continuity and the per-tenant
+    advisory lock under concurrent appends; the append-only trigger rejecting
+    UPDATE/DELETE; model constraints (unique email per tenant, lowercase-email
+    check, role partial unique indexes); `SqlUserRepository` /
+    `SqlRoleRepository` behaviour including the tenant predicate; the Redis
+    session store TTL/absolute-expiry behaviour.
+  - Mark them `integration` and skip cleanly when Docker is unavailable.
+- Record in this file exactly which previously-`NOT VERIFIED` items became
+  verified, with the commands and their real output.
+
+Then **Unit 6** = end-to-end Phase-1 tests through the running stack (real
+login against Keycloak), `Makefile`/`justfile` targets, CI wiring, and the
+documentation promotion listed in step 7 below.
+
+### Superseded plan for Unit 4 (kept for the record — DONE)
 
 - `services/api-gateway/pyproject.toml` (depends on `sm-contracts`, `sm-common`,
   `fastapi`, `uvicorn`), `src/sm_api_gateway/`.
@@ -450,4 +528,5 @@ Original Phase-1 step list (for reference):
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
 | 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
 | 2026-09-08 | 1 (Unit 2) | `packages/common-py` infra clients: `db` (async SQLAlchemy 2 engine, `Database` session/`transaction()`/`ping`), `cache.redis` (`Cache` + key prefix + `ping`), `security.oidc` (`OidcClient` — discovery cache, PKCE `S256`, auth URL, code exchange, ID-token verify via `PyJWKClient`+`anyio.to_thread`), `observability.metrics` (`Metrics` + per-process registry), `observability.tracing` (OTLP bootstrap, no-op without endpoint), `audit.hashing` (per-tenant hash chain primitives). Verified: **pytest 81 passed** (19+62), mypy --strict clean (27 files), ruff clean. Deps added: sqlalchemy[asyncio], asyncpg, redis, prometheus-client, opentelemetry-sdk + otlp-http, httpx, anyio; dev respx. |
+| 2026-09-08 | 1 (Unit 4) | `services/api-gateway`: app factory + hardening stack, `/healthz` `/readyz` `/health/deps` `/api/v1/meta`, Redis-backed sessions + CSRF double-submit, `get_principal` (privileges re-resolved per request), deny-by-default `require_permission` with metered + audited denials, tenant-scoped repositories, Argon2id local login with lockout and no enumeration/timing oracle, OIDC authorization-code + PKCE + state + nonce with no auto-provisioning, `/me`, audited admin user/role routes, explicit ORM→contract mappers. Verified: **pytest 143 passed**, mypy --strict clean (66 files), ruff clean. **No real Postgres/Redis/OIDC yet.** |
 | 2026-09-08 | 1 (Unit 3) | `sm_common.db.base`/`models` (8 Phase-1 tables, UUIDv7 PKs, enum CHECKs rendered from `sm_contracts`, role partial unique indexes, security state kept out of contracts); `sm_common.audit.writer.AuditWriter` (per-tenant advisory lock, hash chain, runs in caller's transaction); `migrations/postgres` (alembic.ini + async env.py + `0001_initial` with `updated_at` and append-only audit triggers + `0002_seed_rbac` with 14 permissions / 5 system roles / grants, uuid5-derived ids). Verified: **pytest 102 passed**, mypy --strict clean (30 files), ruff clean, `alembic upgrade head --sql` emits full DDL offline. **Migrations never applied to a real database** (no Docker). Dep added: alembic 1.19.2. |
