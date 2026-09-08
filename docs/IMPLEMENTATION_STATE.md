@@ -12,14 +12,21 @@ Update it at the end of every coherent implementation unit.
 
 ## Current implementation unit
 
-Phase 1, Unit 4 — `services/api-gateway`: the first running service. App factory
-with the full hardening stack, health/readiness/deps/meta, server-side sessions
-+ CSRF, deny-by-default `require_permission`, tenant-scoped repositories, local
-and OIDC login, `/me`, and audited admin routes. **Done + verified with
-in-memory infrastructure fakes.** Next: Unit 5 (`deploy/docker`).
+Phase 1, Unit 5 — `deploy/docker` (compose stack, `Dockerfile.app`, Keycloak dev
+realm, Prometheus config), the `/metrics` endpoint, the `Makefile`, and a
+49-test integration suite. **AUTHORED, NOT EXECUTED** — Docker is still not
+installed, so no image has been built, no container started, and not one
+integration test has run. The offline deployment-config checks (15 tests) do
+pass. Next: Unit 6.
 
 Phase 1 units: 1 ✅ primitives · 2 ✅ infra clients · 3 ✅ models+migrations ·
-4 ✅ api-gateway · 5 `deploy/docker` · 6 e2e tests + `Makefile`/CI + doc promotion.
+4 ✅ api-gateway · 5 ⚠️ deploy/docker authored but unverified ·
+6 e2e tests + CI + doc promotion.
+
+> **The single outstanding blocker for Phase 1 is Docker.** Installing it and
+> running `make up` then `make test-integration` converts 49 skipped tests and
+> most of the "not verified" list below into real verification. Until then
+> Phase 1 cannot be called complete.
 
 ## Architecture lock status
 
@@ -196,6 +203,51 @@ grant and `/me`, with `not_found` (never `forbidden`) for another tenant's user.
 Redis or OIDC provider. The SQL repositories, the Redis session store and the
 OIDC client are exercised only through in-memory fakes. Docker is being
 installed; integration tests land in Unit 5.
+
+## Completed files (Phase 1, Unit 5)
+
+**Created:** `deploy/docker/{docker-compose.yml,Dockerfile.app,README.md}`,
+`deploy/docker/keycloak/realm-sentinelmesh.json`,
+`deploy/prometheus/prometheus.yml`, `.dockerignore`, `Makefile`,
+`services/api-gateway/src/sm_api_gateway/routes/metrics.py`,
+`tests/contract/test_deploy_local_config.py`,
+`tests/integration/{conftest,test_migrations_pg,test_audit_writer_pg,test_models_constraints_pg,test_repositories_pg,test_session_store_redis}.py`.
+
+**Modified:** `services/api-gateway/src/sm_api_gateway/{app,routes/__init__}.py`
+(wire the metrics router). Dev dependency added: `pyyaml` (offline compose
+checks).
+
+## Verification performed (Phase 1, Unit 5 — local stack)
+
+| Check | Command | Result |
+|---|---|---|
+| Tests | `python -m pytest packages services tests -q` | **158 passed, 49 skipped** |
+| Deployment config (offline) | `python -m pytest tests/contract/test_deploy_local_config.py -q` | **15 passed** |
+| Type check | `python -m mypy --strict --python-version 3.11` over all three packages | **Success: no issues found in 67 source files** |
+| Lint | `python -m ruff check packages services tests migrations scripts` | **All checks passed** |
+
+The 15 offline checks assert: compose parses; core services carry no profile and
+optional ones carry theirs; **no `localhost`/`127.0.0.1` in any container
+environment**; per-service `SM_SERVICE_NAME`; healthchecks on the stateful
+services; `app` gated on both dependencies healthy **and** `migrate` completing
+successfully; `migrate` gated on postgres and `restart: "no"`;
+`${SM_PG_PASSWORD:?...}` fail-fast; declared volumes; the Dockerfile being
+multi-stage, non-root (`USER 10001`), health-checked, with no compiler in the
+runtime stage; `.dockerignore` excluding `.env`/`.venv`/`.git`; the Prometheus
+target matching the app's real port and metrics path; and the Keycloak client
+being confidential with PKCE `S256`, the password grant disabled, and exact
+callback redirect URIs.
+
+**Not verified (Phase 1, Unit 5) — the important part:** `docker compose config`
+has not been run, no image has been built, no container has been started, and
+**all 49 integration tests are skipped**. Specifically still unproven at
+runtime: the migrations applying to a real database and the
+`upgrade -> downgrade -> upgrade` cycle; the seed content; the `updated_at` and
+append-only triggers; the per-tenant advisory lock preventing a forked audit
+chain under concurrency; every schema constraint; the SQL repositories' tenant
+predicate, soft-delete filter, cursor pagination and permissions join; the Redis
+session TTL and absolute-deadline behaviour; the OIDC flow against a real
+provider; and the `/metrics` endpoint being scraped.
 
 ## APIs
 
@@ -380,7 +432,29 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 1, Unit 5 — `deploy/docker` (local infrastructure):**
+**PHASE 1, Unit 6 — close out Phase 1:**
+
+1. **Install Docker Desktop, then run the verification Unit 5 authored.** This is
+   the gate on everything else:
+   `make up` (postgres, redis, migrate, app) then `make test-integration` (the 49
+   tests currently skipped). Record the real output here, and move each item out
+   of the Unit-5 "not verified" list only when its test has actually passed.
+2. Fix whatever that run exposes. The integration suite has never executed, so
+   treat first-run failures as expected work, not as surprises.
+3. End-to-end: bring up the `oidc` profile and drive a real sign-in through
+   Keycloak (`/api/v1/auth/oidc/login` -> callback -> `/me`), plus a local login
+   and one audited admin action, against the running stack.
+4. CI: a GitHub Actions workflow running lint, type check, unit tests, the
+   offline config checks, `scripts/gen_contracts.py --check`, then the
+   integration suite against service containers.
+5. Documentation promotion: update `REQUIREMENTS_TRACEABILITY.md` statuses to
+   `INTEGRATION VERIFIED` **only** for what the run actually proved; refresh
+   `README.md` with real local-setup instructions; record the residual external
+   requirements.
+6. Only then declare Phase 1 complete and set the next action to
+   **Phase 2 — Telemetry Ingestion + Normalization**.
+
+### Superseded plan for Unit 5 (kept for the record — AUTHORED, NOT EXECUTED)
 
 - `deploy/docker/docker-compose.yml`: `postgres:16`, `redis:7`,
   `quay.io/keycloak/keycloak` (dev realm `sentinelmesh`), `prom/prometheus`,
@@ -528,5 +602,6 @@ Original Phase-1 step list (for reference):
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
 | 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
 | 2026-09-08 | 1 (Unit 2) | `packages/common-py` infra clients: `db` (async SQLAlchemy 2 engine, `Database` session/`transaction()`/`ping`), `cache.redis` (`Cache` + key prefix + `ping`), `security.oidc` (`OidcClient` — discovery cache, PKCE `S256`, auth URL, code exchange, ID-token verify via `PyJWKClient`+`anyio.to_thread`), `observability.metrics` (`Metrics` + per-process registry), `observability.tracing` (OTLP bootstrap, no-op without endpoint), `audit.hashing` (per-tenant hash chain primitives). Verified: **pytest 81 passed** (19+62), mypy --strict clean (27 files), ruff clean. Deps added: sqlalchemy[asyncio], asyncpg, redis, prometheus-client, opentelemetry-sdk + otlp-http, httpx, anyio; dev respx. |
+| 2026-09-08 | 1 (Unit 5) | `deploy/docker` compose stack (core: postgres/redis/migrate/app; profiles: oidc/obs/graph/bus/objects), multi-stage non-root `Dockerfile.app`, Keycloak dev realm (confidential client, PKCE S256, password grant off), Prometheus config, `.dockerignore`, `Makefile`, `/metrics` route, 49 integration tests and 15 offline deployment-config checks. Verified: **pytest 158 passed / 49 skipped**, mypy --strict clean (67 files), ruff clean. **Docker not installed — no image built, no container started, zero integration tests executed.** |
 | 2026-09-08 | 1 (Unit 4) | `services/api-gateway`: app factory + hardening stack, `/healthz` `/readyz` `/health/deps` `/api/v1/meta`, Redis-backed sessions + CSRF double-submit, `get_principal` (privileges re-resolved per request), deny-by-default `require_permission` with metered + audited denials, tenant-scoped repositories, Argon2id local login with lockout and no enumeration/timing oracle, OIDC authorization-code + PKCE + state + nonce with no auto-provisioning, `/me`, audited admin user/role routes, explicit ORM→contract mappers. Verified: **pytest 143 passed**, mypy --strict clean (66 files), ruff clean. **No real Postgres/Redis/OIDC yet.** |
 | 2026-09-08 | 1 (Unit 3) | `sm_common.db.base`/`models` (8 Phase-1 tables, UUIDv7 PKs, enum CHECKs rendered from `sm_contracts`, role partial unique indexes, security state kept out of contracts); `sm_common.audit.writer.AuditWriter` (per-tenant advisory lock, hash chain, runs in caller's transaction); `migrations/postgres` (alembic.ini + async env.py + `0001_initial` with `updated_at` and append-only audit triggers + `0002_seed_rbac` with 14 permissions / 5 system roles / grants, uuid5-derived ids). Verified: **pytest 102 passed**, mypy --strict clean (30 files), ruff clean, `alembic upgrade head --sql` emits full DDL offline. **Migrations never applied to a real database** (no Docker). Dep added: alembic 1.19.2. |
