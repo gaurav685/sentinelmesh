@@ -1,0 +1,187 @@
+name: CI
+
+# Runs on every push to main and every pull request.
+#
+# This workflow is the path to the verification the development machine cannot
+# produce: GitHub runners have Docker, so the `integration` job actually applies
+# the migrations and runs the 49 integration tests against real PostgreSQL and
+# Redis, and the `image` job actually builds `Dockerfile.app`.
+#
+# NOTE: this workflow has never been executed. It is authored, not verified.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11"
+  # Non-secret values used by the test configuration. Real secrets are never
+  # needed here: no job talks to a third-party provider.
+  SM_ENV: ci
+  SM_SERVICE_NAME: ci
+  SM_PG_PASSWORD: ci-postgres-password
+  SM_INTERNAL_JWT_SIGNING_KEY: ci-internal-signing-key-0123456789
+  SM_OIDC_CLIENT_SECRET: ci-oidc-client-secret
+
+jobs:
+  static:
+    name: lint and type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "packages/contracts-py[dev]" \
+                      -e "packages/common-py[dev]" \
+                      -e "services/api-gateway[dev]"
+          pip install ruff mypy alembic pyyaml respx
+
+      - name: Ruff
+        run: python -m ruff check packages services tests migrations scripts
+
+      - name: Mypy (strict)
+        run: |
+          python -m mypy --strict --python-version 3.11 \
+            packages/contracts-py/src/sm_contracts \
+            packages/common-py/src/sm_common \
+            services/api-gateway/src/sm_api_gateway
+
+  unit:
+    name: unit and contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "packages/contracts-py[dev]" \
+                      -e "packages/common-py[dev]" \
+                      -e "services/api-gateway[dev]"
+          pip install alembic pyyaml respx
+
+      - name: Tests (integration excluded)
+        run: python -m pytest packages services tests -q -m "not integration"
+
+      - name: Contract schema is current
+        run: python scripts/gen_contracts.py --check
+
+  integration:
+    name: integration tests (real PostgreSQL and Redis)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: sentinelmesh
+          POSTGRES_USER: sentinelmesh
+          POSTGRES_PASSWORD: ci-postgres-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sentinelmesh -d sentinelmesh"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+
+    env:
+      # The job runs on the runner host, so localhost is correct here — unlike
+      # inside the compose network, where services address each other by name.
+      SM_TEST_PG_HOST: localhost
+      SM_TEST_PG_PORT: "5432"
+      SM_PG_DB: sentinelmesh
+      SM_PG_USER: sentinelmesh
+      SM_TEST_REDIS_URL: redis://localhost:6379/15
+      # A skipped integration test must fail the build, not pass it quietly.
+      SM_REQUIRE_INTEGRATION: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install packages
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "packages/contracts-py[dev]" \
+                      -e "packages/common-py[dev]" \
+                      -e "services/api-gateway[dev]"
+          pip install alembic pyyaml respx
+
+      - name: Apply migrations
+        run: |
+          python -m alembic -c migrations/postgres/alembic.ini upgrade head
+          python -m alembic -c migrations/postgres/alembic.ini current
+        env:
+          SM_SERVICE_NAME: migrations
+          SM_PG_HOST: localhost
+
+      - name: Integration tests
+        # SM_REQUIRE_INTEGRATION=1 turns an unreachable dependency into a
+        # failure rather than a skip, so a green build always means these
+        # really ran (Engineering Constitution section 3).
+        run: python -m pytest tests/integration -q -m integration
+
+  image:
+    name: build application image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: docker build -f deploy/docker/Dockerfile.app -t sentinelmesh/app:ci .
+
+      - name: Image runs as a non-root user
+        run: |
+          uid=$(docker run --rm --entrypoint id sentinelmesh/app:ci -u)
+          test "$uid" = "10001" || { echo "::error::image runs as uid $uid"; exit 1; }
+
+      - name: Configuration validation refuses an unsafe production setup
+        # Proves the fail-fast guards are live in the built image.
+        run: |
+          if docker run --rm \
+              -e SM_ENV=production \
+              -e SM_SERVICE_NAME=api-gateway \
+              -e SM_CORS_ALLOWED_ORIGINS='*' \
+              -e SM_PG_PASSWORD=x \
+              -e SM_INTERNAL_JWT_SIGNING_KEY=x \
+              -e SM_OIDC_CLIENT_SECRET=x \
+              -e SM_KAFKA_SECURITY_PROTOCOL=SASL_SSL \
+              sentinelmesh/app:ci python -c "from sm_common.config import AppSettings; AppSettings()"; then
+            echo "::error::a CORS wildcard was accepted in production"
+            exit 1
+          fi

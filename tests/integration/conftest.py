@@ -32,6 +32,16 @@ pytestmark = pytest.mark.integration
 
 CONNECT_TIMEOUT_S = 3.0
 
+# In CI a skip must not read as a pass: if the services were supposed to be
+# there and are not, that is a failure (Engineering Constitution section 3).
+REQUIRE_INTEGRATION = os.environ.get("SM_REQUIRE_INTEGRATION") == "1"
+
+
+def _unavailable(message: str) -> None:
+    if REQUIRE_INTEGRATION:
+        pytest.fail(f"SM_REQUIRE_INTEGRATION=1 but {message}")
+    pytest.skip(message)
+
 # Tables truncated between tests, children first.
 _TABLES_IN_TRUNCATE_ORDER = (
     "audit_log",
@@ -82,7 +92,7 @@ async def database(settings: AppSettings) -> AsyncIterator[Database]:
     db = Database.from_settings(settings)
     if not await _reachable(db.ping):
         await db.dispose()
-        pytest.skip(
+        _unavailable(
             "PostgreSQL is not reachable; start it with "
             "`docker compose -f deploy/docker/docker-compose.yml up -d postgres`"
         )
@@ -97,7 +107,7 @@ async def cache(settings: AppSettings) -> AsyncIterator[Cache]:
     c = Cache.from_settings(settings)
     if not await _reachable(c.ping):
         await c.close()
-        pytest.skip(
+        _unavailable(
             "Redis is not reachable; start it with "
             "`docker compose -f deploy/docker/docker-compose.yml up -d redis`"
         )
