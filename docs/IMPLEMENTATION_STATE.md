@@ -7,12 +7,14 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 0 — Architecture Discovery + Architecture Lock. COMPLETE.**
+**Phase 1 — Foundation + Configuration + Database + Authentication. IN PROGRESS.**
+(Phase 0 COMPLETE; architecture LOCKED 2026-09-08.)
 
 ## Current implementation unit
 
-Phase 0 close: `packages/contracts-py` core implementation + JSON-Schema codegen +
-consistency-review pass. Done.
+Phase 1, Unit 1 — `packages/common-py` platform primitives (config, logging,
+redaction, IDs, clock, errors, password + internal-JWT security, health, FastAPI
+wiring). **Done + verified.** Next: Unit 2 (infrastructure clients).
 
 ## Architecture lock status
 
@@ -108,6 +110,19 @@ rationale), `.gitignore` (generated TS), `docs/IMPLEMENTATION_STATE.md`,
 `docs/CONTRACTS.md` (change log), `docs/architecture/service-catalog.md`
 (`identity_link` fix).
 
+## Completed files (Phase 1, Unit 1)
+
+**`packages/common-py` (created + verified):**
+`pyproject.toml`, `README.md`,
+`src/sm_common/{__init__,config,logging,redaction,context,ids,clock,errors}.py`,
+`src/sm_common/security/{__init__,passwords,jwt_internal}.py`,
+`src/sm_common/observability/{__init__,health}.py`,
+`src/sm_common/fastapi/{__init__,middleware,exception_handlers,hardening}.py`,
+`tests/{conftest,test_config,test_ids,test_redaction,test_passwords,test_jwt_internal,test_fastapi,test_health,test_errors}.py`.
+
+**Modified:** `pyproject.toml` (pytest `--import-mode=importlib` + `asyncio_mode`;
+`**/errors.py` N818 ignore).
+
 ## APIs
 
 Defined; Phase-1 request/response models implemented in `sm_contracts.api`
@@ -139,11 +154,14 @@ Topic catalog + semantics in `event-model.md`. Exactly-once not claimed.
 ## Dependencies
 
 - `packages/contracts-py`: `pydantic[email]>=2.9,<3`; dev `pytest>=8`.
-  Verified installed in `.venv`: pydantic **2.13.5**.
-- Nothing else declared. Phase 1 adds: FastAPI, `pydantic-settings`,
-  SQLAlchemy 2 (async) + asyncpg, Alembic, `argon2-cffi`, `authlib` (OIDC) +
-  `pyjwt` (internal JWT), `redis`, `structlog`, OpenTelemetry SDK,
-  `pytest-asyncio`, `httpx`. (Names indicative; pinned in Phase 1.)
+- `packages/common-py`: `sm-contracts`, `pydantic>=2.9,<3`,
+  `pydantic-settings>=2.5,<3`, `structlog>=24.4`, `argon2-cffi>=23.1`,
+  `pyjwt>=2.9,<3`, `fastapi>=0.115,<1`; dev `pytest`, `pytest-asyncio>=0.24`,
+  `httpx>=0.27`.
+- Verified installed in `.venv` (Python 3.11.5): pydantic **2.13.5**,
+  pydantic-settings, structlog, argon2-cffi, pyjwt, fastapi, httpx.
+- Phase 1 Unit 2+ adds: SQLAlchemy 2 (async) + asyncpg, Alembic, `redis`,
+  `authlib` (OIDC), OpenTelemetry SDK. (Pinned when introduced.)
 
 ## Environment variables
 
@@ -172,6 +190,29 @@ generation was **not run** (`json-schema-to-typescript` not installed — needs
 `npm install` under `packages/contracts-ts`); JSON Schema generation is
 verified. No runtime service code exists.
 
+## Verification performed (Phase 1, Unit 1 — `common-py`)
+
+| Check | Command | Result |
+|---|---|---|
+| Install | `pip install -e "packages/common-py[dev]"` (in `.venv`) | OK |
+| Unit tests | `python -m pytest packages -q` | **64 passed** (19 contracts + 45 common) |
+| Type check | `python -m mypy --strict --python-version 3.11 packages/common-py/src/sm_common` | **Success: no issues found in 17 source files** |
+| Lint | `python -m ruff check packages/common-py` | **All checks passed** |
+
+Covered by tests: config defaults + `service_name` required + pool bounds +
+**production guards** (CORS `*`, missing secrets, `response_mode=auto` outside
+production, `auto` needs policy) + `frozen`; `uuid7` version/variant/ordering;
+redaction (sensitive keys, bearer/DSN/JWT patterns, recursion); Argon2id
+hash/verify/dummy/empty/malformed/salt; internal JWT roundtrip + wrong
+audience/key + rotation + expiry; `SmError` → canonical response + message
+redaction; FastAPI request-id echo/preserve, security headers, canonical SmError
+body, masked 500, validation-error shape, 413 body-size limit; liveness +
+readiness (ok / required-fail / optional-fail / timeout / empty).
+
+**Not verified (Phase 1, Unit 1):** nothing requiring Docker (no Postgres/Redis
+client yet — Unit 2); no live OIDC; no OTel exporter. `structlog`/`starlette`
+`httpx`-testclient deprecation warnings present, non-blocking.
+
 ## External infrastructure requirements (accumulated)
 
 | Need | For | Status |
@@ -199,18 +240,39 @@ verified. No runtime service code exists.
 
 ## Exact next action
 
-**PHASE 1 — Foundation + Configuration + Database + Authentication.** Do not
-start until the user says so.
+**PHASE 1, Unit 2 — infrastructure clients** (`packages/common-py`):
 
-1. `packages/common-py`: typed config loader (`pydantic-settings`) + startup
-   validation (fail-fast; production guards: reject CORS `*`, reject
-   `SM_RESPONSE_MODE=auto` without policy); structured logging (`structlog`,
-   JSON, secret-redaction filter); request/correlation-ID middleware; OTel
-   bootstrap; canonical error → exception handlers (using `sm_contracts.errors`);
-   Postgres async engine/session/transaction helpers + bounded pool + statement
-   timeout; Redis client; Argon2id password helper (hash/verify, dummy-verify for
-   constant-time); internal-JWT mint/verify (audience-scoped, short TTL); OIDC
-   client (authlib); append-only audit-log writer with per-tenant hash chain.
+- `sm_common/db/`: async SQLAlchemy 2 engine factory (bounded pool from
+  `AppSettings`, `statement_timeout` applied per connection), `async_sessionmaker`,
+  `get_session` dependency, `transaction()` async context manager (commit/rollback),
+  a Postgres `DependencyCheck` (`SELECT 1`).
+- `sm_common/cache/redis.py`: async redis client factory from `AppSettings`
+  (URL + optional password + key prefix via `RedisView.key`), a Redis
+  `DependencyCheck` (`PING`).
+- `sm_common/security/oidc.py`: OIDC client (authlib) — discovery-document fetch
+  + cache, auth-code URL builder with PKCE + state, code→token exchange, ID-token
+  verification (issuer, audience, `exp`, `nonce`), userinfo. No secret logged.
+- `sm_common/audit/writer.py`: append-only audit writer — takes an
+  `AsyncSession`, computes the per-tenant hash chain
+  (`hash = sha256(prev_hash ‖ canonical(row))`), writes in the caller's
+  transaction for response-critical actions.
+- `sm_common/observability/tracing.py` + `metrics.py`: OpenTelemetry OTLP
+  bootstrap (no-op when `SM_OTEL_EXPORTER_OTLP_ENDPOINT` unset); a Prometheus
+  registry + common metric helpers.
+- Tests: pool/timeout config parsing, `RedisView.key`, OIDC URL builder + state /
+  PKCE / nonce checks, audit hash-chain determinism + tamper detection, tracing
+  no-op path. DB/Redis *integration* tests are marked `integration` and are
+  **skipped without Docker** (recorded as an external requirement).
+
+Then **Unit 3** = `migrations/postgres` (Alembic init + `0001` tables + `0002`
+seed). **Unit 4** = `services/api-gateway`. **Unit 5** = `deploy/docker`.
+**Unit 6** = end-to-end Phase-1 tests + `Makefile`/CI + doc promotion.
+
+Original Phase-1 step list (for reference):
+
+1. ~~`packages/common-py` config/logging/errors/IDs/security/health/FastAPI~~ —
+   **DONE (Unit 1).** Remaining common-py pieces (DB, Redis, OIDC, audit, OTel)
+   are Unit 2 above.
 2. `migrations/postgres`: init Alembic; `0001` = Phase-1 tables
    (`tenant`, `user`, `role`, `permission`, `user_role`, `role_permission`,
    `sensor`, `audit_log`) — full PK/FK/unique/check/index + `updated_at` trigger;
@@ -250,3 +312,4 @@ start until the user says so.
 |---|---|---|
 | 2026-09-08 | 0 | Repo created at `C:\Users\gmalh\sentinelmesh`; skeleton + doc set; ADR-001…024; all 38 requirements traced. Commit `0b91ed2`. Status: NOT LOCKED. |
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
+| 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
