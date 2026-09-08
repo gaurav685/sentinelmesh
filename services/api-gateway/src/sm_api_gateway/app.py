@@ -40,7 +40,7 @@ from sm_common.observability import build_metrics, configure_tracing, shutdown_t
 from sm_common.security import OidcClient
 
 from .deps import Services, SqlRepositoryFactory
-from .routes import admin, auth, health
+from .routes import admin, auth, health, metrics
 from .security.session import RedisOidcStateStore, RedisSessionStore
 from .version import SERVICE_NAME, SERVICE_VERSION
 
@@ -128,6 +128,7 @@ def create_app(
     install_exception_handlers(app)
 
     app.include_router(health.router)
+    app.include_router(metrics.router)
     app.include_router(auth.router)
     app.include_router(auth.me_router)
     app.include_router(admin.router)

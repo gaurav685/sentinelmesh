@@ -1,0 +1,55 @@
+{
+  "realm": "sentinelmesh",
+  "enabled": true,
+  "displayName": "SentinelMesh (local development)",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "clients": [
+    {
+      "clientId": "sentinelmesh-api",
+      "name": "SentinelMesh API Gateway",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "local-development-client-secret",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8000/*"
+      },
+      "redirectUris": [
+        "http://localhost:8000/api/v1/auth/oidc/callback",
+        "http://app:8000/api/v1/auth/oidc/callback"
+      ],
+      "webOrigins": ["http://localhost:3000"],
+      "defaultClientScopes": ["openid", "profile", "email"]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@acme-corp.com",
+      "email": "admin@acme-corp.com",
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "Admin",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "local-development-password",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}
