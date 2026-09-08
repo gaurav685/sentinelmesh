@@ -42,6 +42,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: |
+            packages/*/pyproject.toml
+            services/*/pyproject.toml
 
       - name: Install packages
         run: |
@@ -71,6 +74,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: |
+            packages/*/pyproject.toml
+            services/*/pyproject.toml
 
       - name: Install packages
         run: |
@@ -99,8 +105,11 @@ jobs:
           POSTGRES_PASSWORD: ci-postgres-password
         ports:
           - 5432:5432
+        # Bare `pg_isready` (the address comes from the container's own env).
+        # A quoted health-cmd with spaces is fragile through GitHub's options
+        # string; pg_isready returns 0 as soon as the server answers.
         options: >-
-          --health-cmd "pg_isready -U sentinelmesh -d sentinelmesh"
+          --health-cmd pg_isready
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
@@ -114,6 +123,7 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 12
+          --health-start-period 5s
 
     env:
       # The job runs on the runner host, so localhost is correct here — unlike
@@ -133,6 +143,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+          cache-dependency-path: |
+            packages/*/pyproject.toml
+            services/*/pyproject.toml
 
       - name: Install packages
         run: |
