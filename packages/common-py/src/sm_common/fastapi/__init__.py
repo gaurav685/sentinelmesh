@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from .clientinfo import client_ip, resolve_client_ip
 from .exception_handlers import install_exception_handlers
 from .hardening import (
     BodySizeLimitMiddleware,
@@ -15,5 +16,7 @@ __all__ = [
     "RequestContextMiddleware",
     "SecurityHeadersMiddleware",
     "build_cors_kwargs",
+    "client_ip",
     "install_exception_handlers",
+    "resolve_client_ip",
 ]

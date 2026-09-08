@@ -24,6 +24,7 @@ from sm_common.errors import (
     Unauthenticated,
     ValidationFailed,
 )
+from sm_common.fastapi import client_ip
 from sm_common.security import make_pkce, new_state
 from sm_contracts import (
     LoginRequest,
@@ -48,8 +49,8 @@ me_router = APIRouter(prefix=API_PREFIX, tags=["auth"])
 OIDC_AUDIT_ACTION = "auth.login.oidc"
 
 
-def _client_ip(request: Request) -> str | None:
-    return request.client.host if request.client else None
+def _client_ip(request: Request, services: Services) -> str | None:
+    return client_ip(request, services.settings.trusted_proxy_hops)
 
 
 @router.post("/login", response_model=LoginResponse)
@@ -76,7 +77,7 @@ async def login(
             lockout_seconds=settings.login_lockout_seconds,
             request_id=get_request_id(),
             correlation_id=get_correlation_id(),
-            ip=_client_ip(request),
+            ip=_client_ip(request, services),
         )
 
     if not outcome.ok or outcome.user is None:
@@ -183,7 +184,7 @@ async def oidc_callback(
                 resource_type="user",
                 resource_id=identity.email or identity.subject,
                 result="failure",
-                ip=_client_ip(request),
+                ip=_client_ip(request, services),
                 meta={"reason": "no_provisioned_user"},
             )
             services.metrics.authn_failures.labels(
@@ -200,7 +201,7 @@ async def oidc_callback(
             resource_type="user",
             resource_id=str(user.id),
             result="success",
-            ip=_client_ip(request),
+            ip=_client_ip(request, services),
             meta={"reason": "ok"},
         )
 

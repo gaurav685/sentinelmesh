@@ -135,6 +135,11 @@ class AppSettings(BaseSettings):
     http_request_timeout_s: int = Field(default=30, ge=1)
     cors_allowed_origins: str = "http://localhost:3000"
     rate_limit_per_minute: int = Field(default=120, ge=1)
+    # Number of trusted reverse proxies between the client and this service.
+    # 0 (default) means use the direct peer address and ignore X-Forwarded-For
+    # entirely, so a client cannot spoof its source IP. Set it to the real hop
+    # count only when running behind a known ingress.
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=10)
 
     # ---- autonomous response safety ------------------------------
     response_mode: ResponseMode = ResponseMode.suggest_only

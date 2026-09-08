@@ -108,8 +108,11 @@ class AuditWriter:
 
     async def _lock_tenant(self, session: AsyncSession, tenant_id: UUID | None) -> None:
         key = str(tenant_id) if tenant_id else PLATFORM_LOCK_KEY
+        # `hashtextextended` returns bigint (64-bit), so two tenants sharing a
+        # lock slot by hash collision is 2^-64, not 2^-32 as with `hashtext`.
+        # A collision would only over-serialize; it can never corrupt the chain.
         await session.execute(
-            text("SELECT pg_advisory_xact_lock(hashtext(:key))"), {"key": key}
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": key}
         )
 
     async def _last_hash(self, session: AsyncSession, tenant_id: UUID | None) -> str:
