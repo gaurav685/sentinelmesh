@@ -24,6 +24,9 @@ known-first-party = ["sm_contracts", "sm_common"]
 "**/tests/**" = ["S101", "S105", "S106"]
 # scripts are CLI tools: printing to stdout and invoking pinned local tools is intended.
 "scripts/**" = ["T201", "S603", "S607"]
+# Domain exception names read better without an "Error" suffix at call sites
+# (`raise NotFound()`, `raise TenantForbidden()`); the module is clearly errors.
+"**/errors.py" = ["N818"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -36,7 +39,8 @@ plugins = ["pydantic.mypy"]
 mypy_path = "packages/contracts-py/src:packages/common-py/src"
 
 [tool.pytest.ini_options]
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
+asyncio_mode = "auto"
 testpaths = ["tests", "packages", "services"]
 markers = [
     "unit: fast, no external infrastructure",
