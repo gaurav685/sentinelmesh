@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "DepStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "No secrets, no internals.",
+          "title": "Detail"
+        },
+        "healthy": {
+          "title": "Healthy",
+          "type": "boolean"
+        },
+        "latency_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latency Ms"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "healthy"
+      ],
+      "title": "DepStatus",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`GET /readyz` \u2014 readiness. `ready` is false if any *required* dependency\nis unreachable; the service should then be pulled from rotation.",
+  "properties": {
+    "dependencies": {
+      "items": {
+        "$ref": "#/definitions/DepStatus"
+      },
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "ready": {
+      "title": "Ready",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "ready"
+  ],
+  "title": "ReadyResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

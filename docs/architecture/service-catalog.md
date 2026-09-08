@@ -237,7 +237,7 @@ Dependency rule: no cycles. The dependency graph is a DAG rooted at
 ## api-gateway  (reqs 24, 18, 25 — the BFF)
 
 - **Purpose:** the frontend's only backend. OIDC auth-code flow; session cookies; **deny-by-default RBAC enforcement**; request aggregation/projection; rate limiting; audit; pagination/filter/sort validation; API versioning; OpenAPI docs.
-- **Owns (data):** Postgres read models/projections it maintains from Kafka (`detection_read`, `alert_read`, graph summaries), plus `sensor` registry, `user`, `role`, `permission`, `user_role`, `role_permission`, `tenant`, `audit_log`, `identity_link` **(Phase 1 establishes the auth/tenant/RBAC subset here)**.
+- **Owns (data):** Postgres read models/projections it maintains from Kafka (`detection_read`, `alert_read`, graph summaries), plus `sensor` registry, `user`, `role`, `permission`, `user_role`, `role_permission`, `tenant`, `audit_log` **(Phase 1 establishes the auth/tenant/RBAC subset here)**. (`identity_link` is owned by `normalization-engine`, not here.)
 - **Consumes:** every internal service (sync); Kafka (projection consumers); OIDC IdP.
 - **Produces:** typed HTTP responses; audit records; Kafka `user.events`.
 - **DB:** Postgres (read+write for its owned tables), Redis (sessions, rate limits).

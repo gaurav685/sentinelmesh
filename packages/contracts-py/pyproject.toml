@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sm-contracts"
+version = "0.1.0"
+description = "SentinelMesh canonical contracts: event envelope, error model, entity and API schemas."
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic[email]>=2.9,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sm_contracts"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

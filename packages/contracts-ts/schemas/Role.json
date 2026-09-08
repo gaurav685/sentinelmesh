@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A named bundle of permissions.\n\n`tenant_id is None` marks a system role (same definition for every tenant).\nA tenant-scoped role has a concrete `tenant_id`.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "description": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "is_system": {
+      "title": "Is System",
+      "type": "boolean"
+    },
+    "name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "tenant_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tenant Id"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "id",
+    "name",
+    "description",
+    "is_system"
+  ],
+  "title": "Role",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

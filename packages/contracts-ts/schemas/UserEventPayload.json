@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "UserEventAction": {
+      "enum": [
+        "created",
+        "updated",
+        "disabled",
+        "role_granted",
+        "role_revoked",
+        "login_succeeded",
+        "login_failed",
+        "logged_out"
+      ],
+      "title": "UserEventAction",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "$ref": "#/definitions/UserEventAction"
+    },
+    "actor_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Who performed the action; null for self-service/system.",
+      "title": "Actor Id"
+    },
+    "role_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set for role_granted / role_revoked.",
+      "title": "Role Id"
+    },
+    "user_id": {
+      "format": "uuid",
+      "title": "User Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "user_id"
+  ],
+  "title": "UserEventPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

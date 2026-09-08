@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "ErrorBody": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/definitions/ErrorCode"
+        },
+        "correlation_id": {
+          "format": "uuid",
+          "title": "Correlation Id",
+          "type": "string"
+        },
+        "details": {
+          "items": {
+            "$ref": "#/definitions/ErrorDetail"
+          },
+          "title": "Details",
+          "type": "array"
+        },
+        "message": {
+          "description": "Human-readable, safe to display, contains no internals.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "request_id": {
+          "format": "uuid",
+          "title": "Request Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "request_id",
+        "correlation_id"
+      ],
+      "title": "ErrorBody",
+      "type": "object"
+    },
+    "ErrorCode": {
+      "enum": [
+        "unauthenticated",
+        "invalid_credentials",
+        "permission_denied",
+        "tenant_forbidden",
+        "not_found",
+        "validation_error",
+        "conflict",
+        "rate_limited",
+        "dependency_unavailable",
+        "degraded_result",
+        "payload_too_large",
+        "unsupported_media_type",
+        "internal_error"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "description": "Dotted path, e.g. 'body.email'.",
+          "title": "Field",
+          "type": "string"
+        },
+        "issue": {
+          "description": "Stable machine-readable issue slug.",
+          "title": "Issue",
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "issue"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "$ref": "#/definitions/ErrorBody"
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "ErrorResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

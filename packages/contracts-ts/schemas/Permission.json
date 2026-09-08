@@ -1,0 +1,66 @@
+{
+  "$defs": {
+    "PermissionCode": {
+      "description": "Deny-by-default: absence of a code means the action is forbidden.\n\nPhase 1 seeds the auth/admin subset. Later phases add their own codes; this\nenum grows additively.",
+      "enum": [
+        "users:read",
+        "users:create",
+        "users:update",
+        "roles:read",
+        "roles:grant",
+        "sensors:read",
+        "sensors:manage",
+        "audit:read",
+        "ops:read",
+        "detections:read",
+        "hunt:query",
+        "reports:generate",
+        "response:execute",
+        "response:approve"
+      ],
+      "title": "PermissionCode",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "An atomic capability. Seeded and immutable; deny-by-default.",
+  "properties": {
+    "action": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Action",
+      "type": "string"
+    },
+    "code": {
+      "$ref": "#/definitions/PermissionCode"
+    },
+    "description": {
+      "maxLength": 300,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "resource_type": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Resource Type",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "code",
+    "description",
+    "resource_type",
+    "action"
+  ],
+  "title": "Permission",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

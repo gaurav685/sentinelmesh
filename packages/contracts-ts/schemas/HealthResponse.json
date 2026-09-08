@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`GET /healthz` \u2014 liveness. The process is up and can serve.",
+  "properties": {
+    "service": {
+      "title": "Service",
+      "type": "string"
+    },
+    "status": {
+      "const": "ok",
+      "default": "ok",
+      "title": "Status",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "service",
+    "version"
+  ],
+  "title": "HealthResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

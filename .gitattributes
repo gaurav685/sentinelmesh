@@ -1,0 +1,10 @@
+# Normalize line endings: store LF in the repo regardless of platform.
+* text=auto eol=lf
+
+# Generated JSON Schema — keep diffs clean, mark as generated in reviews.
+packages/contracts-ts/schemas/*.json linguist-generated=true
+
+# Binary / non-diffable
+*.png binary
+*.pdf binary
+*.mmdb binary

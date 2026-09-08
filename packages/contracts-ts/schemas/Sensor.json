@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "SensorStatus": {
+      "enum": [
+        "active",
+        "disabled",
+        "pending"
+      ],
+      "title": "SensorStatus",
+      "type": "string"
+    },
+    "SensorType": {
+      "enum": [
+        "network",
+        "auth",
+        "dns",
+        "process",
+        "file",
+        "mixed"
+      ],
+      "title": "SensorType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A machine identity that emits telemetry for exactly one tenant.\n\nThe sensor's `tenant_id` is authoritative for every event it produces; the\ningestion path overwrites any tenant value in an inbound payload with this\n(Engineering Constitution \u00a76).",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "last_seen_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Seen At"
+    },
+    "name": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/definitions/SensorStatus"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "type": {
+      "$ref": "#/definitions/SensorType"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "name",
+    "type",
+    "status"
+  ],
+  "title": "Sensor",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A role assignment. Roles are only ever added via this record \u2014 there is no\nrequest field anywhere that can grant a role or permission\n(Engineering Constitution \u00a75, \u00a76: role-escalation prevention).",
+  "properties": {
+    "granted_at": {
+      "format": "date-time",
+      "title": "Granted At",
+      "type": "string"
+    },
+    "granted_by": {
+      "format": "uuid",
+      "title": "Granted By",
+      "type": "string"
+    },
+    "role_id": {
+      "format": "uuid",
+      "title": "Role Id",
+      "type": "string"
+    },
+    "user_id": {
+      "format": "uuid",
+      "title": "User Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "role_id",
+    "granted_by",
+    "granted_at"
+  ],
+  "title": "UserRoleGrant",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

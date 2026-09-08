@@ -1,0 +1,205 @@
+{
+  "$defs": {
+    "PermissionCode": {
+      "description": "Deny-by-default: absence of a code means the action is forbidden.\n\nPhase 1 seeds the auth/admin subset. Later phases add their own codes; this\nenum grows additively.",
+      "enum": [
+        "users:read",
+        "users:create",
+        "users:update",
+        "roles:read",
+        "roles:grant",
+        "sensors:read",
+        "sensors:manage",
+        "audit:read",
+        "ops:read",
+        "detections:read",
+        "hunt:query",
+        "reports:generate",
+        "response:execute",
+        "response:approve"
+      ],
+      "title": "PermissionCode",
+      "type": "string"
+    },
+    "Tenant": {
+      "additionalProperties": false,
+      "description": "An isolated customer organization \u2014 the root of all data scoping.\n\n`Tenant` itself is not tenant-scoped.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "settings": {
+          "additionalProperties": true,
+          "title": "Settings",
+          "type": "object"
+        },
+        "slug": {
+          "description": "URL-safe stable identifier, unique across the platform (3-40 chars, no leading/trailing hyphen).",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$",
+          "title": "Slug",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/TenantStatus"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at",
+        "updated_at",
+        "id",
+        "slug",
+        "name",
+        "status"
+      ],
+      "title": "Tenant",
+      "type": "object"
+    },
+    "TenantStatus": {
+      "enum": [
+        "active",
+        "suspended"
+      ],
+      "title": "TenantStatus",
+      "type": "string"
+    },
+    "User": {
+      "additionalProperties": false,
+      "description": "Safe user DTO.\n\nSecurity state (`password_hash`, `failed_login_count`, `locked_until`) lives\nonly in the api-gateway database model and is never serialized in a contract.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "display_name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Display Name",
+          "type": "string"
+        },
+        "email": {
+          "format": "email",
+          "title": "Email",
+          "type": "string"
+        },
+        "external_subject": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "OIDC `sub` for federated users; null for local-only users.",
+          "title": "External Subject"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_login_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Login At"
+        },
+        "status": {
+          "$ref": "#/definitions/UserStatus"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tenant_id",
+        "created_at",
+        "updated_at",
+        "id",
+        "email",
+        "display_name",
+        "status"
+      ],
+      "title": "User",
+      "type": "object"
+    },
+    "UserStatus": {
+      "enum": [
+        "active",
+        "disabled",
+        "invited"
+      ],
+      "title": "UserStatus",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "permissions": {
+      "items": {
+        "$ref": "#/definitions/PermissionCode"
+      },
+      "title": "Permissions",
+      "type": "array"
+    },
+    "roles": {
+      "description": "Role names granted to the user.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Roles",
+      "type": "array"
+    },
+    "tenant": {
+      "$ref": "#/definitions/Tenant"
+    },
+    "user": {
+      "$ref": "#/definitions/User"
+    }
+  },
+  "required": [
+    "user",
+    "tenant",
+    "roles",
+    "permissions"
+  ],
+  "title": "MeResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
