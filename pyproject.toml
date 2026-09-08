@@ -1,0 +1,44 @@
+# Root workspace configuration for all Python packages/services in SentinelMesh.
+# Individual services/packages carry their own pyproject.toml with dependencies;
+# this root file centralizes tooling (lint, type-check, test) configuration only.
+#
+# Phase 0: no runtime dependencies are declared yet. Phase 1 introduces the first
+# service dependency sets and a lockfile.
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["packages", "services"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "S", "ASYNC", "DTZ", "T20", "RUF"]
+# S = flake8-bandit (security), ASYNC = async pitfalls, DTZ = naive datetime,
+# T20 = no stray print. These enforce Engineering Constitution sections 5/7/11.
+ignore = ["S101"]  # assert allowed in tests only; see per-path override below
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+"**/tests/**" = ["S101", "S105", "S106"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+disallow_any_explicit = true
+plugins = ["pydantic.mypy"]
+mypy_path = "packages/contracts-py/src:packages/common-py/src"
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests", "packages", "services"]
+markers = [
+    "unit: fast, no external infrastructure",
+    "integration: requires docker-compose infrastructure",
+    "contract: cross-service contract verification",
+    "security: authz / tenant-isolation / injection tests",
+    "e2e: full stack",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["packages", "services"]

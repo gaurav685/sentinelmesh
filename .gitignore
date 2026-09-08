@@ -1,0 +1,69 @@
+# --- Secrets / environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*_rsa
+secrets/
+.secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+
+# --- Node / frontend ---
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+coverage/
+.pnpm-store/
+
+# --- ML artifacts / data ---
+mlruns/
+mlartifacts/
+*.pt
+*.pth
+*.onnx
+*.pkl
+*.joblib
+ml/datasets/**/data/
+ml/notebooks/**/*.ipynb_checkpoints/
+# Benchmark datasets live outside the repo (C:\Sentinel_Mesh). Never commit them.
+datasets/
+*.pcap
+*.binetflow
+*.jsonl
+*.arff
+
+# --- Infra / local state ---
+.docker-data/
+pgdata/
+neo4j-data/
+minio-data/
+kafka-data/
+*.log
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
