@@ -7,32 +7,82 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 1 — Foundation + Configuration + Database + Authentication. IN PROGRESS.**
-(Phase 0 COMPLETE; architecture LOCKED 2026-09-08.)
+**Phase 1 — Foundation. EXITING: IMPLEMENTED / LOCALLY VERIFIED; INTEGRATION NOT
+VERIFIED.** Phase 0 COMPLETE; architecture LOCKED 2026-09-08.
 
-## Current implementation unit
+Phase 1 is **not** being declared COMPLETE. Its completion criteria include the
+integration tests passing, and they have never run — no Docker on the
+development machine, no GitHub remote. Everything else the phase called for is
+implemented and covered by unit / contract tests. See the exit report below.
 
-Phase 1, Unit 6 — **PARTIAL, and blocked.**
+## Phase 1 exit report
 
-Done: the CI workflow (`.github/workflows/ci.yml`), the
-`SM_REQUIRE_INTEGRATION` guard that stops a skipped integration test from
-reading as a pass, 14 offline CI-config checks, and a rewritten `README.md`.
+### Delivered (Units 1–6 + review)
 
-**Blocked on Docker, which is still not installed.** Unit 6 steps 1-3 — run the
-integration suite, fix what it exposes, drive an end-to-end OIDC sign-in — cannot
-start until it is. Phase 1 is **not** complete and must not be called complete.
+| Area | State |
+|---|---|
+| `packages/contracts-py` | envelope, error contract, Phase-1 entities + APIs, enums; JSON-Schema codegen. STABLE. |
+| `packages/common-py` | config + production guards, structured logging + redaction, request/correlation IDs, `SmError`, Argon2id, internal JWT, OIDC client, async Postgres + Redis clients, health/metrics/tracing, audit hash chain + `AuditWriter`, FastAPI middleware (context, security headers, body limit, **rate limit**, CORS builder), `client_ip` proxy resolution. |
+| `migrations/postgres` | 8 control-plane tables + RBAC seed; `updated_at` and append-only audit triggers; reversible. |
+| `services/api-gateway` | local + OIDC login, Redis sessions + CSRF, deny-by-default RBAC, tenant-scoped repositories, audited admin routes, `/healthz` `/readyz` `/health/deps` `/api/v1/meta` `/metrics`, full hardening stack incl. per-caller rate limiting. |
+| `deploy/docker` | compose stack + non-root `Dockerfile.app` + Keycloak dev realm + Prometheus config. **Authored, never run.** |
+| `.github/workflows/ci.yml` | static / unit / integration (service containers) / image jobs; `SM_REQUIRE_INTEGRATION=1` makes a skipped integration test a failure. **Never run.** |
 
-Phase 1 units: 1 ✅ primitives · 2 ✅ infra clients · 3 ✅ models+migrations ·
-4 ✅ api-gateway · 5 ⚠️ deploy/docker authored but unverified ·
-6 ⚠️ CI authored; integration run, e2e and doc promotion still blocked.
+### Pre-output engineering review (Constitution §23)
 
-> **The single outstanding blocker for Phase 1 is Docker.** Two ways to clear it:
-> install Docker Desktop locally and run `make up` then `make test-integration`,
-> **or** push this repository to GitHub and let the `integration` and `image` CI
-> jobs run — those runners have Docker. Either produces the real verification;
-> until one of them happens, 49 tests remain unexecuted.
+Seven defects found in never-run code, all fixed with regression tests:
 
-## Architecture lock status
+| # | Defect | Commit |
+|---|---|---|
+| 1 | Login lockout double-incremented `failed_login_count` (proven red/green) | `5f29957` |
+| 2 | An authorization denial became a 500 when the audit write failed | `5f29957` |
+| 3 | Client IP taken from a spoofable source (`request.client.host`) | `6e5becc` |
+| 4 | 413 body carried a zeroed `request_id` | `6e5becc` |
+| 5 | `BodySizeLimitMiddleware` could emit a duplicate `http.response.start` | `6e5becc` |
+| 6 | Audit advisory lock on `hashtext` (int4) — widened to int8 | `6e5becc` |
+| 7 | Rate limiting specified but never wired | `901d9c1` |
+
+Six-role sign-off (each role reviewed the Phase-1 surface):
+
+- **Principal Engineer** — service boundaries hold; `api-gateway` owns only its
+  control-plane tables and the read projections; no service imports another's
+  internals; the dependency graph is acyclic. No concern.
+- **Security Engineer** — deny-by-default confirmed; identity/tenant/role never
+  taken from the request; cross-tenant probes return `not_found`; login has no
+  enumeration or timing oracle; parameterized SQL only; CSRF double-submit;
+  rate limiting in front of auth. Open items: no account-recovery flow (out of
+  Phase-1 scope), and the audit chain's tamper-*detection* has no automated
+  *verifier job* yet (recorded as a limitation).
+- **SRE** — `readyz` degrades correctly; the limiter and the audit write both
+  fail open with a metric; graceful shutdown drains clients. Concern: the
+  `require_permission` audit opens a transaction per 403 — acceptable now that
+  the limiter caps a probing flood, revisit if authz-denial volume is high.
+- **Database Engineer** — every constraint has an integration test (skipped);
+  migrations are reversible; the advisory lock serializes audit appends per
+  tenant. The `upgrade/downgrade/upgrade` cycle is asserted only in CI, which
+  has not run.
+- **ML Engineer** — N/A for Phase 1.
+- **Frontend Engineer** — the API returns only `sm_contracts` models; the error
+  contract, CSRF header and cursor pagination are stable; `contracts-ts` schema
+  is generated. No frontend code yet (Phase 4).
+
+### Not verified (the whole list)
+
+- The 49 integration tests: migrations against a real database and the
+  reversibility cycle; seed content; `updated_at` and append-only triggers;
+  the per-tenant advisory lock under concurrency; every schema constraint; the
+  SQL repositories' tenant predicate, soft-delete and pagination; the Redis
+  session TTL / absolute deadline; the rate-limit window TTL and rollover.
+- The CI workflow: no job has run.
+- `docker compose config`, any image build, any container start.
+- A real OIDC round-trip against Keycloak.
+- Any metric scraped from a running Prometheus; any span at a collector.
+
+**To clear it:** install Docker Desktop and run `make up` then
+`make test-integration`, **or** push to GitHub (`bash scripts/push_and_watch.sh`
+after `gh auth login`) and let the `integration` and `image` jobs run.
+
+## Architecture lock status## Architecture lock status
 
 **LOCKED** (2026-09-08).
 
@@ -481,30 +531,49 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
+**PHASE 2, Unit 1 — the canonical telemetry contracts and the ingestion gateway.**
+
+Phase 1's integration layer is still unverified (49 tests, image, CI — all
+blocked on Docker/remote). Phase 2 proceeds on it because: the unit/contract
+layer is thorough (189 tests), the §23 review found and fixed 7 defects, and
+Phase 2 mostly adds new services that consume the *event contract*, not the
+api-gateway internals. **Standing requirement:** the Phase 1 integration run
+must happen before Phase 2 is itself declared complete — whichever comes first,
+`make test-integration` locally or the CI `integration` job.
+
+Unit 1:
+
+1. `packages/contracts-py`: implement the five telemetry payload models
+   (`NetworkFlowPayload`, `AuthEventPayload`, `DnsQueryPayload`,
+   `ProcessExecPayload`, `FileAccessPayload`) and `CanonicalEventPayload`,
+   register them in `EVENT_PAYLOAD_REGISTRY`, add them to `SCHEMA_MODELS`, and
+   regenerate the JSON Schema. Field schemas per `docs/architecture/data-model.md`.
+2. `services/ingestion-gateway`: FastAPI service. `POST /api/v1/ingest/{source_type}`
+   with per-sensor credential auth (Argon2id against the `sensor` table),
+   payload-schema validation, `SM_HTTP_MAX_BODY_BYTES`, a **fail-closed** rate
+   limiter (unlike the gateway's fail-open one), `event_id` idempotency, and the
+   canonical envelope constructed server-side with `tenant_id` taken from the
+   sensor identity — never from the body. Malformed events produce an explicit
+   DLQ decision (recorded; the Kafka producer itself is Phase 3).
+3. `packages/common-py`: a `SensorAuth` helper (verify a presented credential
+   against `sensor.credential_hash`, update `last_seen_at`), shared by the
+   ingestion gateway.
+4. Tests: valid/invalid/oversized/duplicate/unknown-version payloads per source
+   type; wrong-tenant payload rejected; unknown or disabled sensor rejected;
+   rate limiter fails closed; envelope fields correct. Integration test for the
+   sensor-auth SQL, marked `integration`.
+5. Docs: update `IMPLEMENTATION_STATE.md`, promote the telemetry payload
+   contracts DRAFT -> STABLE, update `REQUIREMENTS_TRACEABILITY.md` R1/R2.
+
+### Superseded plan for Phase 1 Unit 6 (kept for the record)
+
 **PHASE 1, Unit 6 (remaining) — close out Phase 1.** Blocked until Docker is
-available, by either route:
+available, by either route (`make up` + `make test-integration`, or push to
+GitHub). Then: record the real output, fix first-run failures, add the
+end-to-end OIDC sign-in, and promote traceability statuses to
+`INTEGRATION VERIFIED` only for what the run proves.
 
-- **Local:** install Docker Desktop, then `make up` followed by
-  `make test-integration`.
-- **CI:** push this repository to GitHub; the `integration` and `image` jobs run
-  on runners that already have Docker.
-
-Then, in order:
-
-1. Record the real output here. Move each item out of the Unit-5 and Unit-6
-   "not verified" lists **only** when its test has actually passed.
-2. Fix whatever the run exposes. The integration suite has never executed, so
-   treat first-run failures as expected work.
-3. End-to-end: bring up the `oidc` profile and drive a real sign-in through
-   Keycloak (`/api/v1/auth/oidc/login` -> callback -> `/me`), plus a local login
-   and one audited admin action, against the running stack.
-4. Documentation promotion: update `REQUIREMENTS_TRACEABILITY.md` statuses to
-   `INTEGRATION VERIFIED` only for what the run proved; record the residual
-   external requirements.
-5. Only then declare Phase 1 complete and set the next action to
-   **Phase 2 — Telemetry Ingestion + Normalization**.
-
-### Superseded plan for Unit 5 (kept for the record — AUTHORED, NOT EXECUTED)
+### Superseded plan for Unit 5### Superseded plan for Unit 5 (kept for the record — AUTHORED, NOT EXECUTED)
 
 - `deploy/docker/docker-compose.yml`: `postgres:16`, `redis:7`,
   `quay.io/keycloak/keycloak` (dev realm `sentinelmesh`), `prom/prometheus`,
@@ -652,6 +721,7 @@ Original Phase-1 step list (for reference):
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
 | 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
 | 2026-09-08 | 1 (Unit 2) | `packages/common-py` infra clients: `db` (async SQLAlchemy 2 engine, `Database` session/`transaction()`/`ping`), `cache.redis` (`Cache` + key prefix + `ping`), `security.oidc` (`OidcClient` — discovery cache, PKCE `S256`, auth URL, code exchange, ID-token verify via `PyJWKClient`+`anyio.to_thread`), `observability.metrics` (`Metrics` + per-process registry), `observability.tracing` (OTLP bootstrap, no-op without endpoint), `audit.hashing` (per-tenant hash chain primitives). Verified: **pytest 81 passed** (19+62), mypy --strict clean (27 files), ruff clean. Deps added: sqlalchemy[asyncio], asyncpg, redis, prometheus-client, opentelemetry-sdk + otlp-http, httpx, anyio; dev respx. |
+| 2026-09-09 | 1 (Unit 6 + review) | Fixed-window `RateLimitMiddleware` on the api-gateway (keyed on the resolved client IP, fails open with `sm_rate_limiter_errors_total`, health/metrics exempt, 429 in the canonical shape). Pre-output §23 review: 7 defects found and fixed in never-run code (login-lockout double count — red/green; 403->500 on audit failure; spoofable client IP; zeroed 413 request_id; possible duplicate response-start; int4 audit lock; rate limiting unwired). Six-role sign-off recorded. CI workflow schema hardened; `scripts/push_and_watch.sh` added. Verified: **pytest 189 passed / 49 skipped**, mypy --strict clean (69 files), ruff clean. **Phase 1 exits IMPLEMENTED / LOCALLY VERIFIED; INTEGRATION NOT VERIFIED — 49 tests, image build and CI all still blocked on Docker/remote.** Commits `5f29957`, `6e5becc`, `806285c`, `9843924`, `901d9c1`, `cbe3462`. |
 | 2026-09-09 | 1 (review) | Pre-output engineering review (§23) of Phase-1 code while the integration run stays blocked: 6 defects found and fixed with regression tests — login-lockout double count (proven red/green), a 403 masked as 500 on audit failure, a spoofable client IP, a zeroed request_id in the 413 body, a possible duplicate `http.response.start`, and an int4 audit advisory lock. Verified: **pytest 184 passed / 49 skipped**, mypy --strict clean (68 files), ruff clean. Commits `5f29957`, `6e5becc`. |
 | 2026-09-08 | 1 (Unit 6, partial) | `.github/workflows/ci.yml` (static / unit / integration with postgres+redis service containers / image build with non-root and production-config-guard assertions); `SM_REQUIRE_INTEGRATION=1` makes an unreachable dependency a failure rather than a skip, so CI cannot go green on a missing database; 14 offline CI-config checks; `README.md` rewritten with real status and setup. Verified: **pytest 172 passed / 49 skipped**, ruff clean, and the skip-guard exercised directly (11 skipped vs 11 errors). **Workflow never run; no image built; 49 integration tests still unexecuted.** |
 | 2026-09-08 | 1 (Unit 5) | `deploy/docker` compose stack (core: postgres/redis/migrate/app; profiles: oidc/obs/graph/bus/objects), multi-stage non-root `Dockerfile.app`, Keycloak dev realm (confidential client, PKCE S256, password grant off), Prometheus config, `.dockerignore`, `Makefile`, `/metrics` route, 49 integration tests and 15 offline deployment-config checks. Verified: **pytest 158 passed / 49 skipped**, mypy --strict clean (67 files), ruff clean. **Docker not installed — no image built, no container started, zero integration tests executed.** |
