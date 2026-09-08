@@ -8,11 +8,17 @@ Verification method → Phase → Status.
 `N/A — NOT REQUIRED BY ARCHITECTURE` is stated explicitly where a field does not
 apply. No field is silently omitted.
 
-**Global status note.** As of Phase 0 (2026-09-08) the system has **no runtime
-implementation**. Every requirement's Status is `ARCHITECTURE DEFINED` unless a
-narrower state is given. `Verification method` describes how the requirement
-*will* be verified; none has been executed. No performance, latency, accuracy, or
-deployment claim exists.
+**Global status note.** As of Phase 1 Unit 4 (2026-09-08) the only implemented
+runtime is the Phase-1 foundation: the contract package, the shared platform and
+infrastructure-client library, the control-plane schema and migrations, and the
+`api-gateway` service. Every other requirement's Status is
+`ARCHITECTURE DEFINED` unless a narrower state is given.
+
+Nothing has yet run against real infrastructure: no Postgres, Redis, Neo4j,
+Kafka, OIDC provider, collector, GPU or cluster has been touched. Every
+verification recorded so far is a unit, contract or offline check — see
+`IMPLEMENTATION_STATE.md` for the exact commands and results. No performance,
+latency, accuracy, benchmark or deployment claim exists anywhere.
 
 Status vocabulary: `ARCHITECTURE DEFINED` · `PARTIALLY IMPLEMENTED` ·
 `IMPLEMENTED` · `LOCALLY VERIFIED` · `INTEGRATION VERIFIED` ·
