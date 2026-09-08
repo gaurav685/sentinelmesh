@@ -1,0 +1,179 @@
+# SentinelMesh local infrastructure.
+#
+# Run from the repository root:
+#   docker compose -f deploy/docker/docker-compose.yml up -d
+#
+# Container-to-container addressing uses **service names**, never localhost.
+# The values in `.env` target a developer's host (localhost) for running the app
+# outside Docker; the `environment:` blocks below override the host-facing ones
+# so the same `.env` works in both places.
+#
+# Profiles keep the default stack small:
+#   (default)        postgres, redis, migrate, app   <- what the integration tests need
+#   --profile oidc   keycloak
+#   --profile obs    prometheus, grafana
+#   --profile graph  neo4j            (Phase 3+)
+#   --profile bus    redpanda         (Phase 2+)
+#   --profile objects minio           (Phase 5+)
+
+name: sentinelmesh
+
+x-app-env: &app-env
+  # Service-name addressing for everything inside the compose network.
+  SM_PG_HOST: postgres
+  SM_PG_PORT: "5432"
+  SM_REDIS_URL: redis://redis:6379/0
+  SM_OIDC_ISSUER: http://keycloak:8080/realms/sentinelmesh
+  SM_NEO4J_URI: bolt://neo4j:7687
+  SM_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+  SM_S3_ENDPOINT: http://minio:9000
+  SM_OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  SM_SESSION_COOKIE_SECURE: "false"
+  SM_CORS_ALLOWED_ORIGINS: http://localhost:3000
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${SM_PG_DB:-sentinelmesh}
+      POSTGRES_USER: ${SM_PG_USER:-sentinelmesh}
+      POSTGRES_PASSWORD: ${SM_PG_PASSWORD:?SM_PG_PASSWORD must be set in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SM_PG_USER:-sentinelmesh} -d ${SM_PG_DB:-sentinelmesh}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # One-shot: brings the schema to head, then exits. `app` waits for it to
+  # succeed, so the service never starts against an older schema.
+  migrate:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: migrations
+    command:
+      ["alembic", "-c", "/app/migrations/postgres/alembic.ini", "upgrade", "head"]
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: api-gateway
+      SM_DEPLOYMENT_PROFILE: monolith
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  keycloak:
+    profiles: ["oidc"]
+    image: quay.io/keycloak/keycloak:26.0
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${SM_KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "8080:8080"
+
+  prometheus:
+    profiles: ["obs"]
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    profiles: ["obs"]
+    image: grafana/grafana:11.3.1
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${SM_GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+
+  # Declared now so the addresses are settled; not needed until their phase.
+  neo4j:
+    profiles: ["graph"]
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: ${SM_NEO4J_USER:-neo4j}/${SM_NEO4J_PASSWORD:-neo4j-dev-password}
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j-data:/data
+
+  redpanda:
+    profiles: ["bus"]
+    image: redpandadata/redpanda:v24.2.11
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+
+  minio:
+    profiles: ["objects"]
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${SM_S3_ACCESS_KEY_ID:-sentinelmesh}
+      MINIO_ROOT_PASSWORD: ${SM_S3_SECRET_ACCESS_KEY:?SM_S3_SECRET_ACCESS_KEY must be set in .env}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  postgres-data:
+  neo4j-data:
+  minio-data:

@@ -1,0 +1,23 @@
+# Local Prometheus scrape configuration.
+#
+# The gateway exposes /metrics on its own port. In production this endpoint is
+# reachable only from inside the cluster network — the ingress never routes to
+# it (see docs/architecture/deployment.md).
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: local
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: sentinelmesh-api-gateway
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["app:8000"]
+        labels:
+          service: api-gateway

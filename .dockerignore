@@ -1,0 +1,24 @@
+# Keep the build context small and free of secrets/artifacts.
+.git
+.venv
+venv
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/.next
+.env
+.env.*
+!.env.example
+docs
+frontend
+ml
+tests
+deploy/helm
+deploy/k8s
+deploy/grafana
+**/tests
+mlruns
+*.log
