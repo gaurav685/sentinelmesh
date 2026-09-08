@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`GET /api/v1/meta` \u2014 non-sensitive build/runtime info.",
+  "properties": {
+    "api_version": {
+      "title": "Api Version",
+      "type": "string"
+    },
+    "build": {
+      "title": "Build",
+      "type": "string"
+    },
+    "environment": {
+      "enum": [
+        "local",
+        "ci",
+        "staging",
+        "production"
+      ],
+      "title": "Environment",
+      "type": "string"
+    },
+    "service": {
+      "title": "Service",
+      "type": "string"
+    }
+  },
+  "required": [
+    "api_version",
+    "service",
+    "build",
+    "environment"
+  ],
+  "title": "MetaResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

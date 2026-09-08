@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "UserStatus": {
+      "enum": [
+        "active",
+        "disabled",
+        "invited"
+      ],
+      "title": "UserStatus",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Response alias for `User` \u2014 kept as an explicit type so the API surface is\nnamed independently of the internal entity.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "display_name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "email": {
+      "format": "email",
+      "title": "Email",
+      "type": "string"
+    },
+    "external_subject": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "OIDC `sub` for federated users; null for local-only users.",
+      "title": "External Subject"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "last_login_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Login At"
+    },
+    "status": {
+      "$ref": "#/definitions/UserStatus"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tenant_id",
+    "created_at",
+    "updated_at",
+    "id",
+    "email",
+    "display_name",
+    "status"
+  ],
+  "title": "UserResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

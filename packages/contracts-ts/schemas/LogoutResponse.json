@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "ok": {
+      "default": true,
+      "title": "Ok",
+      "type": "boolean"
+    }
+  },
+  "title": "LogoutResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

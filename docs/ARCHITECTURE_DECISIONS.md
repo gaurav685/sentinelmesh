@@ -89,7 +89,7 @@ Integration tests and anything container-based are blocked on Docker install.
 
 ## ADR-002 — Repository is a polyglot monorepo
 
-**Context.** SentinelMesh spans ~20 logical services, shared contracts, a
+**Context.** SentinelMesh spans 18 logical services, 3 shared packages, a
 frontend, ML training/inference code, infra manifests, and migrations. The
 Constitution requires clear ownership boundaries, no circular dependencies, and
 separation of domain / application / infrastructure / API / frontend / ML /

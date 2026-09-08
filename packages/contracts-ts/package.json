@@ -1,0 +1,15 @@
+{
+  "name": "@sentinelmesh/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TypeScript types generated from SentinelMesh JSON Schema contracts. Do not hand-edit src/.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "generate": "python ../../scripts/gen_contracts.py",
+    "check": "python ../../scripts/gen_contracts.py --check"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.3"
+  }
+}

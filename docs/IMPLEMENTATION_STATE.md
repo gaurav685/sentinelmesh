@@ -7,17 +7,22 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 0 — Architecture Discovery + Architecture Lock.**
+**Phase 0 — Architecture Discovery + Architecture Lock. COMPLETE.**
 
 ## Current implementation unit
 
-Phase 0, Unit 1–2 (combined): repository skeleton + technology decisions +
-architecture documents + requirements traceability + contracts scaffold.
+Phase 0 close: `packages/contracts-py` core implementation + JSON-Schema codegen +
+consistency-review pass. Done.
 
 ## Architecture lock status
 
-**NOT LOCKED.** (Criteria mostly met; see checklist below. Remaining gaps are
-small and non-contradictory.)
+**LOCKED** (2026-09-08).
+
+`LOCKED` means: the architecture documentation, decisions, and contracts satisfy
+the Phase-0 lock criteria and contain no unresolved critical contradiction. It
+does **not** mean any of the following (Engineering Constitution §3): the system
+is implemented, deployed, integrated, benchmarked, security-audited, or that any
+ML performance is validated. No such claim exists anywhere in this repository.
 
 ### Lock criteria checklist
 
@@ -28,7 +33,7 @@ small and non-contradictory.)
 | System boundaries defined | DONE (`architecture/overview.md`) |
 | Trust boundaries defined | DONE (TB-1..TB-7) |
 | Security boundaries defined | DONE (`architecture/security-model.md`) |
-| Service boundaries defined | DONE (`architecture/service-catalog.md`, 21 logical services) |
+| Service boundaries defined | DONE (`architecture/service-catalog.md`, 18 logical services + 3 shared packages + frontend) |
 | Service dependency graph defined | DONE (acyclic, documented) |
 | Synchronous flows defined | DONE (`overview.md §5`) |
 | Asynchronous flows defined | DONE (`overview.md §6`, `event-model.md`) |
@@ -48,195 +53,200 @@ small and non-contradictory.)
 | Redis usage defined | DONE (ADR-009 namespace table) |
 | Kafka architecture defined | DONE (`event-model.md §3`) |
 | Flink responsibilities defined | DONE (`event-model.md §7`) — engine choice has open questions U-001/U-002 (non-blocking) |
-| Event contracts defined | DONE (envelope STABLE-target; payloads DRAFT per phase) |
-| API boundaries defined | DONE (`CONTRACTS.md §1`; full per-endpoint schemas land per phase) |
+| Event contracts defined | DONE — canonical `EventEnvelope` **implemented + validated** (`sm_contracts.events`); payloads DRAFT per phase |
+| API boundaries defined | DONE — `CONTRACTS.md §1`; Phase-1 request/response models **implemented** (`sm_contracts.api`); later endpoints land per phase |
 | ML contracts defined | DONE (template `CONTRACTS.md §6`; per-model contracts land in P5) |
 | Security architecture defined | DONE |
 | Failure model defined | DONE (`architecture/failure-model.md`) |
 | Repository structure defined | DONE (`architecture/repository.md` + skeleton created) |
 | Technology decisions documented | DONE (`ARCHITECTURE_DECISIONS.md`, ADR-001..024) |
 | Architecture decisions documented | DONE |
-| Contracts documented | PARTIAL — structure + Phase-1 surface done; payload/entity schemas DRAFT for later phases |
+| Contracts documented + core implemented | DONE — `packages/contracts-py` implements the envelope, canonical error contract, Phase-1 entity + API models; 19 tests pass; `mypy --strict` clean; JSON Schema generated |
 | Requirements traceability documented | DONE |
 | Implementation state updated | DONE (this file) |
-| No unresolved critical architectural contradiction | DONE — none found |
+| No unresolved critical architectural contradiction | DONE — consistency-review pass completed; see `architecture/consistency-review.md` |
 
-### Why NOT LOCKED (remaining, all non-critical)
+### Lock rationale
 
-1. **Contracts are structural, not fully materialized.** `packages/contracts-py`
-   contains no code yet — the canonical envelope, error contract, and Phase-1
-   entity schemas exist as specification but not as executable Pydantic models.
-   Lock should follow a minimal `contracts-py` with the envelope + error
-   contract + Phase-1 auth entities implemented and schema-validated.
-2. **`CLAUDE.md` engineering constitution** was provided as chat input; it is now
-   committed to the repo (`CLAUDE.md`) but should be reviewed against these docs
-   for any contradiction before lock.
-3. **No verification of the doc set by a second pass** for internal
-   contradiction beyond the author pass (done, none found) — a review pass is
-   warranted before declaring LOCKED.
+The three items that held lock in the prior revision are closed:
 
-None of these are architectural contradictions; they are completion items for a
-defensible lock.
+1. **Contracts materialized.** `packages/contracts-py` now contains executable,
+   type-checked, tested Pydantic v2 models for the envelope, error contract, and
+   Phase-1 entities/APIs. `scripts/gen_contracts.py` emits JSON Schema
+   (`packages/contracts-ts/schemas/`) with a `--check` CI mode.
+2. **`CLAUDE.md` reviewed** against the architecture docs — no contradiction
+   (`architecture/consistency-review.md`).
+3. **Consistency-review pass done** — two doc inconsistencies found and fixed
+   (service count 21→18; `identity_link` ownership); recorded in
+   `architecture/consistency-review.md`.
 
 ## Completed files (Phase 0)
 
-Created:
+**Docs / config (created):**
+`README.md`, `.gitignore`, `.env.example`, `pyproject.toml`, `CLAUDE.md`,
+`docs/ARCHITECTURE_DECISIONS.md`, `docs/CONTRACTS.md`,
+`docs/REQUIREMENTS_TRACEABILITY.md`, `docs/IMPLEMENTATION_STATE.md`,
+`docs/architecture/{repository,overview,service-catalog,data-model,event-model,security-model,failure-model,deployment,consistency-review}.md`,
+monorepo skeleton (50 dirs; 18 `services/`, `packages/`, `frontend/web/`, `ml/`,
+`deploy/`, `migrations/`, `tests/`, `scripts/`).
 
-- `README.md`
-- `.gitignore`
-- `.env.example`
-- `pyproject.toml` (tooling config only)
-- `CLAUDE.md` (engineering constitution, committed from provided input)
-- `docs/ARCHITECTURE_DECISIONS.md` (ADR-001 … ADR-024, + open-questions U-001…U-010)
-- `docs/CONTRACTS.md`
-- `docs/REQUIREMENTS_TRACEABILITY.md` (all 38)
-- `docs/IMPLEMENTATION_STATE.md` (this file)
-- `docs/architecture/repository.md`
-- `docs/architecture/overview.md`
-- `docs/architecture/service-catalog.md`
-- `docs/architecture/data-model.md`
-- `docs/architecture/event-model.md`
-- `docs/architecture/security-model.md`
-- `docs/architecture/failure-model.md`
-- `docs/architecture/deployment.md`
-- Monorepo directory skeleton with `.gitkeep` placeholders under `packages/`,
-  `services/` (21), `frontend/web/`, `ml/`, `deploy/`, `migrations/`, `tests/`,
-  `scripts/`.
+**`packages/contracts-py` (created + verified):**
+`pyproject.toml`, `README.md`,
+`src/sm_contracts/{__init__,version,common,enums,errors,events,jsonschema}.py`,
+`src/sm_contracts/entities/{__init__,tenant,user,rbac,sensor,audit}.py`,
+`src/sm_contracts/api/{__init__,auth,users,health,pagination}.py`,
+`tests/{test_envelope,test_errors,test_entities}.py`.
 
-Modified: none (new repository).
+**`packages/contracts-ts` (created):**
+`package.json`, `README.md`, `schemas/*.json` (22 generated JSON Schema files).
 
-## Pending
+**Tooling (created):** `scripts/gen_contracts.py`.
 
-- **Phase 0 close:** minimal `packages/contracts-py` (envelope + error contract +
-  Phase-1 auth entity schemas) + `packages/contracts-ts` codegen script; review
-  pass for contradictions; then set lock status to LOCKED.
-- **Phase 1:** Foundation + Configuration + Database + Authentication (see *Exact
-  next action*).
+**Modified in Phase 0 close:** `pyproject.toml` (ruff line-length 120,
+`known-first-party`, `scripts/**` ignores; dropped `disallow_any_explicit` with
+rationale), `.gitignore` (generated TS), `docs/IMPLEMENTATION_STATE.md`,
+`docs/CONTRACTS.md` (change log), `docs/architecture/service-catalog.md`
+(`identity_link` fix).
 
 ## APIs
 
-Defined (not implemented): foundation endpoint set in `CONTRACTS.md §1.2`
-(health, readiness, `/meta`, auth/login, OIDC login+callback, logout, `/me`,
-admin users/roles). API version base `/api/v1`.
+Defined; Phase-1 request/response models implemented in `sm_contracts.api`
+(`LoginRequest/Response`, `LogoutResponse`, `MeResponse`, `CreateUserRequest`,
+`GrantRoleRequest`, `RoleSummary`, `UserResponse`, `CursorPage`,
+`HealthResponse`, `ReadyResponse`, `MetaResponse`, `DepStatus`). Endpoints
+themselves (`CONTRACTS.md §1.2`) are **not implemented** — Phase 1. Base
+`/api/v1`. Canonical error contract implemented (`sm_contracts.errors`).
 
 ## Events
 
-Defined (not implemented): canonical `EventEnvelope`; `event_type` registry in
-`CONTRACTS.md §2`; topic catalog + semantics in `event-model.md`. Only
-`user.event` (P1) and the envelope are STABLE-target; all payloads DRAFT.
+Canonical `EventEnvelope[PayloadT]` **implemented + validated** with envelope
+rules (UTC normalization, producer format, clock-skew guard). `EventType`
+registry present. Phase-1 payload `UserEventPayload` implemented;
+`EVENT_PAYLOAD_REGISTRY` maps it. All other payloads DRAFT (not implemented).
+Topic catalog + semantics in `event-model.md`. Exactly-once not claimed.
 
 ## Schemas / migrations
 
+- `sm_contracts` JSON Schema: 22 files in `packages/contracts-ts/schemas/`
+  (regenerate: `python scripts/gen_contracts.py`; CI: `--check`).
 - Postgres: Phase-1 tables fully specified in `data-model.md`
   (`tenant`, `user`, `role`, `permission`, `user_role`, `role_permission`,
-  `sensor`, `audit_log`, `identity_link`). **No migration files yet** —
-  `migrations/postgres/` is an empty Alembic tree to be initialized in Phase 1.
+  `sensor`, `audit_log`). `identity_link` is **Phase 2** (owned by
+  `normalization-engine`). **No migration files yet** — `migrations/postgres/`
+  is an empty Alembic tree, initialized in Phase 1.
 - Neo4j: constraint/index migration `neo4j/0001` specified, not written.
 
 ## Dependencies
 
-None declared yet (no `requirements`/lock files). Phase 1 introduces the first
-dependency sets. Intended stack per ADRs: FastAPI, Pydantic v2, SQLAlchemy 2
-(async) + asyncpg, Alembic, `argon2-cffi`, `authlib`/`python-jose` for OIDC/JWT,
-`redis`, `structlog`, OpenTelemetry SDK, `pytest` + `pytest-asyncio` +
-`testcontainers` (or compose-based), `httpx`.
+- `packages/contracts-py`: `pydantic[email]>=2.9,<3`; dev `pytest>=8`.
+  Verified installed in `.venv`: pydantic **2.13.5**.
+- Nothing else declared. Phase 1 adds: FastAPI, `pydantic-settings`,
+  SQLAlchemy 2 (async) + asyncpg, Alembic, `argon2-cffi`, `authlib` (OIDC) +
+  `pyjwt` (internal JWT), `redis`, `structlog`, OpenTelemetry SDK,
+  `pytest-asyncio`, `httpx`. (Names indicative; pinned in Phase 1.)
 
 ## Environment variables
 
-All defined in `.env.example` (57 keys, `[required]`/`[optional]`/`[secret]`
-tagged). Phase 1 implements the typed loader + startup validation in
-`packages/common-py`.
+All in `.env.example` (57 keys, tagged `[required]`/`[optional]`/`[secret]`).
+Typed loader + startup validation is Phase 1 (`packages/common-py`).
 
 ## Verification performed (Phase 0)
 
 | Check | Command | Result |
 |---|---|---|
-| Local toolchain inventory | `Get-Command` for git/python/node/npm/docker/uv/pnpm/helm/kubectl/java | git 2.55.0, Python 3.11.5, Node 24.14.0, npm 11.9.0, Java 8 present; docker/uv/pnpm/helm/kubectl **absent** (ADR-001) |
-| Repo skeleton created | `mkdir`/`find` | 50 directories created under `C:\Users\gmalh\sentinelmesh` |
-| Docs present | file writes | 17 files created (listed above) |
-| Requirements coverage | manual | all R1–R38 present in `REQUIREMENTS_TRACEABILITY.md` |
-| Source hierarchy explicit | manual | PRIMARY (38-point) > SECONDARY (Blueprint) stated in README, ADR intro, traceability intro |
-| Fabricated-claim scan | manual review of all docs | no accuracy/latency/throughput/deployment/benchmark claim present; all such fields marked `NOT VERIFIED — …` |
-| git repository | `git init` + first commit | see *Verification* in the phase report |
+| Local toolchain | `Get-Command` git/python/node/npm/docker/uv/pnpm/helm/kubectl/java | git 2.55.0, Python 3.11.5, Node 24.14.0, npm 11.9.0, Java 8 present; **docker, uv, pnpm, helm, kubectl, JDK≥11 absent** (ADR-001) |
+| Repo skeleton | `mkdir` / `find` | 50 directories under `C:\Users\gmalh\sentinelmesh` |
+| Requirements coverage | `grep -c '^### R' docs/REQUIREMENTS_TRACEABILITY.md` | **38** |
+| Source hierarchy explicit | manual | PRIMARY (38-point) > SECONDARY (Blueprint) stated in README, ADR intro, traceability intro, CLAUDE.md |
+| Fabricated-claim scan | `grep -rniE '(ROC-AUC\|F1 score\|... \|deployed successfully\|benchmark achieved)' docs/ README.md CLAUDE.md` | only negations/prohibitions matched — **no fabricated value** |
+| `contracts-py` install | `pip install -e "packages/contracts-py[dev]"` (in `.venv`) | OK; pydantic 2.13.5 |
+| Contract unit tests | `python -m pytest packages/contracts-py -q` | **19 passed** |
+| Type check | `python -m mypy --strict --python-version 3.11 packages/contracts-py/src/sm_contracts` | **Success: no issues found in 18 source files** |
+| Lint | `python -m ruff check packages/contracts-py scripts/gen_contracts.py` | **All checks passed** |
+| Schema codegen | `python scripts/gen_contracts.py` then `--check` | 22 JSON Schema files written; `--check` → "up to date" |
+| git | `git init` + commits | `0b91ed2` (Phase 0 docs) + Phase-0-close commit |
 
 **Not verified (Phase 0):** anything requiring Docker, Kubernetes, Flink,
-Neo4j, Kafka, a GPU, LLM providers, TI providers, or a cloud account. No runtime
-code exists.
+Neo4j, Kafka, a GPU, LLM providers, TI providers, or a cloud account. TypeScript
+generation was **not run** (`json-schema-to-typescript` not installed — needs
+`npm install` under `packages/contracts-ts`); JSON Schema generation is
+verified. No runtime service code exists.
 
 ## External infrastructure requirements (accumulated)
 
 | Need | For | Status |
 |---|---|---|
-| Docker Desktop | local `docker-compose` (Postgres, Redis, Keycloak, Redpanda, Neo4j, MinIO, Prometheus, Grafana, MLflow) | **NOT INSTALLED** — required from Phase 1 to run integration tests |
-| JDK 11+ | Apache Flink jobs | **NOT INSTALLED** — required Phase 3+ |
-| GPU + CUDA | GNN / autoencoder / predictive training at dataset scale | not available — required Phase 5 |
-| LLM provider credentials | AI analyst / agents / NL hunting / storytelling / RCA | not provided — required Phase 6 |
-| Threat-intel provider credentials (abuse.ch / OTX / …) | live TI enrichment (all optional/flagged) | not provided — Phase 3 optional |
+| Docker Desktop | local `docker-compose` (Postgres, Redis, Keycloak, Redpanda, Neo4j, MinIO, Prometheus, Grafana, MLflow) | **NOT INSTALLED** — required from Phase 1 for integration tests |
+| `npm install` under `packages/contracts-ts` | TypeScript contract types for the frontend | not run — JSON Schema is committed; TS is generated on demand |
+| JDK 11+ | Apache Flink jobs | **NOT INSTALLED** — Phase 3+ |
+| GPU + CUDA | GNN / autoencoder / predictive training at dataset scale | not available — Phase 5 |
+| LLM provider credentials | AI analyst / agents / NL hunting / storytelling / RCA | not provided — Phase 6 |
+| Threat-intel provider credentials (abuse.ch / OTX / …) | live TI enrichment (optional/flagged) | not provided — Phase 3 optional |
 | MaxMind GeoLite2 DB | Geo-IP enrichment | not provided — Phase 2 (degrades gracefully) |
-| CICIDS2017 dataset | benchmark parity with architecture | not staged (NSL-KDD, UNSW-NB15, CTU-13, EMBER, LANL are staged at `C:\Sentinel_Mesh`) |
+| CICIDS2017 dataset | benchmark parity with architecture | not staged (NSL-KDD, UNSW-NB15, CTU-13, EMBER, LANL staged at `C:\Sentinel_Mesh`) |
 | Neo4j Enterprise / GDS production license | production multi-tenant scale, clustering, RBAC (U-003/U-008) | decision required before production |
 | Kubernetes cluster + Helm + kubectl | production deployment (R38) | not available |
 
 ## Known limitations / open questions
 
-- Open architecture questions **U-001 … U-010** in `ARCHITECTURE_DECISIONS.md`
-  (Flink language, Flink vs alternatives, Neo4j tenant model + licensing, event
-  serialization format, RLS mandatory?, ingestion language, graph-viz library at
-  scale, model serving, vector DB). **None blocks Phases 1–4.**
-- `packages/contracts-py` / `contracts-ts` not yet implemented — contracts are
-  specified but not executable.
-- Per-service `README.md` files (repo doc requirement R27) are added as each
-  service is implemented, not upfront.
+- Open architecture questions **U-001 … U-010** in `ARCHITECTURE_DECISIONS.md`.
+  **None blocks Phases 1–4.**
+- Per-service `README.md` files (R27) are added as each service is implemented.
 - CICIDS2017 not staged.
+- Generic `EventEnvelope[T]` JSON Schema is exported only at concrete
+  parameterizations listed in `sm_contracts.jsonschema.SCHEMA_MODELS`; each new
+  payload must be added there when implemented.
 
 ## Exact next action
 
-**Finish Phase 0:** implement `packages/contracts-py` minimal core (the
-`EventEnvelope` model, the canonical error model, and the Phase-1 auth/tenant
-entity schemas), add the `contracts-py → JSON Schema → contracts-ts` codegen
-script, do one contradiction-review pass over `docs/`, then flip *Architecture
-lock status* to **LOCKED** in this file.
-
-**Then Phase 1 — Foundation + Configuration + Database + Authentication:**
+**PHASE 1 — Foundation + Configuration + Database + Authentication.** Do not
+start until the user says so.
 
 1. `packages/common-py`: typed config loader (`pydantic-settings`) + startup
-   validation (fail-fast, production guards), structured logging (`structlog`,
-   JSON, secret redaction), request/correlation ID middleware, OTel bootstrap,
-   canonical error types + exception handlers, Postgres async engine/session/
-   transaction helpers + pool config, Redis client, Argon2id password helper,
-   internal-JWT mint/verify, OIDC client, append-only audit-log writer.
-2. `migrations/postgres`: initialize Alembic; migration `0001` = Phase-1 tables
+   validation (fail-fast; production guards: reject CORS `*`, reject
+   `SM_RESPONSE_MODE=auto` without policy); structured logging (`structlog`,
+   JSON, secret-redaction filter); request/correlation-ID middleware; OTel
+   bootstrap; canonical error → exception handlers (using `sm_contracts.errors`);
+   Postgres async engine/session/transaction helpers + bounded pool + statement
+   timeout; Redis client; Argon2id password helper (hash/verify, dummy-verify for
+   constant-time); internal-JWT mint/verify (audience-scoped, short TTL); OIDC
+   client (authlib); append-only audit-log writer with per-tenant hash chain.
+2. `migrations/postgres`: init Alembic; `0001` = Phase-1 tables
    (`tenant`, `user`, `role`, `permission`, `user_role`, `role_permission`,
-   `sensor`, `audit_log`) with full PK/FK/unique/check/index + `updated_at`
-   trigger; seed migration `0002` = permission catalog + system roles +
-   role→permission grants.
+   `sensor`, `audit_log`) — full PK/FK/unique/check/index + `updated_at` trigger;
+   `0002` seed = permission catalog (`PermissionCode`) + system roles
+   (`SystemRole`) + role→permission grants. CI runs `upgrade head` /
+   `downgrade base` / `upgrade head` on a scratch DB.
 3. `services/api-gateway`: FastAPI app; `/healthz`, `/readyz`, `/health/deps`,
-   `/api/v1/meta`; local login (`/api/v1/auth/login`, Argon2id, lockout,
-   constant-time), OIDC login+callback, logout; session cookie (httpOnly/Secure/
-   SameSite) + Redis session store + CSRF; `get_current_principal` dependency;
-   `require_permission(...)` dependency (deny-by-default); tenant-scoped
-   repository layer; `/api/v1/me`; `/api/v1/admin/users` + `/roles` +
-   role-grant (audited); HTTP hardening (body cap, timeout, CORS allow-list with
-   prod-wildcard rejection, security headers, per-route rate limit).
+   `/api/v1/meta`; local login (`/api/v1/auth/login` — Argon2id, lockout,
+   constant-time, no user enumeration); OIDC login + callback; logout; session
+   cookie (httpOnly/Secure/SameSite) + Redis session store + CSRF token;
+   `get_current_principal` dependency; `require_permission(...)` dependency
+   (deny-by-default); tenant-scoped repository layer (injected predicate, never
+   client-supplied); `/api/v1/me`; `/api/v1/admin/users` (list paginated,
+   create) + `/api/v1/admin/roles` (list) + `/api/v1/admin/users/{id}/roles`
+   (grant, audited); HTTP hardening (body cap, timeout, CORS allow-list with
+   prod-wildcard rejection, security headers, per-route rate limit). Responses
+   use `sm_contracts.api` models only — no ORM objects.
 4. `deploy/docker`: `Dockerfile.app`, `docker-compose.yml` (postgres, redis,
-   keycloak, prometheus, grafana, app) with service-name networking + health
-   gating.
-5. Tests: `tests/` + per-package tests — config validation, Argon2id, login
-   success/lockout/invalid, permission enforcement, **cross-tenant isolation**
-   (list/detail/grant), invalid-payload → canonical error, migration
-   up/down/up on a scratch DB, health/readiness behavior. Integration tests use
-   the compose Postgres/Redis (real infra, not mocked).
-6. Tooling: `ruff`, `mypy --strict`, `pytest` wired; `Makefile`/`justfile`
-   targets; per-service `pyproject.toml`.
-7. Update `IMPLEMENTATION_STATE.md`, `CONTRACTS.md` (promote Phase-1 API/entity
-   contracts DRAFT → STABLE), `REQUIREMENTS_TRACEABILITY.md` (R1 sensor model,
-   R23 health/logging, R38 auth/RBAC/SSO foundation → PARTIALLY IMPLEMENTED /
-   LOCALLY VERIFIED as appropriate).
-
-Do **not** start Phase 1 until the user says so (Phase 0 must be LOCKED first).
+   keycloak, prometheus, grafana, app) — service-name networking, health gating.
+5. Tests (`tests/` + per-package): config validation; Argon2id hash/verify;
+   login success / lockout / invalid credentials; permission enforcement;
+   **cross-tenant isolation** (list / detail / role-grant must 403/404);
+   invalid payload → canonical error shape; migration up/down/up on a scratch
+   DB; health / readiness behavior. Integration tests use compose Postgres/Redis
+   (real infra, not mocked).
+6. Tooling: per-service `pyproject.toml`; `Makefile`/`justfile`
+   (`setup`, `migrate`, `run`, `test`, `lint`, `typecheck`, `fmt`); wire
+   `ruff` + `mypy --strict` + `pytest` in CI.
+7. Docs: update this file; `CONTRACTS.md` (promote Phase-1 API/entity contracts
+   DRAFT → STABLE); `REQUIREMENTS_TRACEABILITY.md` (R1 `sensor` model, R23
+   health/logging/request-IDs, R38 auth/RBAC/SSO foundation →
+   PARTIALLY IMPLEMENTED / LOCALLY VERIFIED as actually verified).
 
 ## Change log
 
 | Date | Phase | Change |
 |---|---|---|
-| 2026-09-08 | 0 | Repo created at `C:\Users\gmalh\sentinelmesh`; skeleton + 17 doc/config files; ADR-001…024; all 38 requirements traced. Architecture status: NOT LOCKED (contracts-py not yet implemented + review pass pending). |
+| 2026-09-08 | 0 | Repo created at `C:\Users\gmalh\sentinelmesh`; skeleton + doc set; ADR-001…024; all 38 requirements traced. Commit `0b91ed2`. Status: NOT LOCKED. |
+| 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |

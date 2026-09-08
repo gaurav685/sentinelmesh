@@ -1,0 +1,154 @@
+{
+  "$defs": {
+    "ActorType": {
+      "enum": [
+        "user",
+        "sensor",
+        "service",
+        "agent",
+        "system"
+      ],
+      "title": "ActorType",
+      "type": "string"
+    },
+    "AuditResult": {
+      "enum": [
+        "allow",
+        "deny",
+        "success",
+        "failure"
+      ],
+      "title": "AuditResult",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Append-only audit entry (safe DTO).\n\nThe storage row additionally carries per-tenant hash-chain columns\n(`prev_hash`, `hash`) which are an integrity mechanism, not part of the\ncontract.",
+  "properties": {
+    "action": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Action",
+      "type": "string"
+    },
+    "actor_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actor Id"
+    },
+    "actor_type": {
+      "$ref": "#/definitions/ActorType"
+    },
+    "correlation_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Correlation Id"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "ip": {
+      "anyOf": [
+        {
+          "maxLength": 45,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "IPv4/IPv6 textual form.",
+      "title": "Ip"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "title": "Metadata",
+      "type": "object"
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request Id"
+    },
+    "resource_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resource Id"
+    },
+    "resource_type": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Resource Type",
+      "type": "string"
+    },
+    "result": {
+      "$ref": "#/definitions/AuditResult"
+    },
+    "tenant_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Null for platform-level (cross-tenant) events.",
+      "title": "Tenant Id"
+    }
+  },
+  "required": [
+    "id",
+    "actor_type",
+    "action",
+    "resource_type",
+    "result",
+    "created_at"
+  ],
+  "title": "AuditRecord",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
