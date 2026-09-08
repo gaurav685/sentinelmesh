@@ -50,11 +50,13 @@ class UserRepository(Protocol):
 
     async def record_login_success(self, tenant_id: UUID, user_id: UUID, at: datetime) -> None: ...
 
-    async def record_login_failure(
-        self, tenant_id: UUID, user_id: UUID, *, locked_until: datetime | None
-    ) -> int:
-        """Increments the failure counter, optionally setting a lockout.
-        Returns the new failure count."""
+    async def record_login_failure(self, tenant_id: UUID, user_id: UUID) -> int:
+        """Increment the consecutive-failure counter. Returns the new count."""
+        ...
+
+    async def set_lockout(self, tenant_id: UUID, user_id: UUID, until: datetime) -> None:
+        """Lock the account until `until`. Kept separate from the counter so a
+        lockout never inflates the count it was triggered by."""
         ...
 
 

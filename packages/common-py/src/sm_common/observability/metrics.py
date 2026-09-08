@@ -44,6 +44,13 @@ class Metrics:
             ("service", "permission"),
             registry=registry,
         )
+        self.audit_write_failures = Counter(
+            "sm_audit_write_failures_total",
+            "Audit records that could not be written. Any non-zero value means "
+            "the audit trail has a gap and needs investigation.",
+            ("service", "action"),
+            registry=registry,
+        )
         self.dependency_up = Gauge(
             "sm_dependency_up",
             "1 if a required dependency was reachable at the last readiness check",

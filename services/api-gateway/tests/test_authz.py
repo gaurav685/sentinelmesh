@@ -124,3 +124,20 @@ def test_limit_is_capped(client: TestClient, fixture, do_login):
     do_login("acme", fixture.acme_admin.email)
     r = client.get("/api/v1/admin/users", params={"limit": 1000})
     assert r.status_code == 422
+
+
+def test_denial_survives_an_audit_write_failure(client: TestClient, fixture, do_login):
+    """A failing audit store must not turn a 403 into a 500.
+
+    The refusal is the security-relevant outcome; the audit gap is recorded on
+    the `sm_audit_write_failures_total` counter instead.
+    """
+    do_login("acme", fixture.acme_analyst.email)  # analyst lacks users:read
+    fixture.audit.fail = True
+
+    r = client.get("/api/v1/admin/users")
+
+    assert r.status_code == 403
+    assert r.json()["error"]["code"] == "permission_denied"
+    body = fixture.services.metrics.render_latest()
+    assert b"sm_audit_write_failures_total" in body

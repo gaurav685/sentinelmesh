@@ -63,6 +63,38 @@ def test_lockout_after_threshold(client: TestClient, fixture, do_login, password
     assert fixture.audit.last()["meta"]["reason"] == "account_locked"
 
 
+def test_failure_counter_matches_the_number_of_attempts(client: TestClient, fixture, do_login):
+    """Regression: setting the lockout used to increment the counter a second
+    time, so three failed attempts left the count at four."""
+    for expected in (1, 2, 3):
+        do_login("acme", fixture.acme_admin.email, password="wrong")
+        assert fixture.acme_admin.failed_login_count == expected
+
+
+def test_lockout_is_set_exactly_at_the_threshold(client: TestClient, fixture, do_login):
+    # login_max_failures = 3 in the test settings
+    do_login("acme", fixture.acme_admin.email, password="wrong")
+    do_login("acme", fixture.acme_admin.email, password="wrong")
+    assert fixture.acme_admin.locked_until is None, "locked before reaching the threshold"
+
+    do_login("acme", fixture.acme_admin.email, password="wrong")
+    assert fixture.acme_admin.locked_until is not None
+
+
+def test_successful_login_clears_a_lockout(client: TestClient, fixture, do_login, password):
+    from datetime import timedelta
+
+    from sm_common.clock import utcnow
+
+    fixture.acme_admin.failed_login_count = 2
+    fixture.acme_admin.locked_until = utcnow() - timedelta(seconds=1)  # expired
+
+    r = do_login("acme", fixture.acme_admin.email, password=password)
+    assert r.status_code == 200
+    assert fixture.acme_admin.failed_login_count == 0
+    assert fixture.acme_admin.locked_until is None
+
+
 def test_suspended_tenant_rejected(client: TestClient, fixture, do_login):
     fixture.acme.status = TenantStatus.suspended.value
     r = do_login("acme", fixture.acme_admin.email)

@@ -221,15 +221,15 @@ async def test_login_failure_counter_increments_and_locks(clean: Database):
     w = await _seed(clean)
     async with clean.transaction() as session:
         repo = SqlUserRepository(session)
-        assert await repo.record_login_failure(w.acme, w.acme_users[0], locked_until=None) == 1
-        assert await repo.record_login_failure(w.acme, w.acme_users[0], locked_until=None) == 2
-        until = utcnow() + timedelta(minutes=15)
-        await repo.record_login_failure(w.acme, w.acme_users[0], locked_until=until)
+        assert await repo.record_login_failure(w.acme, w.acme_users[0]) == 1
+        assert await repo.record_login_failure(w.acme, w.acme_users[0]) == 2
+        assert await repo.record_login_failure(w.acme, w.acme_users[0]) == 3
+        await repo.set_lockout(w.acme, w.acme_users[0], utcnow() + timedelta(minutes=15))
 
     async with clean.session() as session:
         user = await SqlUserRepository(session).get(w.acme, w.acme_users[0])
         assert user is not None
-        assert user.failed_login_count == 3
+        assert user.failed_login_count == 3, "setting the lockout must not inflate the counter"
         assert user.locked_until is not None
 
 
@@ -238,9 +238,8 @@ async def test_login_success_resets_the_counter_and_lock(clean: Database):
     w = await _seed(clean)
     async with clean.transaction() as session:
         repo = SqlUserRepository(session)
-        await repo.record_login_failure(
-            w.acme, w.acme_users[0], locked_until=utcnow() + timedelta(minutes=15)
-        )
+        await repo.record_login_failure(w.acme, w.acme_users[0])
+        await repo.set_lockout(w.acme, w.acme_users[0], utcnow() + timedelta(minutes=15))
     now = utcnow()
     async with clean.transaction() as session:
         await SqlUserRepository(session).record_login_success(w.acme, w.acme_users[0], now)

@@ -136,7 +136,6 @@ async def oidc_login(
 @router.get("/oidc/callback", name="oidc_callback")
 async def oidc_callback(
     request: Request,
-    response: Response,
     services: Services = Depends(get_services),
     code: str | None = None,
     state: str | None = None,
