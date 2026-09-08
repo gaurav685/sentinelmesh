@@ -111,20 +111,24 @@ class SqlUserRepository:
             .values(last_login_at=at, failed_login_count=0, locked_until=None)
         )
 
-    async def record_login_failure(
-        self, tenant_id: UUID, user_id: UUID, *, locked_until: datetime | None
-    ) -> int:
-        values: dict[str, object] = {"failed_login_count": User.failed_login_count + 1}
-        if locked_until is not None:
-            values["locked_until"] = locked_until
+    async def record_login_failure(self, tenant_id: UUID, user_id: UUID) -> int:
+        # Incremented in SQL, not read-modify-write, so concurrent failed
+        # attempts cannot lose a count.
         result = await self._session.execute(
             update(User)
             .where(User.tenant_id == tenant_id, User.id == user_id)
-            .values(**values)
+            .values(failed_login_count=User.failed_login_count + 1)
             .returning(User.failed_login_count)
         )
         count = result.scalar_one_or_none()
         return int(count) if count is not None else 0
+
+    async def set_lockout(self, tenant_id: UUID, user_id: UUID, until: datetime) -> None:
+        await self._session.execute(
+            update(User)
+            .where(User.tenant_id == tenant_id, User.id == user_id)
+            .values(locked_until=until)
+        )
 
 
 class SqlRoleRepository:

@@ -116,11 +116,9 @@ async def authenticate_local(
 
     verification = verify_password(user.password_hash, password)
     if not verification.ok:
-        count = await users.record_login_failure(tenant.id, user.id, locked_until=None)
+        count = await users.record_login_failure(tenant.id, user.id)
         if count >= max_failures:
-            await users.record_login_failure(
-                tenant.id, user.id, locked_until=now + timedelta(seconds=lockout_seconds)
-            )
+            await users.set_lockout(tenant.id, user.id, now + timedelta(seconds=lockout_seconds))
         await record("bad_password", ok=False, tenant_id=tenant.id, actor_id=user.id)
         return LoginOutcome(ok=False, reason="bad_password")
 

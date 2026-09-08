@@ -17,17 +17,19 @@ from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
+import structlog
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sm_common.audit import AuditWriter
 from sm_common.cache import Cache
 from sm_common.config import AppSettings
+from sm_common.context import get_correlation_id, get_request_id
 from sm_common.db import Database
 from sm_common.errors import PermissionDenied, Unauthenticated
 from sm_common.observability import Metrics
 from sm_common.security import OidcClient
-from sm_contracts import PermissionCode, UserStatus
+from sm_contracts import ActorType, AuditResult, PermissionCode, UserStatus
 
 from .repositories.protocols import RoleRepository, TenantRepository, UserRepository
 from .repositories.sql import SqlRoleRepository, SqlTenantRepository, SqlUserRepository
@@ -46,6 +48,8 @@ __all__ = [
 ]
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+_log = structlog.get_logger("sm.api_gateway.authz")
 
 
 class RepositoryFactory(Protocol):
@@ -155,17 +159,32 @@ def require_permission(permission: PermissionCode) -> Callable[..., Awaitable[Pr
             return principal
 
         services.metrics.authz_denials.labels(services.settings.service_name, code).inc()
-        async with services.db.transaction() as session:
-            await services.audit.append(
-                session,
-                tenant_id=principal.tenant_id,
-                actor_type="user",
-                actor_id=principal.user_id,
-                action="authz.denied",
-                resource_type="permission",
-                resource_id=code,
-                result="deny",
-            )
+
+        # The denial itself must not depend on the audit write succeeding. A
+        # database outage has to still produce 403, not 500 — turning a refusal
+        # into a server error would look like a bug in the caller's request and
+        # would hide the denial. The failure is metered and logged instead
+        # (failure-model.md, "Audit-write failure").
+        try:
+            async with services.db.transaction() as session:
+                await services.audit.append(
+                    session,
+                    tenant_id=principal.tenant_id,
+                    actor_type=ActorType.user.value,
+                    actor_id=principal.user_id,
+                    action="authz.denied",
+                    resource_type="permission",
+                    resource_id=code,
+                    result=AuditResult.deny.value,
+                    request_id=get_request_id(),
+                    correlation_id=get_correlation_id(),
+                )
+        except Exception:
+            services.metrics.audit_write_failures.labels(
+                services.settings.service_name, "authz.denied"
+            ).inc()
+            _log.exception("audit_write_failed", action="authz.denied", permission=code)
+
         raise PermissionDenied()
 
     return _dependency

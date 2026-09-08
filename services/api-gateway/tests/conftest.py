@@ -143,8 +143,11 @@ class RecordingAuditWriter(AuditWriter):
 
     def __init__(self) -> None:
         self.entries: list[dict[str, Any]] = []
+        self.fail = False
 
     async def append(self, session: Any, **kwargs: Any) -> Any:  # type: ignore[override]
+        if self.fail:
+            raise ConnectionError("audit store unavailable")
         self.entries.append(kwargs)
         return None
 
@@ -250,16 +253,17 @@ class InMemoryUserRepo:
             user.failed_login_count = 0
             user.locked_until = None
 
-    async def record_login_failure(
-        self, tenant_id: UUID, user_id: UUID, *, locked_until: datetime | None
-    ) -> int:
+    async def record_login_failure(self, tenant_id: UUID, user_id: UUID) -> int:
         user = await self.get(tenant_id, user_id)
         if user is None:
             return 0
         user.failed_login_count = (user.failed_login_count or 0) + 1
-        if locked_until is not None:
-            user.locked_until = locked_until
         return user.failed_login_count
+
+    async def set_lockout(self, tenant_id: UUID, user_id: UUID, until: datetime) -> None:
+        user = await self.get(tenant_id, user_id)
+        if user is not None:
+            user.locked_until = until
 
 
 class InMemoryRoleRepo:
