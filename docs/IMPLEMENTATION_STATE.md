@@ -12,9 +12,13 @@ Update it at the end of every coherent implementation unit.
 
 ## Current implementation unit
 
-Phase 1, Unit 1 — `packages/common-py` platform primitives (config, logging,
-redaction, IDs, clock, errors, password + internal-JWT security, health, FastAPI
-wiring). **Done + verified.** Next: Unit 2 (infrastructure clients).
+Phase 1, Unit 2 — `packages/common-py` infrastructure clients (async Postgres
+engine/session/transaction, Redis client, OIDC client, OpenTelemetry + Prometheus
+bootstrap, audit hash-chain primitives). **Done + verified.** Next: Unit 3
+(Alembic migrations + ORM models + DB-bound `AuditWriter`).
+
+Phase 1 units: 1 ✅ primitives · 2 ✅ infra clients · 3 migrations+models ·
+4 `services/api-gateway` · 5 `deploy/docker` · 6 e2e tests + `Makefile`/CI + doc promotion.
 
 ## Architecture lock status
 
@@ -123,6 +127,20 @@ rationale), `.gitignore` (generated TS), `docs/IMPLEMENTATION_STATE.md`,
 **Modified:** `pyproject.toml` (pytest `--import-mode=importlib` + `asyncio_mode`;
 `**/errors.py` N818 ignore).
 
+## Completed files (Phase 1, Unit 2)
+
+**`packages/common-py` (created):**
+`src/sm_common/db/{__init__,engine,session}.py`,
+`src/sm_common/cache/{__init__,redis}.py`,
+`src/sm_common/audit/{__init__,hashing}.py`,
+`src/sm_common/observability/{metrics,tracing}.py`,
+`src/sm_common/security/oidc.py`,
+`tests/{test_audit_hashing,test_infra_clients,test_oidc}.py`.
+
+**Modified:** `src/sm_common/observability/{__init__,health}.py`
+(`probe_check` + `Pingable`), `src/sm_common/security/__init__.py` (OIDC exports),
+`packages/common-py/pyproject.toml` (infra deps).
+
 ## APIs
 
 Defined; Phase-1 request/response models implemented in `sm_contracts.api`
@@ -158,10 +176,16 @@ Topic catalog + semantics in `event-model.md`. Exactly-once not claimed.
   `pydantic-settings>=2.5,<3`, `structlog>=24.4`, `argon2-cffi>=23.1`,
   `pyjwt>=2.9,<3`, `fastapi>=0.115,<1`; dev `pytest`, `pytest-asyncio>=0.24`,
   `httpx>=0.27`.
+  `pyjwt>=2.9,<3`, `fastapi>=0.115,<1`, `httpx>=0.27`, `anyio>=4`,
+  `sqlalchemy[asyncio]>=2.0,<3`, `asyncpg>=0.29`, `redis>=5,<6`,
+  `prometheus-client>=0.20`, `opentelemetry-sdk>=1.27`,
+  `opentelemetry-exporter-otlp-proto-http>=1.27`; dev `pytest`,
+  `pytest-asyncio>=0.24`, `respx>=0.21`.
 - Verified installed in `.venv` (Python 3.11.5): pydantic **2.13.5**,
-  pydantic-settings, structlog, argon2-cffi, pyjwt, fastapi, httpx.
-- Phase 1 Unit 2+ adds: SQLAlchemy 2 (async) + asyncpg, Alembic, `redis`,
-  `authlib` (OIDC), OpenTelemetry SDK. (Pinned when introduced.)
+  SQLAlchemy **2.0.52**, plus pydantic-settings, structlog, argon2-cffi, pyjwt,
+  fastapi, httpx, asyncpg, redis, prometheus-client, opentelemetry-sdk, respx.
+- OIDC is done with `httpx` + `pyjwt` (`PyJWKClient` wrapped via `anyio.to_thread`);
+  no `authlib`. Phase 1 Unit 3 adds `alembic`.
 
 ## Environment variables
 
@@ -213,6 +237,29 @@ readiness (ok / required-fail / optional-fail / timeout / empty).
 client yet — Unit 2); no live OIDC; no OTel exporter. `structlog`/`starlette`
 `httpx`-testclient deprecation warnings present, non-blocking.
 
+## Verification performed (Phase 1, Unit 2 — infra clients)
+
+| Check | Command | Result |
+|---|---|---|
+| Install | `pip install -e "packages/common-py[dev]" respx` | OK; SQLAlchemy 2.0.52 |
+| Unit tests | `python -m pytest packages -q` | **81 passed** (19 contracts + 62 common) |
+| Type check | `python -m mypy --strict --python-version 3.11 packages/common-py/src/sm_common` | **Success: no issues found in 27 source files** |
+| Lint | `python -m ruff check packages/common-py` | **All checks passed** |
+
+Covered by tests (no live infrastructure): engine URL + bounded pool size;
+`Database.dispose()` clean with no connection opened; `Cache.key()` prefixing;
+`build_redis` constructs without connecting; Prometheus metrics increment +
+`render_latest` output + registry isolation; tracing **no-op** when
+`SM_OTEL_EXPORTER_OTLP_ENDPOINT` unset (span still works); audit hash chain —
+canonical-JSON determinism, hash stability, `verify_chain` detects body tamper
+and reorder; OIDC — PKCE `S256` challenge, `authorization_url` params, discovery
+issuer-mismatch → `DependencyUnavailable`, code-exchange failure →
+`Unauthenticated`, ID-token `aud`/`nonce` checks (signing key stubbed).
+
+**Not verified (Phase 1, Unit 2):** live Postgres / Redis connections, real OIDC
+provider, real OTLP collector, JWKS fetch (`PyJWKClient` path) — all need Docker
+or network and are Unit 6 / integration. Docker still absent.
+
 ## External infrastructure requirements (accumulated)
 
 | Need | For | Status |
@@ -240,39 +287,39 @@ client yet — Unit 2); no live OIDC; no OTel exporter. `structlog`/`starlette`
 
 ## Exact next action
 
-**PHASE 1, Unit 2 — infrastructure clients** (`packages/common-py`):
+**PHASE 1, Unit 3 — ORM models + migrations + audit writer:**
 
-- `sm_common/db/`: async SQLAlchemy 2 engine factory (bounded pool from
-  `AppSettings`, `statement_timeout` applied per connection), `async_sessionmaker`,
-  `get_session` dependency, `transaction()` async context manager (commit/rollback),
-  a Postgres `DependencyCheck` (`SELECT 1`).
-- `sm_common/cache/redis.py`: async redis client factory from `AppSettings`
-  (URL + optional password + key prefix via `RedisView.key`), a Redis
-  `DependencyCheck` (`PING`).
-- `sm_common/security/oidc.py`: OIDC client (authlib) — discovery-document fetch
-  + cache, auth-code URL builder with PKCE + state, code→token exchange, ID-token
-  verification (issuer, audience, `exp`, `nonce`), userinfo. No secret logged.
-- `sm_common/audit/writer.py`: append-only audit writer — takes an
-  `AsyncSession`, computes the per-tenant hash chain
-  (`hash = sha256(prev_hash ‖ canonical(row))`), writes in the caller's
-  transaction for response-critical actions.
-- `sm_common/observability/tracing.py` + `metrics.py`: OpenTelemetry OTLP
-  bootstrap (no-op when `SM_OTEL_EXPORTER_OTLP_ENDPOINT` unset); a Prometheus
-  registry + common metric helpers.
-- Tests: pool/timeout config parsing, `RedisView.key`, OIDC URL builder + state /
-  PKCE / nonce checks, audit hash-chain determinism + tamper detection, tracing
-  no-op path. DB/Redis *integration* tests are marked `integration` and are
-  **skipped without Docker** (recorded as an external requirement).
+- `packages/common-py/src/sm_common/db/models.py`: SQLAlchemy 2 declarative
+  models for the Phase-1 tables (`Tenant`, `User`, `Role`, `Permission`,
+  `UserRole`, `RolePermission`, `Sensor`, `AuditLog`) — UUIDv7 PKs,
+  `tenant_id` FKs, unique/check constraints, indexes, `created_at`/`updated_at`
+  (trigger-maintained), `deleted_at` where lifecycle needs it. These models are
+  the shared schema; `api-gateway` is the only writer (ADR / service-catalog).
+- `sm_common/audit/writer.py`: `AuditWriter` — given an `AsyncSession`, reads the
+  tenant's last chain hash `... FOR UPDATE`, computes `compute_entry_hash`,
+  inserts the row in the caller's transaction. For response-critical actions the
+  audit insert shares the action's transaction.
+- `migrations/postgres/`: `alembic.ini` + `env.py` (async engine, `target_metadata`
+  = models' `MetaData`); migration `0001_initial` (all 8 tables, full
+  constraints/indexes, `updated_at` trigger function); migration `0002_seed`
+  (permission catalog from `PermissionCode`, system roles from `SystemRole`,
+  role→permission grants).
+- Tests: model constraint round-trips + `AuditWriter` chain continuity **against
+  a real Postgres** (docker-compose, `integration` marker — **blocked until
+  Docker is installed**); offline: migration `upgrade head` / `downgrade base` /
+  `upgrade head` on SQLite-incompatible? use a Postgres testcontainer or skip —
+  decide in Unit 3; Alembic script lints (`alembic check`).
 
-Then **Unit 3** = `migrations/postgres` (Alembic init + `0001` tables + `0002`
-seed). **Unit 4** = `services/api-gateway`. **Unit 5** = `deploy/docker`.
+Then **Unit 4** = `services/api-gateway`. **Unit 5** = `deploy/docker`
+(compose brings the first real Postgres/Redis — unblocks the integration tests).
 **Unit 6** = end-to-end Phase-1 tests + `Makefile`/CI + doc promotion.
 
 Original Phase-1 step list (for reference):
 
 1. ~~`packages/common-py` config/logging/errors/IDs/security/health/FastAPI~~ —
-   **DONE (Unit 1).** Remaining common-py pieces (DB, Redis, OIDC, audit, OTel)
-   are Unit 2 above.
+   **DONE (Unit 1).**
+1b. ~~`packages/common-py` DB engine/session/transaction, Redis client, OIDC
+   client, OTel + Prometheus, audit hash-chain primitives~~ — **DONE (Unit 2).**
 2. `migrations/postgres`: init Alembic; `0001` = Phase-1 tables
    (`tenant`, `user`, `role`, `permission`, `user_role`, `role_permission`,
    `sensor`, `audit_log`) — full PK/FK/unique/check/index + `updated_at` trigger;
@@ -313,3 +360,4 @@ Original Phase-1 step list (for reference):
 | 2026-09-08 | 0 | Repo created at `C:\Users\gmalh\sentinelmesh`; skeleton + doc set; ADR-001…024; all 38 requirements traced. Commit `0b91ed2`. Status: NOT LOCKED. |
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
 | 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
+| 2026-09-08 | 1 (Unit 2) | `packages/common-py` infra clients: `db` (async SQLAlchemy 2 engine, `Database` session/`transaction()`/`ping`), `cache.redis` (`Cache` + key prefix + `ping`), `security.oidc` (`OidcClient` — discovery cache, PKCE `S256`, auth URL, code exchange, ID-token verify via `PyJWKClient`+`anyio.to_thread`), `observability.metrics` (`Metrics` + per-process registry), `observability.tracing` (OTLP bootstrap, no-op without endpoint), `audit.hashing` (per-tenant hash chain primitives). Verified: **pytest 81 passed** (19+62), mypy --strict clean (27 files), ruff clean. Deps added: sqlalchemy[asyncio], asyncpg, redis, prometheus-client, opentelemetry-sdk + otlp-http, httpx, anyio; dev respx. |
