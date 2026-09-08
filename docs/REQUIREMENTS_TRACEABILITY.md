@@ -40,7 +40,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-1 (untrusted sensors); `tenant_id` bound to sensor identity, never trusted from body.
 - **Test:** contract tests on envelope; security tests (bad credential, wrong-tenant payload, oversize, rate limit fail-closed); integration test sensor→topic.
 - **Verification method:** integration test against Redpanda in docker-compose.
-- **Phase:** P2. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P2. **Status:** ARCHITECTURE DEFINED. The `sensor` registry table, its model and the tenant-bound `Sensor` contract are **IMPLEMENTED** (Phase 1, Units 3-4); the ingest endpoint itself is not.
 
 ### R2 — Event Normalization Engine
 - **Purpose:** raw → canonical: schema standardization, Geo-IP, hostname resolution, user-device linking, threat-intel enrichment, cross-session identity stitching.
@@ -392,7 +392,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** metrics endpoints internal only; log redaction mandatory.
 - **Test:** metric-emission unit tests, health/readiness behavior tests, redaction tests.
 - **Verification method:** assert metrics present via test scrape; **no fabricated measurements**.
-- **Phase:** P1 (health/logging/request IDs), P8 (dashboards). **Status:** PARTIALLY DEFINED — P1 foundation pending implementation.
+- **Phase:** P1 (health/logging/request IDs), P8 (dashboards). **Status:** **PARTIALLY IMPLEMENTED / LOCALLY VERIFIED** — structured JSON logging with secret redaction, request/correlation IDs, the Prometheus registry with the standard counters, the OTel bootstrap (no-op without an endpoint), and `/healthz` `/readyz` `/health/deps` are implemented and unit-verified (Phase 1, Units 1-2-4). No metric has been scraped from a running Prometheus and no span has reached a collector — `NOT VERIFIED — REQUIRES EXTERNAL INFRASTRUCTURE`. Dashboards are P8.
 
 ### R24 — Benchmark & Evaluation System
 - **Purpose:** CICIDS2017, UNSW-NB15, NSL-KDD, CTU-13, LANL, EMBER; ROC-AUC benchmarking; baseline IDS comparison; reproducibility; experiment tracking.
@@ -632,7 +632,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-3; default-deny NetworkPolicies; per-service ServiceAccount + least-privilege RBAC; secrets via KMS/Vault; SSO via OIDC (ADR-016).
 - **Test:** Helm lint/template tests, policy tests (OPA/conftest), kind-based smoke deploy (CI, later).
 - **Verification method:** **NOT VERIFIED — REQUIRES EXTERNAL INFRASTRUCTURE (Docker/Kubernetes absent locally, ADR-001).** No cluster rollout is or will be claimed without an actual verified deployment.
-- **Phase:** P1 provides local `docker-compose` + auth/RBAC/SSO foundation; full P38 hardening runs across late phases. **Status:** ARCHITECTURE DEFINED; auth/RBAC/SSO foundation pending P1 implementation.
+- **Phase:** P1 provides local `docker-compose` + auth/RBAC/SSO foundation; full P38 hardening runs across late phases. **Status:** ARCHITECTURE DEFINED. The **RBAC and SSO foundation is IMPLEMENTED / LOCALLY VERIFIED** (Phase 1, Units 3-4): permission catalogue and system roles seeded by migration `0002`, deny-by-default `require_permission`, server-side principal resolution, per-request privilege re-resolution, and the OIDC authorization-code + PKCE client. Verified only against in-memory fakes — no real IdP, no cluster. Kubernetes/Helm remains `NOT VERIFIED — REQUIRES EXTERNAL INFRASTRUCTURE`.
 
 ---
 

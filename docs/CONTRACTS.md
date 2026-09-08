@@ -15,7 +15,7 @@ Nothing here asserts that any contract has been tested against a running system.
 
 ---
 
-## 1. API conventions (DRAFT → STABLE in Phase 1 for the auth surface)
+## 1. API conventions (**STABLE** for the Phase-1 auth/admin surface)
 
 - Base path: `/api/v{major}` (start `/api/v1`). Only `major` in the path; minor
   changes are additive and backward-compatible.
@@ -32,7 +32,7 @@ Nothing here asserts that any contract has been tested against a running system.
   header (stored 24h).
 - Rate limiting: per principal + per route; `429` with `Retry-After`.
 
-### 1.1 Canonical error contract (STABLE target — Phase 1)
+### 1.1 Canonical error contract (**STABLE**)
 
 HTTP status is correct and specific. Body:
 
@@ -59,7 +59,7 @@ HTTP status is correct and specific. Body:
 - `internal_error` always `500` + generic message; real detail only in logs
   (with `request_id` for correlation).
 
-### 1.2 Foundation endpoints (Phase 1)
+### 1.2 Foundation endpoints (Phase 1 — **IMPLEMENTED** in `services/api-gateway`)
 
 | Method | Path | Auth | Permission | Purpose |
 |---|---|---|---|---|
@@ -118,13 +118,13 @@ DRAFT/PLANNED and fully specified in `docs/architecture/data-model.md`.
 
 | Entity | Owner service | Store | Contract status | Phase |
 |---|---|---|---|---|
-| `Tenant` | api-gateway | Postgres | STABLE target | 1 |
-| `User` | api-gateway | Postgres | STABLE target | 1 |
-| `Role` | api-gateway | Postgres | STABLE target | 1 |
-| `Permission` | api-gateway | Postgres | STABLE target | 1 |
-| `UserRole` / `RolePermission` | api-gateway | Postgres | STABLE target | 1 |
-| `Sensor` | api-gateway | Postgres | STABLE target | 1 |
-| `AuditRecord` | api-gateway (writer lib in common-py) | Postgres | STABLE target | 1 |
+| `Tenant` | api-gateway | Postgres | **STABLE** | 1 |
+| `User` | api-gateway | Postgres | **STABLE** | 1 |
+| `Role` | api-gateway | Postgres | **STABLE** | 1 |
+| `Permission` | api-gateway | Postgres | **STABLE** | 1 |
+| `UserRole` / `RolePermission` | api-gateway | Postgres | **STABLE** | 1 |
+| `Sensor` | api-gateway | Postgres | **STABLE** | 1 |
+| `AuditRecord` | api-gateway (writer lib in common-py) | Postgres | **STABLE** | 1 |
 | `Identity` / `IdentityLink` | normalization-engine | Postgres | DRAFT | 2 |
 | `Asset` / `Host` / `IpAddress` / `Domain` / `Process` / `File` | graph-service (+ api-gateway attrs) | Neo4j + Postgres | DRAFT | 2–3 |
 | `NetworkFlow` / `DnsQuery` / `AuthenticationEvent` / `EndpointEvent` / `FileAccessEvent` | (canonical event payloads) | Kafka | DRAFT | 2 |
@@ -282,4 +282,5 @@ Action without `rollback_plan` cannot be `auto`.
 | Date | Change | Phase |
 |---|---|---|
 | 2026-09-08 | Initial contract set authored (Phase 0). API conventions, error contract, envelope, entity list, ownership, graph/ML/AI contract skeletons. | 0 |
+| 2026-09-08 | Phase-1 auth/admin API surface **implemented** in `services/api-gateway` and its contracts promoted DRAFT → **STABLE**: API conventions, the canonical error contract, the foundation endpoint set (§1.2), and the `Tenant`/`User`/`Role`/`Permission`/`UserRole`/`RolePermission`/`Sensor`/`AuditRecord` entity contracts. Cursor pagination, CSRF header (`X-CSRF-Token`) and the session cookie names are part of the stable surface. | 1 (Unit 4) |
 | 2026-09-08 | `packages/contracts-py` implements the canonical `EventEnvelope`, the `ErrorResponse` contract (`HTTP_STATUS_BY_CODE`), Phase-1 entity DTOs (`Tenant`, `User`, `Role`, `Permission`, `RolePermission`, `UserRoleGrant`, `Sensor`, `AuditRecord`), Phase-1 API models, and shared enums. JSON Schema generated to `packages/contracts-ts/schemas/` via `scripts/gen_contracts.py`. Status of these contracts: **STABLE target** — promoted to STABLE when the Phase-1 endpoints that use them ship. `identity_link` ownership corrected to `normalization-engine` (Phase 2) — see `architecture/consistency-review.md`. | 0 (close) |
