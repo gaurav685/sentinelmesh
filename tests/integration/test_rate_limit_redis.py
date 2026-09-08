@@ -9,6 +9,7 @@ from __future__ import annotations
 import time
 
 import pytest
+
 from sm_common.cache import Cache
 
 pytestmark = pytest.mark.integration
