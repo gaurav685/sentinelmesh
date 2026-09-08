@@ -12,12 +12,11 @@ Update it at the end of every coherent implementation unit.
 
 ## Current implementation unit
 
-Phase 1, Unit 2 — `packages/common-py` infrastructure clients (async Postgres
-engine/session/transaction, Redis client, OIDC client, OpenTelemetry + Prometheus
-bootstrap, audit hash-chain primitives). **Done + verified.** Next: Unit 3
-(Alembic migrations + ORM models + DB-bound `AuditWriter`).
+Phase 1, Unit 3 — ORM models for the 8 Phase-1 tables, Alembic migrations
+(`0001_initial`, `0002_seed_rbac`), and the DB-bound `AuditWriter`.
+**Done + verified offline.** Next: Unit 4 (`services/api-gateway`).
 
-Phase 1 units: 1 ✅ primitives · 2 ✅ infra clients · 3 migrations+models ·
+Phase 1 units: 1 ✅ primitives · 2 ✅ infra clients · 3 ✅ models+migrations ·
 4 `services/api-gateway` · 5 `deploy/docker` · 6 e2e tests + `Makefile`/CI + doc promotion.
 
 ## Architecture lock status
@@ -141,6 +140,19 @@ rationale), `.gitignore` (generated TS), `docs/IMPLEMENTATION_STATE.md`,
 (`probe_check` + `Pingable`), `src/sm_common/security/__init__.py` (OIDC exports),
 `packages/common-py/pyproject.toml` (infra deps).
 
+## Completed files (Phase 1, Unit 3)
+
+**Created:** `packages/common-py/src/sm_common/db/{base,models}.py`,
+`packages/common-py/src/sm_common/audit/writer.py`,
+`migrations/postgres/{alembic.ini,env.py,script.py.mako}`,
+`migrations/postgres/versions/{0001_initial.py,0002_seed_rbac.py}`,
+`packages/common-py/tests/{test_models,test_audit_writer}.py`,
+`tests/contract/test_migrations_offline.py`.
+
+**Modified:** `packages/common-py/src/sm_common/db/__init__.py` (model exports),
+`packages/common-py/src/sm_common/audit/__init__.py` (`AuditWriter` export),
+`packages/common-py/README.md`.
+
 ## APIs
 
 Defined; Phase-1 request/response models implemented in `sm_contracts.api`
@@ -162,11 +174,21 @@ Topic catalog + semantics in `event-model.md`. Exactly-once not claimed.
 
 - `sm_contracts` JSON Schema: 22 files in `packages/contracts-ts/schemas/`
   (regenerate: `python scripts/gen_contracts.py`; CI: `--check`).
-- Postgres: Phase-1 tables fully specified in `data-model.md`
-  (`tenant`, `user`, `role`, `permission`, `user_role`, `role_permission`,
-  `sensor`, `audit_log`). `identity_link` is **Phase 2** (owned by
-  `normalization-engine`). **No migration files yet** — `migrations/postgres/`
-  is an empty Alembic tree, initialized in Phase 1.
+- Postgres: 8 Phase-1 tables **implemented** as SQLAlchemy models
+  (`sm_common.db.models`) and as Alembic migrations:
+  - `0001_initial` — `tenant`, `permission`, `role`, `user`, `user_role`,
+    `role_permission`, `sensor`, `audit_log`; full PK/FK/unique/check/index;
+    `sm_set_updated_at()` trigger on `tenant`/`user`/`role`/`sensor`;
+    `sm_audit_log_immutable()` BEFORE UPDATE OR DELETE trigger on `audit_log`;
+    descending `(tenant_id, created_at)` / `(actor_id, created_at)` audit
+    indexes. Reversible.
+  - `0002_seed_rbac` — 14 permissions, 5 system roles, role→permission grants,
+    ids derived via `uuid5` from a fixed namespace (idempotent, exactly
+    reversible).
+  - Enum columns are `varchar` + `CHECK` rendered from the `sm_contracts`
+    enums; a drift-guard test asserts every enum value appears in its CHECK.
+  - `identity_link` remains **Phase 2** (owned by `normalization-engine`).
+  - **Never applied to a real database** — no Docker (see *Not verified*).
 - Neo4j: constraint/index migration `neo4j/0001` specified, not written.
 
 ## Dependencies
@@ -185,7 +207,8 @@ Topic catalog + semantics in `event-model.md`. Exactly-once not claimed.
   SQLAlchemy **2.0.52**, plus pydantic-settings, structlog, argon2-cffi, pyjwt,
   fastapi, httpx, asyncpg, redis, prometheus-client, opentelemetry-sdk, respx.
 - OIDC is done with `httpx` + `pyjwt` (`PyJWKClient` wrapped via `anyio.to_thread`);
-  no `authlib`. Phase 1 Unit 3 adds `alembic`.
+  no `authlib`.
+- `alembic>=1.13` installed (**1.19.2** verified) for `migrations/postgres`.
 
 ## Environment variables
 
@@ -260,6 +283,32 @@ issuer-mismatch → `DependencyUnavailable`, code-exchange failure →
 provider, real OTLP collector, JWKS fetch (`PyJWKClient` path) — all need Docker
 or network and are Unit 6 / integration. Docker still absent.
 
+## Verification performed (Phase 1, Unit 3 — models + migrations + audit writer)
+
+| Check | Command | Result |
+|---|---|---|
+| Unit + contract tests | `python -m pytest packages tests -q` | **102 passed** |
+| Type check | `python -m mypy --strict --python-version 3.11 packages/common-py/src/sm_common` | **Success: no issues found in 30 source files** |
+| Lint | `python -m ruff check packages tests migrations` | **All checks passed** |
+| Migration DDL compiles | `alembic -c migrations/postgres/alembic.ini upgrade head --sql` | full DDL + seed INSERTs emitted (offline, no connection) |
+
+Covered by tests: exact Phase-1 table set; `tenant_id` nullability per table;
+naming convention applied; `user` uniqueness + lowercase-email + non-negative
+login-counter checks; `role` two partial unique indexes; `audit_log` shape
+(`metadata` column name, unique `hash`, hex-64 format checks, no
+`server_default` on `created_at`); **enum drift guard** (every `sm_contracts`
+enum value present in its CHECK); `AuditWriter` genesis hash, advisory lock
+taken before the last-hash read, chaining, `verify_chain` round-trip, tamper
+detection, platform (`tenant_id IS NULL`) entries; offline migration output
+contains all 8 tables, both triggers, partial + DESC indexes, and the seed rows.
+
+**Not verified (Phase 1, Unit 3):** the migrations have **never been applied to a
+real database**; `AuditWriter` has **never run against Postgres** — the advisory
+lock, the last-hash ordering under concurrency, the constraints, and the
+append-only trigger are unexercised. `alembic upgrade head` /
+`downgrade base` / `upgrade head` against a live database is a Unit 6
+integration test. Docker is still absent.
+
 ## External infrastructure requirements (accumulated)
 
 | Need | For | Status |
@@ -287,7 +336,47 @@ or network and are Unit 6 / integration. Docker still absent.
 
 ## Exact next action
 
-**PHASE 1, Unit 3 — ORM models + migrations + audit writer:**
+**PHASE 1, Unit 4 — `services/api-gateway`:**
+
+- `services/api-gateway/pyproject.toml` (depends on `sm-contracts`, `sm-common`,
+  `fastapi`, `uvicorn`), `src/sm_api_gateway/`.
+- `app.py`: FastAPI factory — `configure_logging`, `configure_tracing`,
+  `RequestContextMiddleware`, `SecurityHeadersMiddleware`,
+  `BodySizeLimitMiddleware`, `CORSMiddleware` from `build_cors_kwargs`,
+  `install_exception_handlers`, lifespan wiring `Database`/`Cache`/`OidcClient`
+  and disposing them on shutdown.
+- `routes/health.py`: `/healthz` (`liveness`), `/readyz`
+  (`evaluate_readiness` over `probe_check(Database)` + `probe_check(Cache)`),
+  `/health/deps` (requires `ops:read`), `/api/v1/meta`.
+- `security/principal.py`: `Principal` (user id, tenant id, roles, permission
+  set) resolved **server-side** from the session; `get_current_principal`
+  dependency; `require_permission(code)` dependency that is deny-by-default and
+  records `authz_denials` metric + audit entry.
+- `security/session.py`: Redis-backed session store (idle + absolute expiry
+  from config), httpOnly/Secure/SameSite cookie, CSRF double-submit token.
+- `repositories/`: tenant-scoped repositories over `sm_common.db.models`. The
+  tenant predicate is injected from `Principal` — no function accepts a caller
+  supplied `tenant_id`.
+- `routes/auth.py`: `POST /api/v1/auth/login` (Argon2id, `dummy_verify` for
+  unknown users, lockout via `failed_login_count`/`locked_until`, generic error,
+  audit on success and failure), `GET /api/v1/auth/oidc/login`,
+  `GET /api/v1/auth/oidc/callback` (state + PKCE + nonce validated),
+  `POST /api/v1/auth/logout`, `GET /api/v1/me`.
+- `routes/admin.py`: `GET /api/v1/admin/users` (cursor-paginated),
+  `POST /api/v1/admin/users`, `GET /api/v1/admin/roles`,
+  `POST /api/v1/admin/users/{id}/roles` (audited). Responses use
+  `sm_contracts.api` models only — never an ORM object.
+- Tests: login success / invalid / lockout; permission enforcement per route;
+  **cross-tenant isolation** (list, detail, role-grant must not reveal another
+  tenant's data); invalid payload → canonical error; `/readyz` degraded when a
+  dependency probe fails. Anything needing a live Postgres/Redis is marked
+  `integration` and skipped until Unit 5 provides docker-compose.
+
+Then **Unit 5** = `deploy/docker` (compose brings the first real Postgres/Redis
+and unblocks the integration tests, including applying the migrations).
+**Unit 6** = end-to-end Phase-1 tests + `Makefile`/CI + doc promotion.
+
+### Superseded plan for Unit 3 (kept for the record — DONE)
 
 - `packages/common-py/src/sm_common/db/models.py`: SQLAlchemy 2 declarative
   models for the Phase-1 tables (`Tenant`, `User`, `Role`, `Permission`,
@@ -361,3 +450,4 @@ Original Phase-1 step list (for reference):
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
 | 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
 | 2026-09-08 | 1 (Unit 2) | `packages/common-py` infra clients: `db` (async SQLAlchemy 2 engine, `Database` session/`transaction()`/`ping`), `cache.redis` (`Cache` + key prefix + `ping`), `security.oidc` (`OidcClient` — discovery cache, PKCE `S256`, auth URL, code exchange, ID-token verify via `PyJWKClient`+`anyio.to_thread`), `observability.metrics` (`Metrics` + per-process registry), `observability.tracing` (OTLP bootstrap, no-op without endpoint), `audit.hashing` (per-tenant hash chain primitives). Verified: **pytest 81 passed** (19+62), mypy --strict clean (27 files), ruff clean. Deps added: sqlalchemy[asyncio], asyncpg, redis, prometheus-client, opentelemetry-sdk + otlp-http, httpx, anyio; dev respx. |
+| 2026-09-08 | 1 (Unit 3) | `sm_common.db.base`/`models` (8 Phase-1 tables, UUIDv7 PKs, enum CHECKs rendered from `sm_contracts`, role partial unique indexes, security state kept out of contracts); `sm_common.audit.writer.AuditWriter` (per-tenant advisory lock, hash chain, runs in caller's transaction); `migrations/postgres` (alembic.ini + async env.py + `0001_initial` with `updated_at` and append-only audit triggers + `0002_seed_rbac` with 14 permissions / 5 system roles / grants, uuid5-derived ids). Verified: **pytest 102 passed**, mypy --strict clean (30 files), ruff clean, `alembic upgrade head --sql` emits full DDL offline. **Migrations never applied to a real database** (no Docker). Dep added: alembic 1.19.2. |
