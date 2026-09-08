@@ -111,8 +111,14 @@ class AppSettings(BaseSettings):
     oidc_audience: str = "sentinelmesh"
     jwt_leeway_seconds: int = Field(default=30, ge=0)
     session_cookie_secure: bool = True
+    session_cookie_name: str = "sm_session"
+    csrf_cookie_name: str = "sm_csrf"
     session_idle_seconds: int = Field(default=3600, ge=60)
     session_absolute_seconds: int = Field(default=43_200, ge=300)
+    oidc_state_ttl_seconds: int = Field(default=600, ge=60, le=1800)
+    # Brute-force protection for the local-fallback login path.
+    login_max_failures: int = Field(default=10, ge=3)
+    login_lockout_seconds: int = Field(default=900, ge=30)
 
     # ---- service-to-service auth ------------------------------------
     internal_jwt_signing_key: SecretStr = SecretStr("")
