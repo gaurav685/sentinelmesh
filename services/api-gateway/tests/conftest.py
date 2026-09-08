@@ -72,13 +72,41 @@ class FakeDatabase:
         return None
 
 
-class FakeCache:
+class FakeRedis:
+    """Just enough of redis.asyncio for the rate limiter and readiness."""
+
     def __init__(self) -> None:
         self.healthy = True
+        self._counts: dict[str, int] = {}
 
     async def ping(self) -> None:
         if not self.healthy:
             raise ConnectionError("redis down")
+
+    async def incr(self, key: str) -> int:
+        if not self.healthy:
+            raise ConnectionError("redis down")
+        self._counts[key] = self._counts.get(key, 0) + 1
+        return self._counts[key]
+
+    async def expire(self, key: str, seconds: int) -> bool:
+        return True
+
+
+class FakeCache:
+    def __init__(self) -> None:
+        self.client = FakeRedis()
+
+    @property
+    def healthy(self) -> bool:
+        return self.client.healthy
+
+    @healthy.setter
+    def healthy(self, value: bool) -> None:
+        self.client.healthy = value
+
+    async def ping(self) -> None:
+        await self.client.ping()
 
     async def close(self) -> None:
         return None
@@ -470,6 +498,26 @@ def fixture() -> Fixture:
         cache=cache, acme=acme, globex=globex, acme_admin=acme_admin,
         acme_analyst=acme_analyst, globex_admin=globex_admin,
     )
+
+
+@pytest.fixture
+def settings_factory():
+    return build_settings
+
+
+@pytest.fixture
+def make_client(fixture: Fixture):
+    """Build a TestClient over the real app, optionally with overridden settings."""
+
+    def _make(**settings_over: Any) -> TestClient:
+        if settings_over:
+            fixture.services.settings = build_settings(**settings_over)
+        app = create_app(services=fixture.services)
+        client = TestClient(app, raise_server_exceptions=False)
+        client.__enter__()
+        return client
+
+    return _make
 
 
 @pytest.fixture

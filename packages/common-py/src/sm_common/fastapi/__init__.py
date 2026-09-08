@@ -10,9 +10,11 @@ from .hardening import (
     build_cors_kwargs,
 )
 from .middleware import RequestContextMiddleware
+from .ratelimit import RateLimitMiddleware
 
 __all__ = [
     "BodySizeLimitMiddleware",
+    "RateLimitMiddleware",
     "RequestContextMiddleware",
     "SecurityHeadersMiddleware",
     "build_cors_kwargs",
