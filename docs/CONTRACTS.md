@@ -202,24 +202,40 @@ Every entity above is justified by a numbered requirement in
 
 ---
 
-## 5. Graph contract (`GraphCommandPayload` **IMPLEMENTED** Phase 3; the graph write path is Phase 4)
+## 5. Graph contract (write path **IMPLEMENTED** Phase 4 Unit 2; read/query API Unit 3)
 
 - Node labels, key properties, relationship types, and invariants:
   `docs/architecture/data-model.md`.
-- Write path: only via `graph.commands` Kafka topic → `graph-writer`
-  (Phase 4). Command schema `sm_contracts.GraphCommandPayload`:
+- Write path: only via `graph.commands` Kafka topic → `graph-service` (consumer
+  group `graph-writer`). Command schema `sm_contracts.GraphCommandPayload`:
   `{ command_id, op: MERGE_NODE|MERGE_EDGE|SET_PROPS|PRUNE, tenant_id,
   observed_at, raw_event_id, label, key, props, start?, end? }` — for
   `MERGE_EDGE`, `label` is the relationship type and `start`/`end` are
   `GraphEndpoint{label, key}`. Idempotent by `command_id` (deterministic in the
   source event — `graph_command_id(...)`) + MERGE semantics.
-- Producers so far: `stream-processor`'s `graph-update-emitter`
+- **Injection guard:** Cypher cannot parameterize a label or a relationship
+  type, so `graph-service` validates every command's label against the frozen
+  allowlist (`sm_contracts.GRAPH_NODE_LABELS` / `GRAPH_REL_TYPES`, pinned to
+  `data-model.md`) before any query string is built. Everything else is a bound
+  parameter. A non-allowlisted label is dead-lettered.
+- **Apply semantics:** per-tenant node identity is the synthetic key
+  `graph_node_uid(tenant_id, key) = "<tenant>:<key>"` (UNIQUE constraint); a
+  relationship therefore can only join two nodes of the command's own tenant.
+  Every node / relationship carries `tenant_id` + `first_seen` / `last_seen` +
+  a `_watermark`; a command older than the watermark widens the seen-bounds but
+  does not roll back properties (out-of-order safe). Missing endpoint nodes for
+  an edge are created thin. A Neo4j outage → `TransientError` (retry, never drop).
+- Result: `graph-service` emits `graph.events` (`sm_contracts.GraphEventPayload`:
+  `{ command_id, op, outcome: APPLIED|DUPLICATE|STALE, tenant_id, observed_at,
+  raw_event_id, label, nodes_written, relationships_written }`) for the read-model
+  projection and notification fan-out.
+- Producers of `graph.commands`: `stream-processor`'s `graph-update-emitter`
   (`events.canonical` → node upserts + one `actor -[REL]-> target` edge, `REL`
   from the canonical `kind`). `detection-engine` will also produce
   (`(:Detection)-[:INVOLVES]->…`).
-- Read path: `graph-service` query API. Parameterized only. Every query
-  tenant-scoped, depth-bounded (`max_depth`, default 4, hard cap 8), row-capped,
-  time-limited. No caller supplies raw Cypher.
+- Read path: `graph-service` query API — Phase 4 Unit 3. Parameterized only.
+  Every query tenant-scoped, depth-bounded (`max_depth`, default 4, hard cap 8),
+  row-capped, time-limited. No caller supplies raw Cypher.
 
 ---
 
@@ -329,5 +345,7 @@ Action without `rollback_plan` cannot be `auto`.
 | 2026-09-09 | **Phase 2 exit — CI green** (GitHub Actions run `34333269219`). The five `telemetry.*` payloads promoted **DRAFT → STABLE** (a producer and a consumer both exercise them). `event.canonical` stays **STABLE target** — first downstream consumer is Phase 3. | 2 (close) |
 | 2026-09-09 | **Topic registry** (Phase 3, Unit 1): `sm_contracts.topics` — `TOPICS` mirrors event-model.md §3; `EVENT_TYPE_TOPIC` / `topic_for_event_type` map every `EventType`; `dlq_topic` / `replay_group` helpers; `EVENT_TYPE_VERSION` (all v1). The "versioned event types" policy is documented (§2.1). `ingestion-gateway` / `normalization-engine` refactored to the registry. STABLE. | 3 (Unit 1) |
 | 2026-09-09 | **`GraphCommandPayload`** implemented (Phase 3, Unit 3): `sm_contracts.graph` — `command_id` / `op` / `tenant_id` / `observed_at` / `raw_event_id` / `label` / `key` / `props` / `start` / `end` (§5). Registered for `EventType.graph_command`; `EventEnvelope_GraphCommand` + `GraphCommandPayload` JSON Schemas. `stream-processor`'s `graph-update-emitter` produces them from `events.canonical`; `command_id` is deterministic (`graph_command_id`). Status: **STABLE target** — the first consumer (`graph-writer`) is Phase 4. | 3 (Unit 3) |
+| 2026-09-09 | **Neo4j graph foundation** (Phase 4, Unit 1): `sm_common.graph` (async driver wrapper, per-query timeout, outage→`GraphUnavailableError`), the label/relationship allowlist in `sm_contracts.graph` (`GRAPH_NODE_LABELS` / `GRAPH_REL_TYPES` / `graph_node_uid`, pinned to `data-model.md`), and the versioned Cypher schema (`migrations/neo4j/0001_schema.cypher` + `apply_pending` runner). CI-green (run `34346140544`). | 4 (Unit 1) |
+| 2026-09-09 | **Graph write path** (Phase 4, Unit 2): `services/graph-service` consumes `graph.commands` (group `graph-writer`) and applies each `GraphCommandPayload` as a parameterized idempotent MERGE — label allowlist-validated, `command_id`-deduped, out-of-order safe (`_watermark`), tenant invariants by construction, missing endpoints created, Neo4j outage → `TransientError`. New `GraphEventPayload` (`outcome: APPLIED\|DUPLICATE\|STALE` + counts) on `graph.events`; `EventType.graph_event`; `EventEnvelope_GraphEvent` + `GraphEventPayload` JSON Schemas (38 files). `GraphCommandPayload` promoted **STABLE target → STABLE** (producer and consumer both exercise it). INTEGRATION VERIFIED against real Neo4j 5. | 4 (Unit 2) |
 | 2026-09-08 | Phase-1 auth/admin API surface **implemented** in `services/api-gateway` and its contracts promoted DRAFT → **STABLE**: API conventions, the canonical error contract, the foundation endpoint set (§1.2), and the `Tenant`/`User`/`Role`/`Permission`/`UserRole`/`RolePermission`/`Sensor`/`AuditRecord` entity contracts. Cursor pagination, CSRF header (`X-CSRF-Token`) and the session cookie names are part of the stable surface. | 1 (Unit 4) |
 | 2026-09-08 | `packages/contracts-py` implements the canonical `EventEnvelope`, the `ErrorResponse` contract (`HTTP_STATUS_BY_CODE`), Phase-1 entity DTOs (`Tenant`, `User`, `Role`, `Permission`, `RolePermission`, `UserRoleGrant`, `Sensor`, `AuditRecord`), Phase-1 API models, and shared enums. JSON Schema generated to `packages/contracts-ts/schemas/` via `scripts/gen_contracts.py`. Status of these contracts: **STABLE target** — promoted to STABLE when the Phase-1 endpoints that use them ship. `identity_link` ownership corrected to `normalization-engine` (Phase 2) — see `architecture/consistency-review.md`. | 0 (close) |

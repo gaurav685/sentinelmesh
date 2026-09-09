@@ -25,7 +25,7 @@ progress.**
 | 1 | Foundation: config, database, authentication, RBAC | complete — CI green |
 | 2 | Telemetry ingestion + normalization | complete — CI green |
 | 3 | Kafka event bus + stream processing | complete — CI green |
-| 4 | Neo4j attack graph + graph intelligence | in progress — Unit 1 done |
+| 4 | Neo4j attack graph + graph intelligence | in progress — Units 1–2 done |
 | 5–10, 38 | detection, chains, scoring, SOC UI, LLM, response, simulation, … | not started |
 
 `docs/IMPLEMENTATION_STATE.md` is authoritative for exactly where the build is
@@ -48,6 +48,10 @@ and what the next action is.
   `events.canonical`; poison messages to the DLQ.
 - **`services/stream-processor`** — a stateless stream job that turns canonical
   events into idempotent graph commands on `graph.commands`.
+- **`services/graph-service`** — the only write path into Neo4j: consumes
+  `graph.commands`, applies each as a parameterized idempotent MERGE (label
+  allowlist, `command_id` dedup, out-of-order safe, tenant invariants), emits
+  `graph.events`.
 - **`services/api-gateway`** — local + OIDC authentication, server-side sessions,
   CSRF, deny-by-default RBAC, tenant-scoped reads, audited admin routes.
 - **`migrations/postgres`** — the control-plane schema (Alembic, linear history).

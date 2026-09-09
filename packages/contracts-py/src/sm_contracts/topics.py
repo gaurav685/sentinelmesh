@@ -136,6 +136,7 @@ EVENT_TYPE_TOPIC: dict[EventType, str] = {
     EventType.telemetry_file_access: "telemetry.raw",
     EventType.event_canonical: "events.canonical",
     EventType.graph_command: "graph.commands",
+    EventType.graph_event: "graph.events",
     EventType.detection_raised: "detections",
     EventType.attack_chain_updated: "attack_chains",
     EventType.ti_indicator_updated: "ti.updates",

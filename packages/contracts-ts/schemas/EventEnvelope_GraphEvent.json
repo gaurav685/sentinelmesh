@@ -61,138 +61,88 @@
       "title": "EventType",
       "type": "string"
     },
-    "ProcessExecPayload": {
+    "GraphEventPayload": {
       "additionalProperties": false,
       "properties": {
-        "command_line": {
-          "anyOf": [
-            {
-              "maxLength": 8192,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Command Line"
-        },
-        "hash_sha256": {
-          "anyOf": [
-            {
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Hash Sha256"
-        },
-        "host": {
-          "maxLength": 253,
-          "minLength": 1,
-          "title": "Host",
+        "command_id": {
+          "description": "The `graph.commands` command this reports on.",
+          "format": "uuid",
+          "title": "Command Id",
           "type": "string"
         },
-        "occurred_at": {
-          "description": "Event time as observed by the sensor. UTC.",
+        "label": {
+          "description": "Node label or relationship type.",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "nodes_written": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Nodes Written",
+          "type": "integer"
+        },
+        "observed_at": {
+          "description": "Event time carried from the command. UTC.",
           "format": "date-time",
-          "title": "Occurred At",
+          "title": "Observed At",
           "type": "string"
         },
-        "parent_process_id": {
-          "anyOf": [
-            {
-              "minimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Parent Process Id"
+        "op": {
+          "$ref": "#/definitions/GraphOp"
         },
-        "parent_process_name": {
-          "anyOf": [
-            {
-              "maxLength": 256,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Parent Process Name"
+        "outcome": {
+          "$ref": "#/definitions/GraphMutationOutcome"
         },
-        "process_id": {
-          "anyOf": [
-            {
-              "minimum": 0,
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Process Id"
-        },
-        "process_name": {
-          "maxLength": 256,
-          "minLength": 1,
-          "title": "Process Name",
+        "raw_event_id": {
+          "description": "Lineage \u2014 the source telemetry/detection event.",
+          "format": "uuid",
+          "title": "Raw Event Id",
           "type": "string"
         },
-        "process_path": {
-          "anyOf": [
-            {
-              "maxLength": 1024,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Process Path"
+        "relationships_written": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Relationships Written",
+          "type": "integer"
         },
-        "signed": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Signed"
-        },
-        "user": {
-          "anyOf": [
-            {
-              "maxLength": 320,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "User"
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
         }
       },
       "required": [
-        "occurred_at",
-        "host",
-        "process_name"
+        "command_id",
+        "op",
+        "outcome",
+        "tenant_id",
+        "observed_at",
+        "raw_event_id",
+        "label"
       ],
-      "title": "ProcessExecPayload",
+      "title": "GraphEventPayload",
       "type": "object"
+    },
+    "GraphMutationOutcome": {
+      "enum": [
+        "APPLIED",
+        "DUPLICATE",
+        "STALE"
+      ],
+      "title": "GraphMutationOutcome",
+      "type": "string"
+    },
+    "GraphOp": {
+      "enum": [
+        "MERGE_NODE",
+        "MERGE_EDGE",
+        "SET_PROPS",
+        "PRUNE"
+      ],
+      "title": "GraphOp",
+      "type": "string"
     },
     "SourceType": {
       "enum": [
@@ -254,7 +204,7 @@
       "type": "string"
     },
     "payload": {
-      "$ref": "#/definitions/ProcessExecPayload"
+      "$ref": "#/definitions/GraphEventPayload"
     },
     "producer": {
       "description": "`<service>@<semver>`, e.g. ingestion-gateway@0.1.0",
@@ -298,7 +248,7 @@
     "partition_key",
     "payload"
   ],
-  "title": "EventEnvelope[ProcessExecPayload]",
+  "title": "EventEnvelope[GraphEventPayload]",
   "type": "object",
   "x-sentinelmesh-contracts-version": "0.1.0"
 }

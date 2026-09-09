@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "GraphMutationOutcome": {
+      "enum": [
+        "APPLIED",
+        "DUPLICATE",
+        "STALE"
+      ],
+      "title": "GraphMutationOutcome",
+      "type": "string"
+    },
+    "GraphOp": {
+      "enum": [
+        "MERGE_NODE",
+        "MERGE_EDGE",
+        "SET_PROPS",
+        "PRUNE"
+      ],
+      "title": "GraphOp",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "command_id": {
+      "description": "The `graph.commands` command this reports on.",
+      "format": "uuid",
+      "title": "Command Id",
+      "type": "string"
+    },
+    "label": {
+      "description": "Node label or relationship type.",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "nodes_written": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Nodes Written",
+      "type": "integer"
+    },
+    "observed_at": {
+      "description": "Event time carried from the command. UTC.",
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "op": {
+      "$ref": "#/definitions/GraphOp"
+    },
+    "outcome": {
+      "$ref": "#/definitions/GraphMutationOutcome"
+    },
+    "raw_event_id": {
+      "description": "Lineage \u2014 the source telemetry/detection event.",
+      "format": "uuid",
+      "title": "Raw Event Id",
+      "type": "string"
+    },
+    "relationships_written": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Relationships Written",
+      "type": "integer"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "command_id",
+    "op",
+    "outcome",
+    "tenant_id",
+    "observed_at",
+    "raw_event_id",
+    "label"
+  ],
+  "title": "GraphEventPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

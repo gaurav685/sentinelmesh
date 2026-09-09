@@ -53,6 +53,7 @@
         "telemetry.file_access",
         "event.canonical",
         "graph.command",
+        "graph.event",
         "detection.raised",
         "attack_chain.updated",
         "ti.indicator_updated",

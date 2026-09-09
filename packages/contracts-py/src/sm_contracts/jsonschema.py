@@ -36,7 +36,7 @@ from .entities import (
 )
 from .errors import ErrorResponse
 from .events import EventEnvelope, UserEventPayload
-from .graph import GraphCommandPayload
+from .graph import GraphCommandPayload, GraphEventPayload
 from .telemetry import (
     AuthEventPayload,
     CanonicalEventPayload,
@@ -57,6 +57,7 @@ ProcessExecEnvelope = EventEnvelope[ProcessExecPayload]
 FileAccessEnvelope = EventEnvelope[FileAccessPayload]
 CanonicalEventEnvelope = EventEnvelope[CanonicalEventPayload]
 GraphCommandEnvelope = EventEnvelope[GraphCommandPayload]
+GraphEventEnvelope = EventEnvelope[GraphEventPayload]
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ErrorResponse": ErrorResponse,
@@ -70,6 +71,8 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "EventEnvelope_CanonicalEvent": CanonicalEventEnvelope,
     "EventEnvelope_GraphCommand": GraphCommandEnvelope,
     "GraphCommandPayload": GraphCommandPayload,
+    "EventEnvelope_GraphEvent": GraphEventEnvelope,
+    "GraphEventPayload": GraphEventPayload,
     "NetworkFlowPayload": NetworkFlowPayload,
     "AuthEventPayload": AuthEventPayload,
     "DnsQueryPayload": DnsQueryPayload,

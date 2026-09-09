@@ -34,6 +34,8 @@ __all__ = [
     "GRAPH_REL_TYPES",
     "GraphCommandPayload",
     "GraphEndpoint",
+    "GraphEventPayload",
+    "GraphMutationOutcome",
     "GraphOp",
     "graph_command_id",
     "graph_node_uid",
@@ -130,8 +132,36 @@ def graph_command_id(raw_event_id: UUID, op: GraphOp, label: str, discriminator:
     return uuid.uuid5(_GRAPH_CMD_NS, f"{raw_event_id}|{op.value}|{label}|{discriminator}")
 
 
+# --------------------------------------------------------------------------- #
+# graph.events — what `graph-service` did with a command (Phase 4).
+# Consumed by api-projection (read model) and notification-fanout.
+# --------------------------------------------------------------------------- #
+class GraphMutationOutcome(StrEnum):
+    applied = "APPLIED"           # the mutation ran (node/edge created or updated)
+    duplicate = "DUPLICATE"       # command_id already applied — no-op
+    stale = "STALE"               # older than the stored watermark — no-op (out-of-order)
+
+
+class GraphEventPayload(SmBaseModel):
+    command_id: UUID = Field(description="The `graph.commands` command this reports on.")
+    op: GraphOp
+    outcome: GraphMutationOutcome
+    tenant_id: UUID
+    observed_at: datetime = Field(description="Event time carried from the command. UTC.")
+    raw_event_id: UUID = Field(description="Lineage — the source telemetry/detection event.")
+    label: str = Field(min_length=1, max_length=64, description="Node label or relationship type.")
+    nodes_written: int = Field(default=0, ge=0)
+    relationships_written: int = Field(default=0, ge=0)
+
+    @field_validator("observed_at")
+    @classmethod
+    def _utc(cls, v: datetime) -> datetime:
+        return to_utc(v)
+
+
 GRAPH_PAYLOADS: dict[EventType, type[SmBaseModel]] = {
     EventType.graph_command: GraphCommandPayload,
+    EventType.graph_event: GraphEventPayload,
 }
 
 EVENT_PAYLOAD_REGISTRY.update(GRAPH_PAYLOADS)

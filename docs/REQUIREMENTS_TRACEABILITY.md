@@ -86,7 +86,10 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** internal; tenant property on every node/edge; no cross-tenant relationship (graph invariant).
 - **Test:** unit (command→Cypher, idempotency), integration (Neo4j container), invariant tests (no cross-tenant edge).
 - **Verification method:** integration tests against Neo4j container; invariant assertions.
-- **Phase:** P3/P4. **Status:** PARTIAL. The **command producer half is IMPLEMENTED** (Phase 3): `sm_contracts.GraphCommandPayload` + `stream-processor`'s `graph-update-emitter` maps every `events.canonical` event to node/edge `MERGE` commands on `graph.commands`, deterministic `command_id`, INTEGRATION VERIFIED against Redpanda (`test_stream_processor_bus.py`). The **graph writer** (`graph-writer` / Neo4j, command→Cypher, invariants) is **Phase 4** — `graph.commands` currently has no consumer.
+- **Phase:** P3/P4. **Status:** PARTIAL — command producer + writer IMPLEMENTED, read/query + GDS pending.
+  - **Producer** (Phase 3): `stream-processor`'s `graph-update-emitter` maps every `events.canonical` event to `MERGE` commands on `graph.commands`; deterministic `command_id`; INTEGRATION VERIFIED (`test_stream_processor_bus.py`).
+  - **Writer** (Phase 4 Unit 2): `services/graph-service` consumes `graph.commands` (group `graph-writer`) and applies each as a **parameterized** MERGE (label / relationship type allowlist-validated against `sm_contracts.GRAPH_NODE_LABELS` / `GRAPH_REL_TYPES` — non-allowlisted → DLQ), idempotent by `command_id` (`_GraphCommand` ledger), out-of-order safe (`_watermark`), tenant invariants by construction (synthetic per-tenant `uid`; no cross-tenant edge), missing endpoint nodes created; emits `graph.events` (`GraphEventPayload`). INTEGRATION VERIFIED against a real Neo4j 5 Community container (`tests/integration/test_graph_service_neo4j.py` — node/edge creation, duplicate, out-of-order, duplicate-relationship suppression, tenant isolation).
+  - **Read / query API** (parameterized, tenant-scoped, depth-bounded) — Phase 4 Unit 3. **GDS** pathfinding/centrality — later.
 
 ### R4 — Dynamic Graph Update System
 - **Purpose:** streaming graph updates, temporal synchronization, real-time attack-state updates.
@@ -102,7 +105,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** internal; per-key tenant isolation in stream state.
 - **Test:** ordering/idempotency/replay tests; recovery test (kill job, restore from checkpoint).
 - **Verification method:** integration test with induced failure + replay.
-- **Phase:** P3–P4. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P3–P4. **Status:** PARTIAL. `events.canonical → graph.commands → graph-service → Neo4j` is live and idempotent (see R3). Per-partition ordering holds; out-of-order commands are resolved last-write-wins on `observed_at` (`_watermark`), verified in `test_graph_service_neo4j.py`. A Neo4j outage during apply surfaces as `TransientError` and the record is retried (not dropped). Kill/restore-from-checkpoint recovery is a stateful-engine concern (deferred, ADR-010).
 
 ### R5 — Anomaly Detection Engine
 - **Purpose:** Isolation Forest, autoencoders, behavioral analytics, adaptive thresholds.
