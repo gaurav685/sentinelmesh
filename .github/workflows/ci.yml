@@ -180,6 +180,11 @@ jobs:
             sleep 2
           done
 
+      - name: Provision Kafka topics
+        run: python scripts/provision_topics.py
+        env:
+          SM_KAFKA_BOOTSTRAP_SERVERS: localhost:19092
+
       - name: Apply migrations
         run: |
           python -m alembic -c migrations/postgres/alembic.ini upgrade head

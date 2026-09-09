@@ -70,6 +70,37 @@ class Metrics:
             ("service", "dependency"),
             registry=registry,
         )
+        # ---- event bus (ADR-008; event-model.md) --------------------------
+        self.consumer_records = Counter(
+            "sm_consumer_records_total",
+            "Kafka records handled by a consumer group",
+            ("service", "group", "topic"),
+            registry=registry,
+        )
+        self.consumer_dlq = Counter(
+            "sm_consumer_dlq_total",
+            "Records a consumer sent to a dead-letter topic",
+            ("service", "group", "reason"),
+            registry=registry,
+        )
+        self.consumer_retries = Counter(
+            "sm_consumer_retries_total",
+            "In-process handler retries before success or DLQ",
+            ("service", "group"),
+            registry=registry,
+        )
+        self.consumer_lag = Gauge(
+            "sm_consumer_lag",
+            "Records behind the partition high-watermark at the last poll",
+            ("service", "group", "topic", "partition"),
+            registry=registry,
+        )
+        self.producer_send_errors = Counter(
+            "sm_producer_send_errors_total",
+            "Producer send attempts that raised after the client's own retries",
+            ("service", "topic"),
+            registry=registry,
+        )
 
     def observe_http(self, method: str, path: str, status: int, duration_s: float) -> None:
         self.http_requests.labels(self._service, method, path, str(status)).inc()

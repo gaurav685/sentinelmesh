@@ -6,7 +6,8 @@ the bus (ADR-009). This package holds the thin producer and consumer wrappers ev
 
 from __future__ import annotations
 
+from .admin import ensure_topics
 from .consumer import EventBusConsumer, dlq_payload
 from .producer import EventBusProducer
 
-__all__ = ["EventBusConsumer", "EventBusProducer", "dlq_payload"]
+__all__ = ["EventBusConsumer", "EventBusProducer", "dlq_payload", "ensure_topics"]

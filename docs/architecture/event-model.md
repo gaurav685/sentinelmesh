@@ -72,6 +72,10 @@ reducing) with awareness that `partition_key` distribution changes.
 
 - **At-least-once** end to end. **Exactly-once is not claimed anywhere.**
 - Consumers commit offsets **after** side effects succeed (or after DLQ-ing).
+  `sm_common.bus.EventBusConsumer.run_once` does this per poll batch; on a
+  handler exception it does not commit **and rewinds the fetch position** to the
+  first record of the batch, so the same consumer redelivers it on the next
+  poll (not only after a rebalance / restart).
 - Idempotency mechanisms per consumer:
   - `normalization-engine`: the canonical `event_id` is `uuid5` of the raw
     `event_id`, so a redelivered raw record re-emits the same canonical
@@ -105,6 +109,9 @@ reducing) with awareness that `partition_key` distribution changes.
 ## 6. Replay
 
 - Replay = reset a consumer group's offsets to a timestamp and reprocess.
+  `EventBusConsumer.seek_by_timestamp(when)` moves every assigned partition to
+  the first offset at/after `when`; `replay_group(g)` names the dedicated
+  side-effect-disabled group.
 - Safe for idempotent consumers (`graph-writer`, `api-projection`, `memory`).
 - **Not** safe to replay into `response.actions` consumers — replay of
   `detections` must target a dedicated `*-replay` consumer group that has

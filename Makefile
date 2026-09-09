@@ -8,7 +8,7 @@ PY ?= python
 COMPOSE ?= docker compose -f deploy/docker/docker-compose.yml
 
 .PHONY: help setup lint fmt typecheck test test-unit test-integration contracts \
-        up down logs migrate psql redis run clean
+        up down logs migrate provision-topics topics psql redis run clean
 
 help:
 	@echo "setup            install all packages editable into the active venv"
@@ -63,6 +63,12 @@ logs:
 
 migrate:
 	$(PY) -m alembic -c migrations/postgres/alembic.ini upgrade head
+
+provision-topics:
+	$(PY) scripts/provision_topics.py
+
+topics:
+	$(PY) scripts/provision_topics.py --list
 
 psql:
 	$(COMPOSE) exec postgres psql -U $${SM_PG_USER:-sentinelmesh} -d $${SM_PG_DB:-sentinelmesh}
