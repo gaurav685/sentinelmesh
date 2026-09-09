@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "GraphEndpoint": {
+      "additionalProperties": false,
+      "description": "One end of a `MERGE_EDGE` \u2014 a node label plus its key.",
+      "properties": {
+        "key": {
+          "additionalProperties": true,
+          "description": "The node's key property, e.g. {'host_id': 'web01'}.",
+          "title": "Key",
+          "type": "object"
+        },
+        "label": {
+          "description": "Neo4j label, e.g. ':Host'.",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "key"
+      ],
+      "title": "GraphEndpoint",
+      "type": "object"
+    },
+    "GraphOp": {
+      "enum": [
+        "MERGE_NODE",
+        "MERGE_EDGE",
+        "SET_PROPS",
+        "PRUNE"
+      ],
+      "title": "GraphOp",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "command_id": {
+      "description": "Idempotency key; deterministic per source event + command.",
+      "format": "uuid",
+      "title": "Command Id",
+      "type": "string"
+    },
+    "end": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/GraphEndpoint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "key": {
+      "additionalProperties": true,
+      "description": "For a node op: its key property. For MERGE_EDGE: unused (see start/end).",
+      "title": "Key",
+      "type": "object"
+    },
+    "label": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Label",
+      "type": "string"
+    },
+    "observed_at": {
+      "description": "Event time from the source event. UTC.",
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "op": {
+      "$ref": "#/definitions/GraphOp"
+    },
+    "props": {
+      "additionalProperties": true,
+      "title": "Props",
+      "type": "object"
+    },
+    "raw_event_id": {
+      "description": "The canonical/detection event this was derived from (lineage).",
+      "format": "uuid",
+      "title": "Raw Event Id",
+      "type": "string"
+    },
+    "start": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/GraphEndpoint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tenant_id": {
+      "description": "Becomes a non-null property on every node/edge (data-model invariant).",
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "command_id",
+    "op",
+    "tenant_id",
+    "observed_at",
+    "raw_event_id",
+    "label"
+  ],
+  "title": "GraphCommandPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

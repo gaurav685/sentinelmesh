@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 from aiokafka.structs import ConsumerRecord
 
+from sm_common.bus import RecordProcessor
 from sm_common.clock import utcnow
 from sm_common.config import AppSettings
 from sm_common.ids import uuid7
@@ -73,6 +74,7 @@ class FakeProducer:
     def __init__(self) -> None:
         self.sent: list[tuple[str, str, bytes]] = []
         self.fail = False
+        self.fail_topics: set[str] = set()
         self.started = False
 
     async def start(self) -> None:
@@ -86,7 +88,7 @@ class FakeProducer:
             raise ConnectionError("broker down")
 
     async def send(self, topic: str, *, key: str, value: bytes, headers: Any = None) -> None:
-        if self.fail:
+        if self.fail or topic in self.fail_topics:
             raise ConnectionError("broker down")
         self.sent.append((topic, key, value))
 
@@ -112,7 +114,9 @@ class FakeConsumer:
 @dataclass
 class Rig:
     engine: NormalizationEngine
+    processor: RecordProcessor
     producer: FakeProducer
+    base_metrics: Any
     metrics: NormalizationMetrics
     consumed: list[Any] = field(default_factory=list)
 
@@ -137,9 +141,13 @@ def rig() -> Rig:
         consumer_group="normalization",
         metrics=base,
         norm_metrics=nm,
-        produce_attempts=2,
     )
-    return Rig(engine=engine, producer=producer, metrics=nm)
+    processor = RecordProcessor(
+        producer=producer,  # type: ignore[arg-type]
+        consumer_group="normalization", handle=engine.handle,
+        metrics=base, service_name="normalization-engine", max_attempts=2, backoff_cap_s=0.0,
+    )
+    return Rig(engine=engine, processor=processor, producer=producer, base_metrics=base, metrics=nm)
 
 
 def build_settings(**over: Any) -> AppSettings:
@@ -168,9 +176,13 @@ def app_client() -> AsyncIterator[Any]:
     engine = NormalizationEngine(
         producer=producer, consumer_group="normalization", metrics=base, norm_metrics=nm  # type: ignore[arg-type]
     )
+    processor = RecordProcessor(
+        producer=producer, consumer_group="normalization", handle=engine.handle,  # type: ignore[arg-type]
+        metrics=base, service_name="normalization-engine",
+    )
     services = Services(
         settings=build_settings(), metrics=base, norm_metrics=nm,
-        producer=producer, consumer=consumer, engine=engine,  # type: ignore[arg-type]
+        producer=producer, consumer=consumer, engine=engine, processor=processor,  # type: ignore[arg-type]
     )
     app = create_app(services=services)
     with TestClient(app) as c:

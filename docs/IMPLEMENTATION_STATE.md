@@ -7,14 +7,16 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 3 — Kafka + Stream Processing. IN PROGRESS (Units 1–2 done).**
-Unit 1: definitive topic registry + versioned-event-type policy
-(`sm_contracts.topics`). Unit 2: bus hardening + topic provisioning. Remaining:
-the `stream-processor` service (`graph-update-emitter`: `events.canonical` →
-`graph.commands`), the stream-engine decision (ADR-010 / U-001 / U-002),
-replay + observability docs. Flink is **not** implemented — no JDK 11+ locally
-(ADR-001), and no stateful job's consuming phase has arrived; the
-engine-independent stream contracts (event-model.md §7) stand.
+**Phase 3 — Kafka + Stream Processing. IN PROGRESS (Units 1–3 done).**
+Unit 1: topic registry + versioned-event-type policy. Unit 2: bus hardening +
+topic provisioning. Unit 3: `RecordProcessor` (shared retry/DLQ), the
+`GraphCommandPayload` contract, and `services/stream-processor` running the
+`graph-update-emitter` job (`events.canonical` → `graph.commands`, verified
+against Redpanda). Remaining (Unit 4): the stream-engine decision (ADR-010 /
+U-001 / U-002), replay + observability docs, `REQUIREMENTS_TRACEABILITY` rows,
+Phase 3 exit report. Flink is **not** implemented — no JDK 11+ locally
+(ADR-001), no stateful job's consuming phase has arrived; the engine-independent
+stream contracts (event-model.md §7) stand.
 
 ---
 
@@ -31,6 +33,49 @@ entrypoint imports + prod fail-fast guards). Pipeline: sensor →
 
 Phase 1 exited INTEGRATION VERIFIED on local Docker; its CI jobs also went green
 in the same run.
+
+### Phase 3, Unit 3 — RecordProcessor + stream-processor (graph-update-emitter) (DONE)
+
+- `sm_common.bus.RecordProcessor` — the shared retry / DLQ policy
+  (event-model.md §4/§5). A domain handler raises `PoisonError` (→ DLQ now) or
+  `TransientError` (→ exp backoff × `SM_KAFKA_HANDLER_MAX_ATTEMPTS`, then DLQ);
+  anything else propagates (uncommitted → the consumer rewinds + redelivers).
+  DLQ record is `dlq_payload(...)` to `dlq_topic(record.topic)`; meters
+  `sm_consumer_dlq_total` / `sm_consumer_retries_total`.
+- `normalization-engine` refactored onto it: `engine.handle` now only *signals*
+  intent (raises `PoisonError` / `TransientError`); the hand-rolled parse→DLQ
+  and produce-retry loops are gone. `NormalizationMetrics` dropped its
+  `sm_normalize_dlq_total` / `sm_normalize_produce_errors_total` (the shared bus
+  metrics cover it — no duplication).
+- `sm_contracts.graph` — `GraphCommandPayload` (CONTRACTS.md §5:
+  `command_id, op ∈ MERGE_NODE|MERGE_EDGE|SET_PROPS|PRUNE, tenant_id,
+  observed_at, raw_event_id, label, key, props, start/end`), `GraphOp`,
+  `GraphEndpoint`, `graph_command_id(raw_event_id, op, label, discriminator)`
+  (deterministic). Registered for `EventType.graph_command`; 2 new JSON Schemas.
+- `services/stream-processor` (port 8003) — a stateless stream job with a
+  health/metrics HTTP surface. `emitter.emit(canonical_envelope)` maps one
+  `events.canonical` event → a `MERGE_NODE` command per entity + one
+  `MERGE_EDGE` `actor -[REL]-> target` (`REL` from `CanonicalKind`,
+  `data-model.md` vocab; `EntityKind` → Neo4j label). Each command's envelope
+  `event_id == payload.command_id`, deterministic in the source canonical
+  `event_id`, so a redelivery re-emits identical commands (idempotent for
+  `graph-writer`, Phase 4). `StreamEngine.handle` wrapped by `RecordProcessor`;
+  `events.canonical` → `graph.commands`, poison → `events.canonical.dlq`.
+  Metrics `sm_stream_{in,commands_out}_total`.
+- Added to `Dockerfile.app` (one image), compose (`bus` profile,
+  `depends_on: topics-init`), Makefile, CI (install + `mypy` + image
+  entrypoint-import check).
+- `.env` `SM_KAFKA_BOOTSTRAP_SERVERS` corrected to `localhost:19092` (Redpanda
+  EXTERNAL listener; matches `.env.example`).
+- Tests: `services/stream-processor/tests` (15 — emitter mappings, engine
+  DLQ/retry/redelivery, health); `tests/integration/test_stream_processor_bus.py`
+  (2, real Redpanda — canonical → graph commands with the right shape; poison →
+  DLQ + next good still processes). `test_normalization_bus.py` updated for the
+  `RecordProcessor` refactor.
+- Verified: pytest **293** non-integration / **74** integration
+  (`SM_REQUIRE_INTEGRATION=1`, Redpanda v24.2.11 + Postgres 16 + Redis 7),
+  `mypy --strict` clean (122 files), `ruff` clean, `gen_contracts --check` clean,
+  `docker compose --profile bus config` valid.
 
 ### Phase 3, Unit 2 — bus hardening + topic provisioning (DONE)
 
@@ -1005,32 +1050,30 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 3, Unit 3 — `services/stream-processor` (`graph-update-emitter`).**
-Units 1–2 (topic registry, bus hardening) are done.
+**PHASE 3, Unit 4 — decisions + docs + Phase 3 exit.** Units 1–3 (topic
+registry, bus hardening, `RecordProcessor` + `stream-processor`) are done.
 
-1. A shared **retry + DLQ** helper in `sm_common.bus` — `RecordProcessor`: wraps
-   a domain handler with the event-model.md §4 policy. The handler raises
-   `PoisonError` (→ DLQ immediately) or `TransientError` (→ exp backoff, max
-   `SM_KAFKA_HANDLER_MAX_ATTEMPTS`, then DLQ); anything else propagates
-   (uncommitted → redeliver). It produces `dlq_payload(...)` to
-   `dlq_topic(source)` and meters `sm_consumer_dlq_total` / `sm_consumer_retries_total`.
-   Refactor `normalization-engine.engine` onto it (drop its hand-rolled loop).
-2. `services/stream-processor` — a plain-Python stream job (no Flink; the
-   `graph-update-emitter` needs no windowing, event-model.md §7). Consume
-   `events.canonical` (group `stream-processor`), emit one `graph.command`
-   payload per canonical event onto `graph.commands` with a deterministic
-   `command_id` (`uuid5` of the canonical `event_id` + the command kind), so a
-   redelivery is idempotent for `graph-writer` (Phase 4). Health / metrics,
-   no HTTP ingest. Add to `Dockerfile.app` / compose (`bus` profile) / CI.
-3. `graph.command` payload contract in `sm_contracts` (a new `EventType` member
-   `graph_command` already exists; add the payload model + register it).
-4. Integration test (real Redpanda): canonical event in → `graph.commands` out
-   with the right shape; a poison canonical record → `events.canonical.dlq`;
-   redelivery produces the identical `command_id`.
-
-Then **Unit 4** = the ADR-010 stream-engine decision (resolve U-001 / U-002),
-the replay-tooling + observability docs, `REQUIREMENTS_TRACEABILITY` R3/R20 +
-the stream-contract rows, Phase 3 exit report.
+1. **ADR-010 update** — resolve U-001 / U-002. Given no local JDK 11+ (ADR-001)
+   and MVP scale: stateless / low-state jobs run as plain-Python
+   `EventBusConsumer` + `RecordProcessor` (as `normalization-engine` and
+   `stream-processor` do now). Stateful jobs (feature windows, sessionization,
+   temporal stitching) are **deferred to their consuming phase**; the engine
+   for those (Flink vs Bytewax vs Kafka Streams) is chosen then, against a real
+   job's state needs. Record the decision + rationale; the engine-independent
+   contracts (event-model.md §7) are unchanged.
+2. **Replay tooling** — a `scripts/replay.py` (reset a group's offsets to a
+   timestamp via `EventBusConsumer.seek_by_timestamp`, dry-run by default,
+   `--group` must be a `*-replay` group) + the replay runbook in a doc.
+3. **Observability doc** — `docs/architecture/observability.md` or an
+   event-model.md §8: the `sm_consumer_*` / `sm_producer_*` / `sm_stream_*` /
+   `sm_normalize_*` / `sm_ingest_*` metric catalog, the DLQ-depth alert, the
+   consumer-lag alert.
+4. **`REQUIREMENTS_TRACEABILITY.md`** — R3 (graph construction: the
+   `graph-update-emitter` half is done, `graph-writer`/Neo4j is Phase 4),
+   R20 (stream processing architecture), and the §7 stream-contract rows.
+5. **Phase 3 exit report** in this file; commit; push; CI green; then the
+   **Phase 4 prompt** (Neo4j + graph engine — the first `graph.commands`
+   consumer).
 
 ### Standing debt carried past Phase 2
 

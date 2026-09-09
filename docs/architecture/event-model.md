@@ -127,7 +127,8 @@ reducing) with awareness that `partition_key` distribution changes.
 | `attack-chain-correlator` | `events.canonical`, `detections` | `attack_chains` | keyed session state per tenant+entity | event-time, 10m lateness, session gap 30m |
 | `lateral-movement` | `events.canonical` (auth + flow) | `graph.commands` (`USED_CREDENTIAL_ON`), `detections` (candidates) | keyed state per identity | event-time |
 | `temporal-stitcher` | `events.canonical` | `events.canonical` (enriched `correlation_id`) or `identity.links` | keyed state per identity/session | event-time, 1h lateness |
-| `graph-update-emitter` | `events.canonical` | `graph.commands` | minimal (dedup) | at-least-once + idempotent commands |
+| `graph-update-emitter` | `events.canonical` | `graph.commands` | none | at-least-once + idempotent commands — **IMPLEMENTED** (`services/stream-processor`, Phase 3, plain-Python `EventBusConsumer` + `RecordProcessor`) |
 
 If the engine changes (Flink → Bytewax/Kafka Streams), these input/output topics
-and semantics do not change.
+and semantics do not change. The stateless job above runs as plain-Python today;
+the stateful jobs are deferred to their consuming phase (ADR-010, U-002).
