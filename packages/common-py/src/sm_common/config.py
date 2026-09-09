@@ -159,6 +159,20 @@ class AppSettings(BaseSettings):
     # count only when running behind a known ingress.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=10)
 
+    # ---- MITRE ATT&CK (Phase 6) ----------------------------------
+    # The imported matrix version mitre-service serves. Informational until an
+    # import runs; `/readyz` warns when the catalog is empty.
+    mitre_expected_matrix_version: str | None = None
+
+    # ---- threat intelligence (Phase 6) --------------------------
+    # Comma-separated list of enabled provider adapter names (empty = none).
+    ti_providers: str = ""
+    ti_http_timeout_s: float = Field(default=10.0, gt=0.0, le=60.0)
+    ti_http_max_retries: int = Field(default=2, ge=0, le=6)
+    ti_default_ttl_seconds: int = Field(default=86_400, ge=60)
+    ti_service_url: str = "http://localhost:8007"
+    mitre_service_url: str = "http://localhost:8008"
+
     # ---- detection engine (Phase 5) ------------------------------
     ml_inference_url: str = "http://localhost:8005"
     ml_inference_timeout_s: float = Field(default=2.0, gt=0.0, le=30.0)

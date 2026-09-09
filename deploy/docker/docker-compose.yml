@@ -14,7 +14,7 @@
 #   --profile obs    prometheus, grafana
 #   --profile graph  neo4j, graph-service   (Phase 4+; graph-service also needs --profile bus)
 #   --profile bus    redpanda         (Phase 2+)
-#   --profile detect ml-inference, detection-engine   (Phase 5+; detection-engine also needs --profile bus)
+#   --profile detect ml-inference, detection-engine, mitre-service   (Phase 5-6; detection/mitre also need --profile bus)
 #   --profile objects minio           (Phase 5+)
 
 name: sentinelmesh
@@ -291,6 +291,37 @@ services:
       - "8006:8006"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8006/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # ATT&CK catalog + technique mapping (req 7). Catalog imported offline:
+  #   python scripts/import_attack_stix.py --bundle <bundle> --version <v>
+  mitre-service:
+    profiles: ["detect"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_mitre_service"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: mitre-service
+      SM_DEPLOYMENT_PROFILE: monolith
+      SM_EVENT_BUS_ENABLED: "true"
+      SM_KAFKA_CONSUMER_GROUP: mitre-mapping
+    ports:
+      - "8008:8008"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8008/healthz', timeout=2).status == 200 else 1)"]
       interval: 15s
       timeout: 3s
       retries: 3

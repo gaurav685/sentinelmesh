@@ -1,0 +1,88 @@
+{
+  "type": "bundle",
+  "id": "bundle--00000000-0000-4000-8000-000000000001",
+  "spec_version": "2.1",
+  "_note": "FIXTURE — a tiny hand-authored STIX 2.1 bundle for mitre-service tests. NOT the real MITRE ATT&CK catalog. Real data is imported offline (ADR-024).",
+  "objects": [
+    {
+      "type": "x-mitre-tactic",
+      "id": "x-mitre-tactic--00000000-0000-4000-8000-0000000000ta",
+      "name": "Credential Access",
+      "x_mitre_shortname": "credential-access",
+      "description": "The adversary is trying to steal account names and passwords.",
+      "external_references": [
+        {"source_name": "mitre-attack", "external_id": "TA0006", "url": "https://attack.mitre.org/tactics/TA0006"}
+      ]
+    },
+    {
+      "type": "x-mitre-tactic",
+      "id": "x-mitre-tactic--00000000-0000-4000-8000-0000000000tb",
+      "name": "Lateral Movement",
+      "x_mitre_shortname": "lateral-movement",
+      "description": "The adversary is trying to move through your environment.",
+      "external_references": [
+        {"source_name": "mitre-attack", "external_id": "TA0008", "url": "https://attack.mitre.org/tactics/TA0008"}
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--00000000-0000-4000-8000-0000000t1110",
+      "name": "Brute Force",
+      "description": "Adversaries may use brute force techniques to gain access to accounts.",
+      "x_mitre_is_subtechnique": false,
+      "kill_chain_phases": [
+        {"kill_chain_name": "mitre-attack", "phase_name": "credential-access"}
+      ],
+      "external_references": [
+        {"source_name": "mitre-attack", "external_id": "T1110", "url": "https://attack.mitre.org/techniques/T1110"}
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--00000000-0000-4000-8000-00000t1110001",
+      "name": "Password Guessing",
+      "description": "Adversaries with no knowledge of legitimate credentials may guess passwords.",
+      "x_mitre_is_subtechnique": true,
+      "kill_chain_phases": [
+        {"kill_chain_name": "mitre-attack", "phase_name": "credential-access"}
+      ],
+      "external_references": [
+        {"source_name": "mitre-attack", "external_id": "T1110.001", "url": "https://attack.mitre.org/techniques/T1110/001"}
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--00000000-0000-4000-8000-0000000t1021",
+      "name": "Remote Services",
+      "description": "Adversaries may use valid accounts to log into a service.",
+      "x_mitre_is_subtechnique": false,
+      "kill_chain_phases": [
+        {"kill_chain_name": "mitre-attack", "phase_name": "lateral-movement"}
+      ],
+      "external_references": [
+        {"source_name": "mitre-attack", "external_id": "T1021", "url": "https://attack.mitre.org/techniques/T1021"}
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "id": "attack-pattern--00000000-0000-4000-8000-0000000t9999",
+      "name": "Deprecated Example",
+      "description": "A deprecated technique kept to prove the importer drops it from queries.",
+      "x_mitre_is_subtechnique": false,
+      "x_mitre_deprecated": true,
+      "kill_chain_phases": [
+        {"kill_chain_name": "mitre-attack", "phase_name": "credential-access"}
+      ],
+      "external_references": [
+        {"source_name": "mitre-attack", "external_id": "T9999", "url": "https://attack.mitre.org/techniques/T9999"}
+      ]
+    },
+    {
+      "type": "relationship",
+      "id": "relationship--00000000-0000-4000-8000-000000000rel",
+      "relationship_type": "subtechnique-of",
+      "source_ref": "attack-pattern--00000000-0000-4000-8000-00000t1110001",
+      "target_ref": "attack-pattern--00000000-0000-4000-8000-0000000t1110"
+    }
+  ]
+}

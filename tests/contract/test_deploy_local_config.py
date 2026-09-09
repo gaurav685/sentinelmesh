@@ -32,6 +32,7 @@ PROFILED = {
     "graph-service": "graph",
     "ml-inference": "detect",
     "detection-engine": "detect",
+    "mitre-service": "detect",
     "redpanda": "bus",
     "minio": "objects",
 }
