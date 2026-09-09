@@ -121,7 +121,11 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** input validation / OOD rejection; model artifacts loaded only from trusted registry.
 - **Test:** pipeline unit tests, reproducibility test, inference-failure fallback test, evaluation harness (metrics only after real run).
 - **Verification method:** benchmark harness on UNSW-NB15/CICIDS2017/NSL-KDD with logged metrics — not yet run.
-- **Phase:** P5. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P5. **Status:** PARTIAL — pipeline IMPLEMENTED and INTEGRATION VERIFIED; trained models + benchmark pending.
+  - `packages/ml-py` (`sm_ml`): versioned `FeatureSchema` per `CanonicalKind` + deterministic numpy-free extractors; `Preprocessor`; the `AnomalyModel` protocol; `StatisticalModel` (MAD z-score, stdlib-only — the always-on adaptive-threshold detector); `IsolationForestModel` (sklearn, artifact-loaded); `AutoencoderModel` architecture spec + `ModelNotTrained`; `ModelRegistry`. `ml/models/*/CONTRACT.md` per §6, `METRICS: NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION`.
+  - `services/ml-inference` (ADR-013): typed `POST /infer/{model}`; a missing / unloadable model → HTTP 503 `MODEL_UNAVAILABLE`; per-model latency + error + load metrics.
+  - `services/detection-engine`: `events.canonical` → features → per-`(tenant, kind)` rolling-window `StatisticalModel` (adaptive thresholds) → `anomaly` row; optional `ml-inference` contribution, any failure → `scoring_status = DEGRADED` + statistical only (verified). INTEGRATION VERIFIED against real PostgreSQL (`test_detection_pipeline_pg.py` — burst → `detection` + `security_alert` with grounded evidence, dedup on reprocess, tenant isolation).
+  - **Trained Isolation Forest / autoencoder artifacts, and any accuracy / F1 / ROC-AUC number: `NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION`** (ADR-024). No such number is produced or stored anywhere.
 
 ### R6 — Attack Chain Detection
 - **Purpose:** kill-chain reconstruction, AI attack-sequence inference, multi-stage/lateral/credential-escalation/exfiltration path detection.
@@ -169,7 +173,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** internal; tenant-scoped.
 - **Test:** deterministic scoring unit tests (fixed inputs → fixed output), weight-version tests, degradation tests (missing input).
 - **Verification method:** unit tests with golden vectors.
-- **Phase:** P3. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P5. **Status:** IMPLEMENTED (deterministic composite). `services/detection-engine/scoring.py` — `WEIGHTS_VERSION` over named `rule` / `statistical` / `model` components; a missing component is dropped and the rest renormalised (`scoring_status` records `degraded`). `threat_score` upserts one row per subject with `components` + `weights_version` + `scoring_status` for auditability. `test_scoring.py` (fixed inputs → fixed output, renormalisation, degraded-without-model). No validated scoring performance claimed. TI / MITRE inputs are Phase 6.
 
 ### R9 — Threat Intelligence Engine
 - **Purpose:** IOC integration, threat-actor enrichment, TI fusion, reputation scoring, freshness/expiry/provenance, provider-failure tolerance.
