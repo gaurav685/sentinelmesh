@@ -241,6 +241,38 @@ def _dns_nxdomain_burst(
     )]
 
 
+def _ti_known_bad_indicator(
+    c: CanonicalEventPayload, fv: FeatureVector, ctx: RuleContext
+) -> list[RuleHit]:
+    ti = c.enrichment.get("threat_intel")
+    if not isinstance(ti, dict):
+        return []
+    matches = ti.get("matches") or []
+    if not matches:
+        return []
+    reps = [m.get("reputation") for m in matches if isinstance(m.get("reputation"), (int, float))]
+    top = max(reps, default=0.5)
+    severity = Severity.high if top >= 0.75 else Severity.medium
+    values = [f"{m.get('type')}:{m.get('value')}" for m in matches]
+    return [RuleHit(
+        rule_id="rule.ti.known_bad_indicator",
+        title=f"Event involves a known-bad indicator ({', '.join(values[:3])})",
+        description=f"{len(matches)} entity value(s) on this {c.kind.value} event match a "
+                    f"threat-intel indicator (provider {ti.get('provider')}).",
+        severity=severity,
+        technique_ids=(),  # a TI hit is not itself a technique — Phase 6 leaves mapping to mitre-service
+        evidence=(
+            EvidenceItem(
+                kind=EvidenceKind.ti_indicator,
+                ref=values[0],
+                summary=f"threat-intel match: {', '.join(values[:5])}",
+                detail={"matches": matches, "as_of": ti.get("as_of")},
+                provenance=f"threat-intel-service (via normalization-engine):{ctx.raw_event_id}",
+            ),
+        ),
+    )]
+
+
 _RULES: tuple[Callable[[CanonicalEventPayload, FeatureVector, RuleContext], list[RuleHit]], ...] = (
     _auth_failed_burst,
     _auth_credential_reuse,
@@ -248,6 +280,7 @@ _RULES: tuple[Callable[[CanonicalEventPayload, FeatureVector, RuleContext], list
     _process_suspicious_cmdline,
     _dns_exfil_indicator,
     _dns_nxdomain_burst,
+    _ti_known_bad_indicator,
 )
 
 

@@ -15,6 +15,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
+import httpx
 from fastapi import FastAPI
 
 from sm_common.bus import EventBusConsumer, EventBusProducer, RecordProcessor
@@ -25,6 +26,8 @@ from sm_common.observability import build_metrics, configure_tracing, shutdown_t
 
 from .deps import Services
 from .engine import NormalizationEngine
+from .enrich import Enricher
+from .enrich.threat_intel import ThreatIntelEnricher
 from .metrics import NormalizationMetrics
 from .routes import health, metrics
 from .topics import RAW_TOPIC
@@ -35,7 +38,7 @@ __all__ = ["build_services", "create_app"]
 _log = get_logger("sm.normalization_engine")
 
 
-def build_services(settings: AppSettings) -> Services:
+def build_services(settings: AppSettings, *, http: httpx.AsyncClient | None = None) -> Services:
     base_metrics = build_metrics(SERVICE_NAME)
     norm_metrics = NormalizationMetrics(base_metrics, SERVICE_NAME)
     producer = EventBusProducer.from_settings(settings, metrics=base_metrics)
@@ -43,8 +46,16 @@ def build_services(settings: AppSettings) -> Services:
     consumer = EventBusConsumer.from_settings(
         settings, topics=[RAW_TOPIC], group_id=group, metrics=base_metrics
     )
+    enrichers: tuple[Enricher, ...] = ()
+    if settings.ti_enrichment_enabled and http is not None:
+        enrichers = (ThreatIntelEnricher(
+            http, base_url=settings.ti_service_url,
+            signing_key=settings.internal_jwt_signing_key.get_secret_value(),
+            timeout_s=settings.ti_http_timeout_s,
+        ),)
     engine = NormalizationEngine(
-        producer=producer, consumer_group=group, metrics=base_metrics, norm_metrics=norm_metrics
+        producer=producer, consumer_group=group, metrics=base_metrics, norm_metrics=norm_metrics,
+        enrichers=enrichers,
     )
     processor = RecordProcessor(
         producer=producer, consumer_group=group, handle=engine.handle,
@@ -67,7 +78,13 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         owns = services is None
-        svc = services or build_services(resolved_settings)
+        http: httpx.AsyncClient | None = None
+        if owns:
+            http = httpx.AsyncClient(timeout=resolved_settings.ti_http_timeout_s)
+            svc = build_services(resolved_settings, http=http)
+        else:
+            assert services is not None
+            svc = services
         app.state.services = svc
 
         task: asyncio.Task[None] | None = None
@@ -93,6 +110,8 @@ def create_app(
                             await task
                 await svc.consumer.stop()
                 await svc.producer.stop()
+                if http is not None:
+                    await http.aclose()
             shutdown_tracing()
             _log.info("service_stop", service=SERVICE_NAME)
 

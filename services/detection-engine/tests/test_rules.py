@@ -5,7 +5,7 @@ import time
 from sm_detection_engine.rules import RuleContext, run_rules
 from sm_detection_engine.windows import EventTimeline
 
-from sm_contracts import CanonicalKind, Severity
+from sm_contracts import CanonicalKind, EvidenceKind, Severity
 from sm_ml import extract_features
 
 from .conftest import TENANT_ID, canonical
@@ -100,6 +100,51 @@ def test_dns_tunnelling_indicator() -> None:
         action="resolved", attributes={"query_type": "TXT", "answers": []},
     )
     assert "rule.dns.exfil_indicator" in tunnel
+
+
+def _ti_enrichment(*matches: dict[str, object]) -> dict[str, object]:
+    return {"threat_intel": {"provider": "threat-intel-service",
+                             "as_of": "2026-09-09T00:00:00+00:00", "matches": list(matches)}}
+
+
+def test_ti_known_bad_indicator_fires_with_ti_evidence() -> None:
+    ctx = _ctx(EventTimeline(window_s=300))
+    env = canonical(
+        CanonicalKind.network_flow, actor=("ip", "198.51.100.23"),
+        target=("domain", "malware-delivery.example"), action="connected_to",
+        enrichment=_ti_enrichment(
+            {"type": "ipv4", "value": "198.51.100.23", "reputation": 0.9,
+             "confidence": "high", "source": "fixture", "freshness": "fresh"},
+        ),
+    )
+    hits = run_rules(env.payload, extract_features(env.payload), ctx)
+    ti = next(h for h in hits if h.rule_id == "rule.ti.known_bad_indicator")
+    assert ti.severity is Severity.high  # reputation >= 0.75
+    assert ti.technique_ids == ()  # a TI hit is not itself a technique
+    assert any(e.kind is EvidenceKind.ti_indicator for e in ti.evidence)
+    ev = next(e for e in ti.evidence if e.kind is EvidenceKind.ti_indicator)
+    assert "threat-intel-service" in ev.provenance
+
+
+def test_ti_known_bad_indicator_severity_scales_with_reputation() -> None:
+    ctx = _ctx(EventTimeline(window_s=300))
+    env = canonical(
+        CanonicalKind.network_flow, actor=("ip", "203.0.113.7"), action="connected_to",
+        enrichment=_ti_enrichment(
+            {"type": "ipv4", "value": "203.0.113.7", "reputation": 0.5, "freshness": "aging"},
+        ),
+    )
+    hits = run_rules(env.payload, extract_features(env.payload), ctx)
+    ti = next(h for h in hits if h.rule_id == "rule.ti.known_bad_indicator")
+    assert ti.severity is Severity.medium
+
+
+def test_ti_rule_silent_without_a_match() -> None:
+    ctx = _ctx(EventTimeline(window_s=300))
+    env = canonical(CanonicalKind.network_flow, actor=("ip", "203.0.113.7"), action="connected_to",
+                    enrichment=_ti_enrichment())
+    hits = run_rules(env.payload, extract_features(env.payload), ctx)
+    assert not any(h.rule_id == "rule.ti.known_bad_indicator" for h in hits)
 
 
 def test_rule_severities_are_bounded() -> None:
