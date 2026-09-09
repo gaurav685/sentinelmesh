@@ -7,12 +7,17 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Units 1–5 IMPLEMENTED,
-awaiting final CI.** Units 1–3 CI-green (runs
+**Phase 5 — Detection + Anomaly Detection. COMPLETE / CI-VERIFIED.** Units 1–5,
+all four CI jobs green on a clean runner: runs
 [`34353986031`](https://github.com/gaurav685/sentinelmesh/actions/runs/34353986031)
 / [`34355234014`](https://github.com/gaurav685/sentinelmesh/actions/runs/34355234014)
-/ [`34356219219`](https://github.com/gaurav685/sentinelmesh/actions/runs/34356219219)).
-Unit 4 (`services/detection-engine`) local-verified. Unit 1:
+/ [`34356219219`](https://github.com/gaurav685/sentinelmesh/actions/runs/34356219219)
+/ [`34357914090`](https://github.com/gaurav685/sentinelmesh/actions/runs/34357914090)
+/ [`34358654888`](https://github.com/gaurav685/sentinelmesh/actions/runs/34358654888).
+`events.canonical → detection-engine → detection / anomaly / threat_score /
+security_alert (Postgres) → detections (Kafka)`. Trained models + any accuracy
+figure are `NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION`. Phase 5 exit
+report + §23 review below. Unit 1:
 `sm_contracts` detection domain + Alembic `0003` (`detection` / `anomaly` /
 `threat_score` / `security_alert` — the `detection-engine` system of record).
 Unit 2 (local verified): `packages/ml-py` (`sm_ml`) — versioned `FeatureSchema`
@@ -439,8 +444,8 @@ before Phase 2 is itself declared complete.
 
 ## Phase 5 exit report
 
-**State: IMPLEMENTED / INTEGRATION VERIFIED against real PostgreSQL (+ real
-Redpanda for the upstream hop). The detection *pipeline* is real and end-to-end;
+**State: COMPLETE / CI-VERIFIED (all four jobs, run `34358654888`) against real
+PostgreSQL + Redis + Redpanda + Neo4j. The detection *pipeline* is real and end-to-end;
 trained models (Isolation Forest, autoencoder) and any accuracy figure are
 `NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION` (ADR-024). No accuracy / F1
 / ROC-AUC / precision / recall / latency / throughput number is produced or
@@ -536,7 +541,7 @@ burst (dedup); a second tenant sees nothing. `test_detection_models_pg.py` (Unit
 | Model loading failure / inference failure / degradation | ✅ `MODEL_UNAVAILABLE` / `TransientError` / `DEGRADED`; unit + integration |
 | Alert persistence / tenant isolation | ✅ real-PostgreSQL integration tests |
 | Observability: detection / anomaly / model-error / inference-duration / alert-failure counts | ✅ `sm_detection_*` + `sm_inference_*` metrics |
-| **CI green on a clean runner** | Units 1–3 ✅ (runs `34353986031` / `34355234014` / `34356219219`); Units 4–5 pending |
+| **CI green on a clean runner** | ✅ **all four jobs — runs `34353986031` / `34355234014` / `34356219219` / `34357914090` / `34358654888`** |
 
 ## Phase 4 exit report
 
@@ -1472,15 +1477,16 @@ integration test. Docker is still absent.
 
 **Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; final run `34350607501`).
 
-**Phase 5 Units 1–5 are IMPLEMENTED.** Units 1–3 CI-green (commits `5c7da92` /
-`d6b2c1a` / `fe63df5`). Unit 4 (`detection-engine`) committed (`a40c22f`); Unit 5
-(this commit) adds `tests/integration/test_detection_pipeline_pg.py`, the Phase 5
-exit report and the §23 review. Verified locally: 417 unit tests, ruff,
-`mypy --strict` over 10 src trees, `gen_contracts --check`, real-PostgreSQL
-integration tests. **Push, confirm CI green — that closes Phase 5.**
+**Phase 5 is COMPLETE and CI-VERIFIED** (Units 1–5; commits `5c7da92` / `d6b2c1a`
+/ `fe63df5` / `a40c22f` / `cd6e02e`; final run `34358654888` — all four jobs).
 
-Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
-(user pastes the prompt; do not start speculatively).
+**Next: await the PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK prompt.** Do not
+start speculatively. Phase 6 will add `services/threat-intel-service` +
+`services/mitre-service`, the `ti.updates` topic consumer path, IOC / actor /
+technique catalogs in Postgres, `(:AttackTechnique)` / `(:ThreatActor)` graph
+commands (labels already on the allowlist), and MITRE mapping of a `Detection`'s
+candidate `technique_ids` (currently rule-supplied, non-authoritative). The
+`normalization-engine` enrichment hook and `detection-engine` are the consumers.
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
 (user pastes the prompt; do not start speculatively).
