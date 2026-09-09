@@ -58,7 +58,8 @@ jobs:
                       -e "services/ml-inference[dev]" \
                       -e "services/detection-engine[dev]" \
                       -e "services/mitre-service[dev]" \
-                      -e "services/threat-intel-service[dev]"
+                      -e "services/threat-intel-service[dev]" \
+                      -e "services/correlation-engine[dev]"
           pip install ruff mypy alembic pyyaml respx
 
       - name: Ruff
@@ -78,7 +79,8 @@ jobs:
             services/ml-inference/src/sm_ml_inference \
             services/detection-engine/src/sm_detection_engine \
             services/mitre-service/src/sm_mitre_service \
-            services/threat-intel-service/src/sm_ti_service
+            services/threat-intel-service/src/sm_ti_service \
+            services/correlation-engine/src/sm_correlation_engine
 
   unit:
     name: unit and contract tests
@@ -108,7 +110,8 @@ jobs:
                       -e "services/ml-inference[dev]" \
                       -e "services/detection-engine[dev]" \
                       -e "services/mitre-service[dev]" \
-                      -e "services/threat-intel-service[dev]"
+                      -e "services/threat-intel-service[dev]" \
+                      -e "services/correlation-engine[dev]"
           pip install alembic pyyaml respx
 
       - name: Tests (integration excluded)
@@ -203,7 +206,8 @@ jobs:
                       -e "services/ml-inference[dev]" \
                       -e "services/detection-engine[dev]" \
                       -e "services/mitre-service[dev]" \
-                      -e "services/threat-intel-service[dev]"
+                      -e "services/threat-intel-service[dev]" \
+                      -e "services/correlation-engine[dev]"
           pip install alembic pyyaml respx
 
       # Redpanda cannot be a `services:` container — the image needs a start
@@ -265,7 +269,7 @@ jobs:
       - name: Every service entrypoint is importable in the image
         run: |
           docker run --rm --entrypoint python sentinelmesh/app:ci -c \
-            "import sm_api_gateway, sm_ingestion_gateway, sm_normalization_engine, sm_stream_processor, sm_graph_service, sm_ml_inference, sm_detection_engine, sm_mitre_service, sm_ti_service, sm_common.bus, sm_common.graph, sm_ml, aiokafka, neo4j"
+            "import sm_api_gateway, sm_ingestion_gateway, sm_normalization_engine, sm_stream_processor, sm_graph_service, sm_ml_inference, sm_detection_engine, sm_mitre_service, sm_ti_service, sm_correlation_engine, sm_common.bus, sm_common.graph, sm_ml, aiokafka, neo4j"
 
       - name: Configuration validation refuses an unsafe production setup
         # Proves the fail-fast guards are live in the built image.

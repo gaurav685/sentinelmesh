@@ -7,8 +7,25 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 7 — Attack Chain Reconstruction + Threat Scoring. IN PROGRESS — Unit 1 DONE
-(local gauntlet green; CI pending).**
+**Phase 7 — Attack Chain Reconstruction + Threat Scoring. IN PROGRESS — Units 1–2 DONE
+(Unit 1 CI-green run `34370745672`; Unit 2 local gauntlet green, CI pending).**
+Unit 2: `services/correlation-engine` (port 8009, module `sm_correlation_engine`,
+consumer group `correlation`). Consumes `detections`; `staging.py` places each
+detection on the furthest kill-chain `AttackStage` its techniques imply (no
+technique → `unknown`, never guessed; a `rule.ti.*` detection marks the chain
+TI-corroborated); `chains.py` `ChainRepository.correlate` upserts the
+deterministic-id chain + its `attack_chain_stage` rows (detection ids as a set →
+idempotent on redelivery; `min`/`max` timestamps → out-of-order safe; `ti_corroborated`
+monotonic); `scoring.py` recomputes `progression`, probabilistic `confidence`
+(≤ 0.95, discounted when stages ran backwards in time), `ChainStatus`, and a
+versioned deterministic `score` (`CHAIN_SCORE_VERSION = "v1"`) over severity /
+anomaly / threat-intel / progression / confidence (+ optional asset-criticality /
+identity-risk that renormalise the weighting — no registry feeds them yet);
+`engine.py` emits `AttackChainPayload` on `attack_chains` (poison → DLQ, DB /
+produce failure → retry); read API `GET /api/v1/chains[/{id}]` (internal-JWT,
+tenant from token). Wired into `Dockerfile.app` / compose (`detect` profile) / CI
+(13th mypy tree, installs, image import). Migration `0005` amended (additive
+columns `attack_chain_stage.max_detection_score`, `attack_chain.ti_corroborated`).
 Unit 1: `sm_contracts.chains` — `AttackStage` (14 ATT&CK-tactic kill-chain stages
 + `unknown`), `STAGE_ORDER`, `TACTIC_STAGE` / `TECHNIQUE_STAGE` deterministic
 lookups (`stage_for_tactic` / `stage_for_technique`; a technique with no known
@@ -1633,34 +1650,23 @@ R7 / R9 → IMPLEMENTED + `CONTRACTS.md` "Phase 6 closed" written.
 
 **Phase 6 is CLOSED — CI-VERIFIED, run `34366970151` (all four jobs).**
 
-**Phase 7 — Attack Chain Reconstruction + Threat Scoring. Unit 1 DONE** (contracts
-`sm_contracts.chains`, Alembic `0005` + `chain_models`, `DetectionPayload.subject_*`,
-config). Local: ruff, `mypy --strict`, 232 unit tests + `gen_contracts --check`,
-13 real-PG integration tests (chain models + migrations 0→0005 + detection
-pipeline). **Commit Unit 1, push, confirm CI green.**
+**Phase 7 — Attack Chain Reconstruction + Threat Scoring. Units 1–2 DONE.**
+Unit 1 CI-green (run `34370745672`; commit `daaf20e`). Unit 2 (`correlation-engine`
+service): local gauntlet green — ruff, `mypy --strict` over 13 src trees (242
+files), 518 unit tests + `gen_contracts --check`, 26 targeted real-PG integration
+tests (chain correlation + models + migrations + detection pipeline + mitre),
+`Dockerfile.app` build. **Commit Unit 2, push, confirm CI green.**
 
-**Then Unit 2 — `correlation-engine` service** (port 8009, module
-`sm_correlation_engine`, consumer group `correlation`). Consumes `detections`;
-per `DetectionPayload`: resolve the subject (`subject_type`/`subject_id`, else
-`entities[0]`), place it on an `AttackStage` via `stage_for_technique`, upsert the
-chain (`chain_id_for(chain_dedup_key, chain_window_start)`) + its `attack_chain_stage`
-rows (detection ids as a set → idempotent on redelivery; min/max timestamps →
-out-of-order safe), recompute `progression` / `confidence` (probabilistic,
-`<= 0.95`) / `status`, run a **versioned deterministic** chain scorer
-(`CHAIN_SCORE_VERSION`) over severity + anomaly + TI-evidence + progression +
-confidence (+ asset-criticality / identity-risk inputs accepted as `None` — no
-registry yet — and renormalised out), persist, own `threat_score` for the entity,
-emit `AttackChainPayload` on `attack_chains`. Read API `GET /api/v1/chains[/{id}]`.
-Unit tests: chain construction, ordering, duplicate evidence, incomplete chains,
-scoring + score boundaries, deterministic output, tenant isolation.
-
-**Then Unit 3 — graph projection + wiring + close.** `correlation-engine` emits
+**Then Unit 3 — graph projection + mitre wiring + threat_score handoff + close.**
+`correlation-engine` emits
 `graph.commands` for `:AttackChain` / `INVOLVES` / `HAS_STAGE` / `MAPPED_TO`;
 `mitre-service` also consumes `attack_chains` → `technique_mapping`
 (`subject_type=attack_chain`); `detection-engine` stops writing `threat_score`
-(correlation-engine owns it). Real-infra integration test of the full chain.
-Dockerfile / compose (`detect` profile, 8009) / CI (13th mypy tree). Phase 7 exit
-report + §23 + `REQUIREMENTS_TRACEABILITY` R6 / R8.
+and `correlation-engine` becomes its sole writer (an entity's score = its top
+active chain's score). Real-infra integration test of the full chain
+(`events.canonical → detection-engine → detections → correlation-engine →
+attack_chains` + graph projection against real Neo4j). Phase 7 exit report + §23
++ `REQUIREMENTS_TRACEABILITY` R6 / R8 + `CONTRACTS.md`.
 
 Exit next action after Phase 7: **PHASE 8 — ML/GNN + TEMPORAL ANALYSIS**
 (user pastes the prompt; do not start speculatively).

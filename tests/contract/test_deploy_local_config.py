@@ -34,6 +34,7 @@ PROFILED = {
     "detection-engine": "detect",
     "mitre-service": "detect",
     "threat-intel-service": "detect",
+    "correlation-engine": "detect",
     "redpanda": "bus",
     "minio": "objects",
 }

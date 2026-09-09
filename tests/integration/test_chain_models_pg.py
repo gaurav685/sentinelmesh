@@ -64,7 +64,7 @@ async def test_stage_is_unique_per_chain_and_cascades(clean: Database) -> None:
     stage = dict(
         chain_id=chain.id, tenant_id=tid, stage="credential_access", stage_order=7,
         detection_ids=[str(uuid.uuid4())], technique_ids=["T1110"], max_severity="high",
-        detection_count=1, first_seen=_NOW, last_seen=_NOW,
+        max_detection_score=0.8, detection_count=1, first_seen=_NOW, last_seen=_NOW,
     )
     async with clean.transaction() as s:
         s.add(AttackChainStageRow(id=uuid.uuid4(), **stage))  # type: ignore[arg-type]
@@ -87,5 +87,6 @@ async def test_stage_rejects_an_unknown_stage_value(clean: Database) -> None:
         async with clean.transaction() as s:
             s.add(AttackChainStageRow(
                 id=uuid.uuid4(), chain_id=chain.id, tenant_id=tid, stage="pivoting", stage_order=5,
-                max_severity="low", detection_count=0, first_seen=_NOW, last_seen=_NOW,
+                max_severity="low", max_detection_score=0.1, detection_count=0,
+                first_seen=_NOW, last_seen=_NOW,
             ))

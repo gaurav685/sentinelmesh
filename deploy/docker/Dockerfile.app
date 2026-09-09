@@ -43,6 +43,7 @@ COPY services/ml-inference/pyproject.toml services/ml-inference/README.md servic
 COPY services/detection-engine/pyproject.toml services/detection-engine/README.md services/detection-engine/
 COPY services/mitre-service/pyproject.toml services/mitre-service/README.md services/mitre-service/
 COPY services/threat-intel-service/pyproject.toml services/threat-intel-service/README.md services/threat-intel-service/
+COPY services/correlation-engine/pyproject.toml services/correlation-engine/README.md services/correlation-engine/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
@@ -56,8 +57,9 @@ COPY services/ml-inference/src services/ml-inference/src
 COPY services/detection-engine/src services/detection-engine/src
 COPY services/mitre-service/src services/mitre-service/src
 COPY services/threat-intel-service/src services/threat-intel-service/src
+COPY services/correlation-engine/src services/correlation-engine/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service ./services/correlation-engine \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #

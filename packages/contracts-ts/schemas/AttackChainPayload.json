@@ -144,6 +144,11 @@
       "title": "Tenant Id",
       "type": "string"
     },
+    "ti_corroborated": {
+      "default": false,
+      "title": "Ti Corroborated",
+      "type": "boolean"
+    },
     "updated_at": {
       "format": "date-time",
       "title": "Updated At",
