@@ -7,16 +7,15 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 3 — Kafka + Stream Processing. IN PROGRESS (Units 1–3 done).**
-Unit 1: topic registry + versioned-event-type policy. Unit 2: bus hardening +
-topic provisioning. Unit 3: `RecordProcessor` (shared retry/DLQ), the
-`GraphCommandPayload` contract, and `services/stream-processor` running the
-`graph-update-emitter` job (`events.canonical` → `graph.commands`, verified
-against Redpanda). Remaining (Unit 4): the stream-engine decision (ADR-010 /
-U-001 / U-002), replay + observability docs, `REQUIREMENTS_TRACEABILITY` rows,
-Phase 3 exit report. Flink is **not** implemented — no JDK 11+ locally
-(ADR-001), no stateful job's consuming phase has arrived; the engine-independent
-stream contracts (event-model.md §7) stand.
+**Phase 3 — Kafka + Stream Processing. Units 1–4 DONE; awaiting final CI green,
+then the Phase 4 prompt.** Unit 1 topic registry; Unit 2 bus hardening + topic
+provisioning; Unit 3 `RecordProcessor` + `stream-processor` (`graph-update-emitter`);
+Unit 4 ADR-010 decision (U-001/U-002 **resolved** — plain-Python for stateless,
+cluster engine deferred per job), `scripts/replay.py`,
+`docs/architecture/observability.md`, `REQUIREMENTS_TRACEABILITY` R3/R20, the
+Phase 3 exit report (below). Flink **not** implemented — no JDK 11+ locally
+(ADR-001), no stateful job's consuming phase has arrived. `graph.commands` has
+no consumer yet — `graph-writer` / Neo4j is Phase 4.
 
 ---
 
@@ -298,6 +297,52 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 3 exit report
+
+**State: IMPLEMENTED / INTEGRATION VERIFIED (real Redpanda) for the Kafka
+backbone; Units 1–3 CI-green; Unit 4 = this report + decisions. Flink not
+implemented (deferred per ADR-010).**
+
+### Delivered (Units 1–4)
+
+| Area | State |
+|---|---|
+| `sm_contracts.topics` | the definitive 12-topic catalog (`TOPICS`, `TopicSpec`), `EVENT_TYPE_TOPIC` / `topic_for_event_type`, `dlq_topic` / `replay_group`, `EVENT_TYPE_VERSION` + the `.v2` breaking-change policy. STABLE. |
+| `sm_contracts.graph` | `GraphCommandPayload` / `GraphOp` / `GraphEndpoint` / `graph_command_id` (CONTRACTS.md §5). STABLE target — consumer is Phase 4. |
+| `sm_common.bus` | `EventBusProducer` (idempotent, `acks=all`, `flush` on stop, send-error metric), `EventBusConsumer` (manual commit, **rewind-on-failure**, graceful shutdown, `seek_by_timestamp`, lag/records metrics, backpressure bound), `RecordProcessor` (retry→DLQ), `dlq_payload`, `admin.ensure_topics` (create + grow). |
+| `services/normalization-engine` | refactored onto `RecordProcessor`; its bespoke DLQ/retry loop removed; duplicate metrics dropped. |
+| `services/stream-processor` | new — `graph-update-emitter` job (`events.canonical` → `graph.commands`), stateless, health/metrics. |
+| `scripts/` | `provision_topics.py` (+ `--list`), `replay.py` (dry-run default, `*-replay` group enforced). |
+| `deploy/docker` | `topics-init` one-shot, `stream-processor` service (`bus` profile), one image builds all 5 services. |
+| `docs/architecture/observability.md` | new — metric catalog + alerts. |
+| ADR-010 | revised: engine-independent contracts stand; **plain-Python for stateless jobs**; stateful jobs pick an engine (Bytewax front-runner, Flink if state demands) at their consuming phase. **U-001 / U-002 RESOLVED.** |
+
+### Not implemented (deliberately)
+
+- **Flink / any cluster stream engine** — no JDK 11+ locally (ADR-001); no
+  stateful job's consuming phase has arrived. `feature-aggregator`,
+  `attack-chain-correlator`, `lateral-movement`, `temporal-stitcher` are
+  contracts only (event-model.md §7).
+- **Schema registry / Avro** (U-004) — still JSON; the envelope survives the
+  switch when volume justifies it.
+- **`graph.commands` has no consumer** — `graph-writer` / Neo4j is Phase 4.
+- OTLP collector / scraped Prometheus — opt-in, not wired locally.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| Topic strategy: partitions / keys / retention / ordering / groups / versioned types | ✅ `sm_contracts.topics` + event-model.md §2/§3 |
+| Producer / consumer / consumer groups / serialization / schema validation | ✅ `sm_common.bus` + `RecordProcessor` |
+| At-least-once / idempotent consumers / duplicates / retries / poison / restart / offsets | ✅ verified (`test_bus_kafka.py`) |
+| DLQ topics + handling | ✅ `dlq_payload` → `<topic>.dlq`, consumer + producer sides (event-model.md §5) |
+| Replay | ✅ `seek_by_timestamp` + `scripts/replay.py` |
+| Graceful shutdown / backpressure / observability | ✅ + `observability.md` |
+| Kafka = transport, Flink = stream processing, Redis = cache — no duplication | ✅ ADR-008/009/010; roles documented |
+| Flink "only where Phase 0 established it as necessary" | ✅ nowhere yet — deferred, decision recorded |
+| Real Kafka integration tests | ✅ 13 against Redpanda (bus 9, norm 2, stream 2) |
+| **CI green on a clean runner** | Units 1–3 ✅ (runs `274914d`, `9ebb91a`, `f36182c`); Unit 4 pending this commit |
 
 ## Phase 2 exit report
 
@@ -1050,30 +1095,16 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 3, Unit 4 — decisions + docs + Phase 3 exit.** Units 1–3 (topic
-registry, bus hardening, `RecordProcessor` + `stream-processor`) are done.
+**Await the Phase 4 prompt** (Neo4j + graph engine — the first `graph.commands`
+consumer). Phase 3 Units 1–4 are done; the last commit's CI is the final gate.
+Nothing to build until the Phase 4 prompt arrives; do not start speculatively.
 
-1. **ADR-010 update** — resolve U-001 / U-002. Given no local JDK 11+ (ADR-001)
-   and MVP scale: stateless / low-state jobs run as plain-Python
-   `EventBusConsumer` + `RecordProcessor` (as `normalization-engine` and
-   `stream-processor` do now). Stateful jobs (feature windows, sessionization,
-   temporal stitching) are **deferred to their consuming phase**; the engine
-   for those (Flink vs Bytewax vs Kafka Streams) is chosen then, against a real
-   job's state needs. Record the decision + rationale; the engine-independent
-   contracts (event-model.md §7) are unchanged.
-2. **Replay tooling** — a `scripts/replay.py` (reset a group's offsets to a
-   timestamp via `EventBusConsumer.seek_by_timestamp`, dry-run by default,
-   `--group` must be a `*-replay` group) + the replay runbook in a doc.
-3. **Observability doc** — `docs/architecture/observability.md` or an
-   event-model.md §8: the `sm_consumer_*` / `sm_producer_*` / `sm_stream_*` /
-   `sm_normalize_*` / `sm_ingest_*` metric catalog, the DLQ-depth alert, the
-   consumer-lag alert.
-4. **`REQUIREMENTS_TRACEABILITY.md`** — R3 (graph construction: the
-   `graph-update-emitter` half is done, `graph-writer`/Neo4j is Phase 4),
-   R20 (stream processing architecture), and the §7 stream-contract rows.
-5. **Phase 3 exit report** in this file; commit; push; CI green; then the
-   **Phase 4 prompt** (Neo4j + graph engine — the first `graph.commands`
-   consumer).
+Phase 4 will add `services/graph-writer` (or `graph-service`) consuming
+`graph.commands` (group `graph-writer`), applying each `GraphCommandPayload` as
+MERGE Cypher against Neo4j (compose `graph` profile), with the data-model.md
+invariants (every node/edge non-null `tenant_id`; no cross-tenant edge) and
+`command_id` idempotency; producing `graph.events`. The graph-query API
+(parameterized, tenant-scoped, depth-bounded) follows.
 
 ### Standing debt carried past Phase 2
 

@@ -8,7 +8,7 @@ PY ?= python
 COMPOSE ?= docker compose -f deploy/docker/docker-compose.yml
 
 .PHONY: help setup lint fmt typecheck test test-unit test-integration contracts \
-        up down logs migrate provision-topics topics psql redis run clean
+        up down logs migrate provision-topics topics replay psql redis run clean
 
 help:
 	@echo "setup            install all packages editable into the active venv"
@@ -70,6 +70,9 @@ provision-topics:
 
 topics:
 	$(PY) scripts/provision_topics.py --list
+
+replay:
+	@echo "usage: $(PY) scripts/replay.py --topic <t> --group <g>-replay --since=-2h [--apply]"
 
 psql:
 	$(COMPOSE) exec postgres psql -U $${SM_PG_USER:-sentinelmesh} -d $${SM_PG_DB:-sentinelmesh}
