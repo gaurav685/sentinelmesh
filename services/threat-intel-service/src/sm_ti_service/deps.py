@@ -14,6 +14,7 @@ from sm_common.observability import Metrics
 from sm_common.security import InternalPrincipal, verify_internal_token
 
 from .metrics import TiMetrics
+from .poller import ProviderPoller
 from .scheduler import ExpirySweeper
 from .store import IndicatorRepository
 from .version import SERVICE_NAME
@@ -30,6 +31,7 @@ class Services:
     repo: IndicatorRepository
     producer: EventBusProducer
     sweeper: ExpirySweeper
+    poller: ProviderPoller
 
 
 def get_services(request: Request) -> Services:

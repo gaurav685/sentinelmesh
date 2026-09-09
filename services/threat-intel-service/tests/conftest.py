@@ -100,6 +100,11 @@ class _FakeSweeper:
     async def run(self) -> None: ...
 
 
+class _FakePoller:
+    def stop(self) -> None: ...
+    async def run(self) -> None: ...
+
+
 @pytest.fixture
 def client() -> Any:
     from fastapi.testclient import TestClient
@@ -112,6 +117,7 @@ def client() -> Any:
     services = Services(
         settings=build_settings(), metrics=base, ti_metrics=TiMetrics(base, "threat-intel-service"),
         db=_FakeDb(), repo=repo, producer=producer, sweeper=_FakeSweeper(),  # type: ignore[arg-type]
+        poller=_FakePoller(),  # type: ignore[arg-type]
     )
     c = TestClient(create_app(services=services))
     with c:
