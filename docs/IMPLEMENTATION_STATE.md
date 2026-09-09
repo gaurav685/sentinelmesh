@@ -7,8 +7,8 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Units 1–4 DONE.**
-Units 1–3 CI-green (runs
+**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Units 1–5 IMPLEMENTED,
+awaiting final CI.** Units 1–3 CI-green (runs
 [`34353986031`](https://github.com/gaurav685/sentinelmesh/actions/runs/34353986031)
 / [`34355234014`](https://github.com/gaurav685/sentinelmesh/actions/runs/34355234014)
 / [`34356219219`](https://github.com/gaurav685/sentinelmesh/actions/runs/34356219219)).
@@ -436,6 +436,107 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 5 exit report
+
+**State: IMPLEMENTED / INTEGRATION VERIFIED against real PostgreSQL (+ real
+Redpanda for the upstream hop). The detection *pipeline* is real and end-to-end;
+trained models (Isolation Forest, autoencoder) and any accuracy figure are
+`NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION` (ADR-024). No accuracy / F1
+/ ROC-AUC / precision / recall / latency / throughput number is produced or
+stored anywhere.**
+
+### Delivered (Units 1–5)
+
+| Area | State |
+|---|---|
+| `sm_contracts.detection` | `DetectionPayload` (on `detections`, `EventType.detection_raised`) — **STABLE**; `EvidenceItem` / `EvidenceKind`; `detection_dedup_key` / `detection_id_for` (deterministic, day-bucketed); DTOs `Detection` / `Anomaly` / `ThreatScore` / `SecurityAlert`; enums `Severity` / `DetectorKind` / `AnomalyMethod` / `ScoringStatus` / `DetectionStatus` / `AlertStatus` / `ThreatSubjectType`. |
+| `migrations/postgres/0003` + models | `detection` / `anomaly` / `threat_score` / `security_alert` — `detection-engine`'s system of record. Enum CHECK constraints sourced from the contract enums, score-range checks, `threat_score` one-row-per-subject, alert cascades with its detection, `updated_at` triggers. |
+| `packages/ml-py` (`sm_ml`) | `FEATURE_SCHEMA_VERSION` + a `FeatureSchema` per `CanonicalKind` + deterministic numpy-free `extract_features`; `Preprocessor` (versioned standardisation); the `AnomalyModel` protocol + `AnomalyScore`; `StatisticalModel` (MAD z-score, stdlib-only); `IsolationForestModel` (sklearn, `sm-ml[serving]`); `AutoencoderModel` spec + `ModelNotTrained`; `ModelRegistry` (loads artifacts from `SM_ML_MODEL_DIR`, missing dir = empty). `ml/models/*/CONTRACT.md` per §6. |
+| `services/ml-inference` (ADR-013) | internal-JWT `POST /api/v1/infer/{model}` + `GET /api/v1/models`; `ModelHost` lazy-load + cache; a missing / unloadable / serving-deps-absent model → HTTP 503 `MODEL_UNAVAILABLE` (never a 500, never a fabricated score); per-model request / error / latency / load metrics. |
+| `services/detection-engine` | `events.canonical` → features → per-`(tenant, kind)` rolling-window `StatisticalModel` (adaptive thresholds) → `anomaly`; optional `ml-inference` contribution, failure → `DEGRADED`; six deterministic rule detectors over a time-bounded `EventTimeline`; deterministic composite score (`WEIGHTS_VERSION`, renormalised); a `detection` (deterministic id, upsert) only above threshold or on a `medium`+ rule, every claim an `EvidenceItem`; `security_alert` at `high`/`critical`; `threat_score` upsert per subject; emits `DetectionPayload`. |
+| Wiring | 3 new packages/services into `Dockerfile.app`; `ml-inference` + `detection-engine` compose services (`detect` profile, ports 8005 / 8006); CI installs + `mypy` 10 trees + image import; `mypy_path` += `sm_ml`; `sm_ml` in ruff `known-first-party`; numpy/sklearn/joblib `ignore_missing_imports`. |
+
+### Integration verification (Unit 5)
+
+`tests/integration/test_detection_pipeline_pg.py` (real PostgreSQL): an
+auth-failure burst on `events.canonical` → `detection-engine` engine → one
+`detection` row (deterministic id, `rule.auth.failed_burst`, `T1110`, evidence
+with `rule_match` + `event` kinds and a `provenance` on every item); a `high`
+burst opens exactly one `security_alert` and stays one detection across the whole
+burst (dedup); a second tenant sees nothing. `test_detection_models_pg.py` (Unit
+1): the CHECK / cascade / uniqueness constraints. 417 unit tests, ruff,
+`mypy --strict` over 10 src trees, `gen_contracts --check`.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Non-fabrication (§3).** No accuracy / F1 / ROC-AUC / precision / recall /
+  latency / throughput value appears in any contract, model contract, service,
+  test, or doc. `ml/models/*/CONTRACT.md` carry the literal `METRICS: NOT
+  VERIFIED — REQUIRES DATASET/TRAINING EXECUTION`. A `detection` is written only
+  when a rule fired (a stated fact) or the composite score crossed a configured
+  threshold; its meaning is its `evidence` JSON, and every `EvidenceItem` has a
+  `provenance` (`<service>:<id>`). MITRE technique ids on a rule are named as
+  *candidates* for Phase 6, not assertions.
+- **Degrade, never drop (ADR-013).** `ml-inference` unreachable / 503 / timeout,
+  or an inference exception → the model contribution is dropped, the composite
+  score renormalises over what remains, `scoring_status = DEGRADED` is recorded,
+  and a metric fires. Verified in unit + integration. The statistical detector
+  needs only the standard library, so a score is always computable once the
+  window has warmed.
+- **Determinism.** Features are pure functions of the event (no clock, no RNG),
+  clamped to the schema range. The composite score is a fixed versioned weighting.
+  `detection_id_for(dedup_key, day)` is `uuid5` — a reprocess updates the row.
+  The dedup key is `(tenant, rule-or-anomaly, subject)`, **not** the detector
+  kind (which flips `rule → composite` when the window warms mid-burst — the bug
+  the integration test caught).
+- **Tenant isolation.** Every row's `tenant_id` is the event's, never a field.
+  The rolling windows and the rule timeline are keyed by `tenant_id`. The FK is
+  `RESTRICT`. Integration test: a second tenant's burst against the same subject
+  produces zero rows for the first.
+- **Bounded state.** The feature windows (`deque(maxlen=SM_DETECTION_WINDOW_SIZE)`
+  per `(tenant, kind)`) and the rule timeline (time-pruned, `max_per_tenant`) are
+  in-process and capped — a restart loses the warm-up and refills from the
+  stream. Redis-backed shared windows are the scale path and do not change the
+  contract; recorded as standing debt.
+- **Malformed input.** Unparseable / not-`event.canonical` / unknown-kind record
+  → `PoisonError` → `events.canonical.dlq`. A DB write or a produce failure →
+  `TransientError` → retried by `RecordProcessor`.
+
+### Deferred (deliberately)
+
+- **`ml-training`** — dataset adapters + training pipelines + the benchmark
+  harness. Until it runs, `ml-inference` serves `MODEL_UNAVAILABLE` for the
+  trained models and `detection-engine` runs on the statistical detector.
+- **Autoencoder training** — architecture is fixed (`AutoencoderSpec`); no
+  weights (`ModelNotTrained`).
+- **`features.derived` stream** — the stateful `feature-aggregator` job (windowed
+  aggregates) is still a contract only (ADR-010); `detection-engine` computes
+  per-event features in-process for now.
+- **MITRE mapping / TI enrichment** of a detection — Phase 6. Technique ids are
+  candidate labels on rule hits.
+- **`detection_read` projection** in `api-gateway` — the read/API surface for
+  detections is a later phase.
+- **Redis-backed rolling windows** — in-process + bounded today.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| telemetry → features → detection → anomaly score → evidence → alert | ✅ `detection-engine`, integration-verified |
+| Rule-based / behavioral / statistical detection | ✅ 6 rule detectors + MAD z-score statistical detector |
+| Isolation Forest | ✅ `IsolationForestModel` (sklearn) — served by `ml-inference` when an artifact exists; else `MODEL_UNAVAILABLE` → degrade |
+| Autoencoder architecture where justified | ✅ `AutoencoderSpec` (network_flow / process_exec); not trained (`ModelNotTrained`), justification documented |
+| Adaptive thresholds | ✅ per-`(tenant, kind)` rolling window, refit every event |
+| Anomaly scoring / alert generation / detection evidence / detection lifecycle | ✅ `anomaly` / `security_alert` / `EvidenceItem` / `DetectionStatus` |
+| Real preprocessing + inference interfaces | ✅ `sm_ml.Preprocessor` + `AnomalyModel` + `ml-inference` typed API |
+| feature schema / model schema / version / preprocessing / inference / postprocessing / confidence / evaluation | ✅ `FeatureSchema` + `ml/models/*/CONTRACT.md` (§6) |
+| Performance marked NOT VERIFIED where unrun | ✅ `METRICS: NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION` everywhere |
+| No fabricated accuracy / F1 / ROC-AUC / precision / recall / latency / throughput | ✅ none anywhere |
+| Model loading failure / inference failure / degradation | ✅ `MODEL_UNAVAILABLE` / `TransientError` / `DEGRADED`; unit + integration |
+| Alert persistence / tenant isolation | ✅ real-PostgreSQL integration tests |
+| Observability: detection / anomaly / model-error / inference-duration / alert-failure counts | ✅ `sm_detection_*` + `sm_inference_*` metrics |
+| **CI green on a clean runner** | Units 1–3 ✅ (runs `34353986031` / `34355234014` / `34356219219`); Units 4–5 pending |
 
 ## Phase 4 exit report
 
@@ -1371,18 +1472,12 @@ integration test. Docker is still absent.
 
 **Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; final run `34350607501`).
 
-**Phase 5 Units 1–4 done.** Units 1–3 CI-green (commits `5c7da92` / `d6b2c1a` /
-`fe63df5`). Unit 4 (`services/detection-engine`) locally verified: 417 unit tests,
-ruff, `mypy --strict` over 10 trees, `gen_contracts --check`; image builds and
-imports `sm_detection_engine`. **Commit Unit 4, push, confirm CI green.**
-
-**Then Phase 5, Unit 5 — close the phase.** A real-infra integration test
-(`tests/integration/test_detection_pipeline_pg.py` — a canonical `auth` burst on
-`events.canonical` → `detection-engine` engine against real PostgreSQL → rows in
-`detection` / `anomaly` / `security_alert` with the right `evidence`, tenant
-isolation, dedup on reprocess; optionally the real Redpanda hop). The Phase 5
-exit report + a §23 pre-output review + `REQUIREMENTS_TRACEABILITY` R5/R8/R20/R12
-promotion.
+**Phase 5 Units 1–5 are IMPLEMENTED.** Units 1–3 CI-green (commits `5c7da92` /
+`d6b2c1a` / `fe63df5`). Unit 4 (`detection-engine`) committed (`a40c22f`); Unit 5
+(this commit) adds `tests/integration/test_detection_pipeline_pg.py`, the Phase 5
+exit report and the §23 review. Verified locally: 417 unit tests, ruff,
+`mypy --strict` over 10 src trees, `gen_contracts --check`, real-PostgreSQL
+integration tests. **Push, confirm CI green — that closes Phase 5.**
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
 (user pastes the prompt; do not start speculatively).

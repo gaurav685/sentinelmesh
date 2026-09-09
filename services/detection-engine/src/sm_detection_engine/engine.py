@@ -177,9 +177,13 @@ class DetectionEngine:
     ) -> None:
         tenant_id = envelope.tenant_id
         subject_type, subject_val = primary_subject(c)
-        detector = "composite" if (stat or model) else "rule"
         rule_id = hits[0].rule_id if hits else None
-        dedup_key = detection_dedup_key(tenant_id, detector, rule_id, subject_val)
+        # The dedup identity is (tenant, what-was-found, subject) — NOT the
+        # detector kind, which flips from `rule` to `composite` once the
+        # statistical window warms up mid-burst.
+        dedup_kind = "rule" if rule_id else "anomaly"
+        detector = "composite" if (stat or model) else "rule"
+        dedup_key = detection_dedup_key(tenant_id, dedup_kind, rule_id, subject_val)
         window = c.occurred_at.date().isoformat()
         detection_id = detection_id_for(dedup_key, window)
 
