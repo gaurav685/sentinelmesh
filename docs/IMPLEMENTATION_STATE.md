@@ -7,8 +7,10 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 6 — Threat Intelligence + MITRE ATT&CK. COMPLETE — full local gauntlet
-green; CI run pending.** Units 1–5. Pipeline:
+**Phase 6 — Threat Intelligence + MITRE ATT&CK. COMPLETE / CI-VERIFIED**
+(all four jobs, run
+[`34366970151`](https://github.com/gaurav685/sentinelmesh/actions/runs/34366970151)).
+Units 1–5. Pipeline:
 `detections → mitre-service → technique_mapping` (Postgres) and
 `events.canonical → normalization-engine ThreatIntelEnricher → threat-intel-service
 POST /enrich → canonical.enrichment["threat_intel"] → detection-engine
@@ -488,11 +490,13 @@ before Phase 2 is itself declared complete.
 
 ## Phase 6 exit report
 
-**State: COMPLETE — full local gauntlet green (ruff, `mypy --strict` over 12 src
-trees, 480 unit tests + `gen_contracts --check`, 117 real-infra integration tests
-against PostgreSQL 16 + Redis 7 + Redpanda + Neo4j 5, `Dockerfile.app` build).
-CI run pending — this section is updated with the run id once all four jobs are
-green on a clean runner.**
+**State: COMPLETE / CI-VERIFIED (all four jobs, run
+[`34366970151`](https://github.com/gaurav685/sentinelmesh/actions/runs/34366970151))
+against real PostgreSQL 16 + Redis 7 + Redpanda + Neo4j 5. Local gauntlet: ruff,
+`mypy --strict` over 12 src trees (224 files), 480 unit tests +
+`gen_contracts --check`, 117 real-infra integration tests, `Dockerfile.app`
+build. Units 1–5 commits `b468eca` / `9778fb7` / `1da61e1` / `43cbcc5` /
+`9d777f8`.**
 
 **Threat intelligence and ATT&CK coverage are exactly what is imported / stored —
 nothing is fabricated. No ATT&CK STIX bundle ships in the repo (ADR-024); the
@@ -555,7 +559,7 @@ appears anywhere. External TI providers are feature-flagged off by default
 | Do not claim ATT&CK coverage beyond imported data | ✅ counts + sha from the parse; `unmapped` for anything off-catalog; no bundle ships |
 | Tests: indicator validation / enrichment / provider failure / stale / duplicate / mapping / tenant isolation / provenance | ✅ unit + 5 real-PG integration files |
 | Enrichment cannot fail an event | ✅ `ThreatIntelEnricher` → `{}` on any error (R2), integration-verified |
-| **CI green on a clean runner** | ⏳ run pending — updated here when green |
+| **CI green on a clean runner** | ✅ **all four jobs — run `34366970151`** |
 
 ## Phase 5 exit report
 
@@ -1605,12 +1609,10 @@ New: `ThreatIntelEnricher`, `rule.ti.known_bad_indicator`,
 `SM_TI_ENRICHMENT_ENABLED`. Phase 6 exit report + §23 review + traceability
 R7 / R9 → IMPLEMENTED + `CONTRACTS.md` "Phase 6 closed" written.
 
-**Next: commit Unit 5, push to `main`, watch CI. When all four jobs are green,
-fill the CI run id into the Phase 6 exit report + `CONTRACTS.md` and commit that.
-Then Phase 6 is closed.**
+**Phase 6 is CLOSED — CI-VERIFIED, run `34366970151` (all four jobs).**
 
-Exit next action after Phase 6: **PHASE 7 — ATTACK CHAINS + THREAT SCORING**
-(user pastes the prompt; do not start speculatively).
+**Exact next action: PHASE 7 — ATTACK CHAINS + THREAT SCORING. Wait for the user
+to paste the Phase 7 prompt. Do not start speculatively.**
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
 (user pastes the prompt; do not start speculatively).
