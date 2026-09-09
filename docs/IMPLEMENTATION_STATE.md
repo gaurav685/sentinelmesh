@@ -7,18 +7,22 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 2 — Telemetry Ingestion + Normalization. Units 1–4 IMPLEMENTED +
-INTEGRATION VERIFIED against real infrastructure**, including the full compose
-stack (6 containers healthy) and a live end-to-end: a real sensor POST to
-`ingestion-gateway` produced an `events.canonical` envelope out of
-`normalization-engine`, tenant bound to the sensor identity, lineage preserved.
-Pipeline: sensor → `ingestion-gateway` → `telemetry.raw` → `normalization-engine`
-→ `events.canonical` (poison → `telemetry.raw.dlq`). **Phase 2 exit is blocked
-on CI** — the `integration` / `image` jobs have never run (no GitHub remote);
-they must, per the standing rule, before Phase 2 is declared complete. Next
-after that: the Phase 3 prompt (graph / detection).
+**Phase 2 — Telemetry Ingestion + Normalization. COMPLETE / CI-VERIFIED.**
+Units 1–4 implemented; §23 review done; full compose stack + live end-to-end
+verified; **CI green on a clean runner** (run
+[`34333269219`](https://github.com/gaurav685/sentinelmesh/actions/runs/34333269219),
+2026-09-09): `static` (ruff + `mypy --strict`), `unit` (268 tests + schema
+`--check`), `integration` (63 tests — real PostgreSQL 16 + Redis 7 + Redpanda,
+`0001 -> 0002` migrations), `image` (build of all four services + non-root +
+entrypoint imports + prod fail-fast guards). Pipeline: sensor →
+`ingestion-gateway` → `telemetry.raw` → `normalization-engine` →
+`events.canonical` (poison → `telemetry.raw.dlq`).
 
-Phase 1 exited INTEGRATION VERIFIED on local Docker.
+**Exact next action: await the Phase 3 prompt (graph / detection — consumes
+`events.canonical`).** Nothing to build until it arrives.
+
+Phase 1 exited INTEGRATION VERIFIED on local Docker; its CI jobs also went green
+in the same run.
 
 ### Phase 2, Unit 1 — telemetry payload contracts (DONE)
 
@@ -205,7 +209,8 @@ REVIEWED. CI-VERIFIED pending a GitHub remote.**
 | `services/ingestion-gateway` | `POST /api/v1/ingest/{source_type}` + `/batch`, per-sensor auth, envelope built server-side (tenant from identity only), fail-closed rate limiter, `X-Sensor-Event-Id` dedup, Kafka `RawEventSink` / `DeadLetterSink` (logging stopgap when the bus is off), health/metrics. |
 | `services/normalization-engine` | consumes `telemetry.raw`, deterministic per-source mapping → `CanonicalEventPayload`, produces `events.canonical` with a deterministic `event_id`; poison → `telemetry.raw.dlq`; `enrich/` is a stub protocol (no providers). Pure stream processor + health/metrics. |
 | `deploy/docker` | one `Dockerfile.app` builds all four services; compose `ingestion-gateway` (default) + `normalization-engine` (`bus` profile) + `redpanda` (dual listener). **Compose stack run: 6 containers healthy; live end-to-end passed.** |
-| `.github/workflows/ci.yml` | `static` / `unit` / `integration` (+ runner-hosted redpanda) / `image` (now builds all four services, asserts each imports, + prod-config guards). **Never run — no GitHub remote.** |
+| `.github/workflows/ci.yml` | `static` / `unit` / `integration` (+ runner-hosted redpanda) / `image` (builds all four services, asserts each imports, + prod-config guards). **CI-VERIFIED** — run `34333269219`, all four jobs green on `ubuntu-latest`. |
+| GitHub | `github.com/gaurav685/sentinelmesh` (private). Remote `origin`; branch `main`. |
 
 ### Pre-output engineering review (Constitution §23)
 
@@ -215,12 +220,22 @@ deterministic canonical `event_id` (idempotency under redelivery); the dedup
 mark freed on a 4xx (corrected retry not dropped); empty DNS answer rejected at
 the contract boundary. Commit `862eb9e`. Six-role sign-off recorded there.
 
+### First-run CI defect
+
+First push to a clean runner: the `unit` job failed 4 config tests. Root cause —
+the workflow set `SM_ENV` / `SM_SERVICE_NAME` / `SM_PG_PASSWORD` /
+`SM_INTERNAL_JWT_SIGNING_KEY` / `SM_OIDC_CLIENT_SECRET` as global job env, and
+`pydantic-settings` reads OS env regardless of `_env_file=None`, so those leaked
+into every `AppSettings` a unit test built (`test_defaults_local` saw `env=ci`;
+`test_service_name_required` / `test_production_requires_secrets` stopped
+raising; `api-gateway` `test_meta` saw `environment=ci`). Fix: a repo-root
+`conftest.py` autouse fixture strips `SM_*` for every non-integration test (unit
+tests are hermetic now, regardless of the ambient environment — a developer with
+`SM_ENV` exported hit the same latent bug); the `SM_*` block removed from the
+workflow's global `env:`. Commit `8064fd9`. Second run: all four jobs green.
+
 ### Not verified (the whole list)
 
-- **CI: no job has run.** Needs a GitHub remote + `gh auth login`, then
-  `bash scripts/push_and_watch.sh`. The `image` job's four assertions were run
-  by hand locally against `sentinelmesh/app:dev` and pass; the `integration`
-  job's tests were run by hand and pass; but neither ran on a clean runner.
 - Enrichment: Geo-IP, hostname resolution, identity stitching (`identity_link`),
   threat-intel tagging — protocol only, zero providers. Later units/phases.
 - `events.canonical` has no consumer yet (Phase 3 `graph` / `detection`).
@@ -239,7 +254,9 @@ the contract boundary. Commit `862eb9e`. Six-role sign-off recorded there.
 | `mypy --strict` + `ruff` clean | ✅ (106 files) |
 | Unit + integration suites green | ✅ 268 + 63 |
 | §23 review done | ✅ 3 defects fixed |
-| **CI green on a clean runner** | ❌ **blocked — no GitHub remote** |
+| **CI green on a clean runner** | ✅ **run `34333269219` — all four jobs** |
+
+**Phase 2 is COMPLETE.**
 
 ## Phase 1 exit report
 
@@ -928,33 +945,17 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 2 EXIT — run CI, then declare Phase 2 complete.** Units 1–4 are
-implemented and verified against real infrastructure locally. What remains is the
-independent CI confirmation (the standing rule since Phase 1):
+**Await the Phase 3 prompt** (graph / detection — the first consumer of
+`events.canonical`). Phases 0, 1, 2 are COMPLETE and CI-VERIFIED (run
+`34333269219`). Nothing to build until the Phase 3 prompt arrives; do not start
+Phase 3 work speculatively.
 
-1. Add a GitHub remote and push `main` (**blocked** — the user has said not to
-   touch GitHub yet). The workflow's `static` / `unit` / `integration` / `image`
-   jobs cover: ruff + `mypy --strict` over five src trees; the 266 non-
-   integration tests + `gen_contracts --check`; the 63 integration tests against
-   service-container Postgres/Redis + a runner-hosted Redpanda (SensorAuth SQL,
-   both bus round-trips); the `Dockerfile.app` build (now all four services) +
-   the non-root / prod-guard assertions.
-2. On green: mark R1 and R2 **INTEGRATION VERIFIED** (CI), update the Phase 2
-   exit report here, and move to the **Phase 3 prompt** (graph / detection —
-   consumes `events.canonical`).
-3. If a job goes red: fix first-run defects (Constitution §23 pre-output review
-   already done for Phase 1; do the equivalent scan for Phase 2 code that has
-   only ever run locally), each with a regression test.
+When it arrives: it consumes `events.canonical` (24 partitions, keyed
+tenant+entity, 30d retention — event-model.md §3), likely via a new
+`sm_common.bus` consumer group and `services/graph-service` / `detection-engine`.
 
-Until the remote exists, the actionable local work of Phase 2 is done. Next
-inbound: the Phase 3 prompt.
+### Standing debt carried past Phase 2
 
-### Standing debt before Phase 2 can be declared complete
-
-- The CI `integration` and `image` jobs still have not run (no GitHub remote).
-  They now cover `SensorAuth` SQL, both bus round-trips (ingest→raw,
-  raw→canonical), and the `Dockerfile.app` build of all four services
-  (`integration` job starts a redpanda container). Must run before Phase 2 exit.
 - `telemetry.raw` / `events.canonical` / `*.dlq` topics are Redpanda-auto-created
   locally and in CI. A real deployment pre-creates them with the partition
   counts in `event-model.md` — a deploy-time task, not code.
