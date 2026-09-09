@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "AlertStatus": {
+      "enum": [
+        "open",
+        "acknowledged",
+        "closed"
+      ],
+      "title": "AlertStatus",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Raised from a `Detection` that crosses the alerting threshold. The analyst-\nfacing lifecycle object.",
+  "properties": {
+    "acknowledged_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Acknowledged At"
+    },
+    "closed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Closed At"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "detection_id": {
+      "format": "uuid",
+      "title": "Detection Id",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "opened_at": {
+      "format": "date-time",
+      "title": "Opened At",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/definitions/Severity"
+    },
+    "status": {
+      "$ref": "#/definitions/AlertStatus"
+    },
+    "summary": {
+      "default": "",
+      "maxLength": 2000,
+      "title": "Summary",
+      "type": "string"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "detection_id",
+    "severity",
+    "status",
+    "title",
+    "opened_at"
+  ],
+  "title": "SecurityAlert",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

@@ -1,0 +1,166 @@
+{
+  "$defs": {
+    "AnomalyMethod": {
+      "enum": [
+        "mad_zscore",
+        "rolling_quantile",
+        "isolation_forest",
+        "autoencoder"
+      ],
+      "title": "AnomalyMethod",
+      "type": "string"
+    },
+    "EntityKind": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "process",
+        "file"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/EntityKind"
+        },
+        "value": {
+          "description": "Canonical identifier for the entity.",
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One scored feature vector. An anomaly is *evidence*, not a conclusion.",
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "entity": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/EntityRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "feature_schema_version": {
+      "maxLength": 32,
+      "title": "Feature Schema Version",
+      "type": "string"
+    },
+    "features": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Features",
+      "type": "object"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "is_anomaly": {
+      "title": "Is Anomaly",
+      "type": "boolean"
+    },
+    "method": {
+      "$ref": "#/definitions/AnomalyMethod"
+    },
+    "model_version": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model Version"
+    },
+    "normalized_score": {
+      "description": "Score mapped to [0,1].",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Normalized Score",
+      "type": "number"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "raw_event_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Raw Event Id"
+    },
+    "score": {
+      "description": "Raw model / statistic score (method-specific range).",
+      "title": "Score",
+      "type": "number"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "threshold": {
+      "description": "The threshold in force when this was scored.",
+      "title": "Threshold",
+      "type": "number"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "method",
+    "feature_schema_version",
+    "score",
+    "normalized_score",
+    "threshold",
+    "is_anomaly",
+    "observed_at"
+  ],
+  "title": "Anomaly",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

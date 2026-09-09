@@ -11,12 +11,19 @@ from enum import StrEnum
 
 __all__ = [
     "ActorType",
+    "AlertStatus",
+    "AnomalyMethod",
     "AuditResult",
+    "DetectionStatus",
+    "DetectorKind",
     "PermissionCode",
+    "ScoringStatus",
     "SensorStatus",
     "SensorType",
+    "Severity",
     "SystemRole",
     "TenantStatus",
+    "ThreatSubjectType",
     "UserStatus",
 ]
 
@@ -96,3 +103,62 @@ class SensorStatus(StrEnum):
     active = "active"
     disabled = "disabled"
     pending = "pending"
+
+
+# --------------------------------------------------------------------------- #
+# detection + anomaly (Phase 5)
+# --------------------------------------------------------------------------- #
+class Severity(StrEnum):
+    info = "info"
+    low = "low"
+    medium = "medium"
+    high = "high"
+    critical = "critical"
+
+
+class DetectorKind(StrEnum):
+    """How a detection was produced."""
+
+    rule = "rule"                     # deterministic rule match
+    statistical = "statistical"      # rolling-quantile / MAD anomaly, no trained model
+    isolation_forest = "isolation_forest"
+    autoencoder = "autoencoder"
+    composite = "composite"          # combined deterministic score over several inputs
+
+
+class AnomalyMethod(StrEnum):
+    mad_zscore = "mad_zscore"
+    rolling_quantile = "rolling_quantile"
+    isolation_forest = "isolation_forest"
+    autoencoder = "autoencoder"
+
+
+class ScoringStatus(StrEnum):
+    """ADR-013: a model timeout / outage degrades the score, never drops it."""
+
+    ok = "ok"
+    degraded = "degraded"
+
+
+class DetectionStatus(StrEnum):
+    """Detection lifecycle (Constitution §17)."""
+
+    new = "new"
+    triaged = "triaged"
+    confirmed = "confirmed"
+    dismissed = "dismissed"
+    suppressed = "suppressed"
+
+
+class AlertStatus(StrEnum):
+    open = "open"
+    acknowledged = "acknowledged"
+    closed = "closed"
+
+
+class ThreatSubjectType(StrEnum):
+    identity = "identity"
+    host = "host"
+    ip = "ip"
+    domain = "domain"
+    detection = "detection"

@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "ScoringStatus": {
+      "description": "ADR-013: a model timeout / outage degrades the score, never drops it.",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "ScoringStatus",
+      "type": "string"
+    },
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A deterministic composite score for one subject. `components` + `weights_version`\nmake it fully reproducible.",
+  "properties": {
+    "components": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "description": "Named contributions before weighting.",
+      "title": "Components",
+      "type": "object"
+    },
+    "computed_at": {
+      "format": "date-time",
+      "title": "Computed At",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "score": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Score",
+      "type": "number"
+    },
+    "scoring_status": {
+      "$ref": "#/definitions/ScoringStatus"
+    },
+    "subject_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "$ref": "#/definitions/ThreatSubjectType"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "weights_version": {
+      "maxLength": 32,
+      "title": "Weights Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "subject_type",
+    "subject_id",
+    "score",
+    "components",
+    "weights_version",
+    "scoring_status",
+    "computed_at"
+  ],
+  "title": "ThreatScore",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

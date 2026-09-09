@@ -27,24 +27,43 @@ from .api import (
     UserResponse,
 )
 from .common import SmBaseModel, TenantScoped, TimestampedModel, to_utc
+from .detection import (
+    DETECTION_PAYLOADS,
+    DetectionPayload,
+    EvidenceItem,
+    EvidenceKind,
+    detection_dedup_key,
+    detection_id_for,
+)
 from .entities import (
+    Anomaly,
     AuditRecord,
+    Detection,
     Permission,
     Role,
     RolePermission,
+    SecurityAlert,
     Sensor,
     Tenant,
+    ThreatScore,
     User,
     UserRoleGrant,
 )
 from .enums import (
     ActorType,
+    AlertStatus,
+    AnomalyMethod,
     AuditResult,
+    DetectionStatus,
+    DetectorKind,
     PermissionCode,
+    ScoringStatus,
     SensorStatus,
     SensorType,
+    Severity,
     SystemRole,
     TenantStatus,
+    ThreatSubjectType,
     UserStatus,
 )
 from .errors import (
@@ -162,6 +181,20 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "GRAPH_NODE_KEY",
     "GRAPH_REL_TYPES",
     "normalize_label",
+    # detection + anomaly (Phase 5)
+    "DetectionPayload",
+    "DETECTION_PAYLOADS",
+    "EvidenceItem",
+    "EvidenceKind",
+    "detection_dedup_key",
+    "detection_id_for",
+    "Severity",
+    "DetectorKind",
+    "AnomalyMethod",
+    "ScoringStatus",
+    "DetectionStatus",
+    "AlertStatus",
+    "ThreatSubjectType",
     # enums
     "TenantStatus",
     "UserStatus",
@@ -180,6 +213,10 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "UserRoleGrant",
     "Sensor",
     "AuditRecord",
+    "Detection",
+    "Anomaly",
+    "ThreatScore",
+    "SecurityAlert",
     # api
     "LoginRequest",
     "LoginResponse",
