@@ -3,7 +3,8 @@
     telemetry -> features -> anomaly score -> evidence -> detection -> alert
 
 Consumes `events.canonical`; system of record for Postgres `detection` /
-`anomaly` / `threat_score` / `security_alert`; emits `detections`. Scores on a
+`anomaly` / `security_alert` (`threat_score` moved to `correlation-engine` in
+Phase 7); emits `detections`. Scores on a
 per-(tenant, kind) rolling-window statistical detector (adaptive thresholds) plus
 an optional `ml-inference` contribution — a missing model degrades the score
 (ADR-013), never drops the detection. Every detection is grounded in

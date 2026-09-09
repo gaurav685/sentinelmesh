@@ -1,9 +1,10 @@
 # detection-engine
 
-`telemetry → features → anomaly score → evidence → detection → alert` (reqs 5, 8).
+`telemetry → features → anomaly score → evidence → detection → alert` (req 5).
 
 Consumes `events.canonical` (group `detection`). System of record for Postgres
-`detection` / `anomaly` / `threat_score` / `security_alert`. Emits `detections`.
+`detection` / `anomaly` / `security_alert`. Emits `detections`. `threat_score` is
+written by `correlation-engine` (Phase 7), which sees the whole attack chain.
 Port 8006. Health / metrics only — no HTTP ingest.
 
 ## Pipeline per event

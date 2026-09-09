@@ -49,7 +49,7 @@ from .inference_client import InferenceClient
 from .metrics import DetectionMetrics
 from .repository import DetectionRepository
 from .rules import RuleContext, RuleHit, primary_subject, run_rules
-from .scoring import WEIGHTS_VERSION, composite_score, rule_component, severity_for
+from .scoring import composite_score, rule_component, severity_for
 from .topics import DETECTIONS_TOPIC
 from .version import PRODUCER
 from .windows import EventTimeline, FeatureWindows
@@ -206,13 +206,11 @@ class DetectionEngine:
                 evidence=[e.model_dump(mode="json") for e in evidence],
                 raw_event_id=c.raw_event_id, dedup_key=dedup_key, occurred_at=c.occurred_at,
             )
-            await self._repo.upsert_threat_score(
-                tenant_id=tenant_id, subject_type=subject_type.value, subject_id=subject_val,
-                score=comp.score, components=comp.components, weights_version=WEIGHTS_VERSION,
-                scoring_status=comp.scoring_status.value, computed_at=utcnow(),
-            )
         except Exception as exc:
             raise TransientError(f"detection write failed: {exc!r}") from exc
+
+        # `threat_score` is written by `correlation-engine` (Phase 7), which sees
+        # the whole attack chain — `detection-engine` no longer writes it.
 
         self._m.detection(detector, severity.value)
 

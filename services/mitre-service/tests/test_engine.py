@@ -7,7 +7,13 @@ from sm_mitre_service.engine import MappingHandler
 
 from sm_common.bus import PoisonError, TransientError
 
-from .conftest import FakeMappingDb, detection_payload, detection_record
+from .conftest import (
+    FakeMappingDb,
+    chain_payload,
+    chain_record,
+    detection_payload,
+    detection_record,
+)
 
 
 async def test_maps_a_detections_candidate_techniques(
@@ -19,6 +25,14 @@ async def test_maps_a_detections_candidate_techniques(
     assert len(db.executed) == 1
 
 
+async def test_maps_an_attack_chains_aggregated_techniques(
+    handler: tuple[MappingHandler, FakeMappingDb],
+) -> None:
+    h, db = handler
+    await h.handle(chain_record(chain_payload(technique_ids=["T1110", "T1021"])))
+    assert len(db.executed) == 2  # both map; subject_type is attack_chain
+
+
 async def test_no_candidate_techniques_is_a_noop(
     handler: tuple[MappingHandler, FakeMappingDb],
 ) -> None:
@@ -27,7 +41,7 @@ async def test_no_candidate_techniques_is_a_noop(
     assert db.executed == []
 
 
-async def test_not_a_detection_record_is_poison(handler: tuple[MappingHandler, FakeMappingDb]) -> None:
+async def test_an_unexpected_event_type_is_poison(handler: tuple[MappingHandler, FakeMappingDb]) -> None:
     from aiokafka.structs import ConsumerRecord
 
     h, _ = handler
@@ -37,7 +51,7 @@ async def test_not_a_detection_record_is_poison(handler: tuple[MappingHandler, F
         key=b"k", value=bad, checksum=None, serialized_key_size=0,
         serialized_value_size=len(bad), headers=(),
     )
-    with pytest.raises(PoisonError, match=r"not a detection\.raised"):
+    with pytest.raises(PoisonError, match="unexpected event type"):
         await h.handle(rec)
 
 

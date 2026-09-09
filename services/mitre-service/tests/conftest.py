@@ -14,8 +14,11 @@ from sm_common.config import AppSettings
 from sm_common.observability import build_metrics
 from sm_common.security import mint_internal_token
 from sm_contracts import (
+    AttackChainPayload,
     AttackMatrixVersion,
+    AttackStage,
     AttackTechnique,
+    ChainStatus,
     DetectionPayload,
     DetectorKind,
     EventEnvelope,
@@ -24,6 +27,7 @@ from sm_contracts import (
     ScoringStatus,
     Severity,
     SourceType,
+    ThreatSubjectType,
     make_partition_key,
 )
 
@@ -154,6 +158,38 @@ def detection_record(payload: DetectionPayload) -> Any:
     v = env.model_dump_json().encode()
     return ConsumerRecord(
         topic="detections", partition=0, offset=0, timestamp=0, timestamp_type=0,
+        key=b"k", value=v, checksum=None, serialized_key_size=0,
+        serialized_value_size=len(v), headers=(),
+    )
+
+
+def chain_payload(*, technique_ids: list[str], tenant: uuid.UUID | None = None) -> AttackChainPayload:
+    now = datetime.now(UTC)
+    return AttackChainPayload(
+        chain_id=uuid.uuid4(), tenant_id=tenant or uuid.uuid4(),
+        subject_type=ThreatSubjectType.identity, subject_id="alice", status=ChainStatus.active,
+        first_seen=now, last_seen=now, updated_at=now, stage_count=2, distinct_stage_count=2,
+        latest_stage=AttackStage.lateral_movement, progression=0.6, confidence=0.7, score=0.6,
+        score_version="v1", scoring_status=ScoringStatus.ok, technique_ids=technique_ids,
+        detection_count=4,
+    )
+
+
+def chain_record(payload: AttackChainPayload) -> Any:
+    from aiokafka.structs import ConsumerRecord
+
+    env = EventEnvelope[AttackChainPayload](
+        event_id=uuid.uuid4(), event_type=EventType.attack_chain_updated, event_version=1,
+        occurred_at=payload.first_seen, ingested_at=datetime.now(UTC),
+        producer="correlation-engine@0.1.0", tenant_id=payload.tenant_id,
+        source=EventSource(type=SourceType.sensor, sensor_id=uuid.uuid4()),
+        correlation_id=uuid.uuid4(),
+        partition_key=make_partition_key(payload.tenant_id, payload.subject_id),
+        payload=payload, metadata={},
+    )
+    v = env.model_dump_json().encode()
+    return ConsumerRecord(
+        topic="attack_chains", partition=0, offset=0, timestamp=0, timestamp_type=0,
         key=b"k", value=v, checksum=None, serialized_key_size=0,
         serialized_value_size=len(v), headers=(),
     )

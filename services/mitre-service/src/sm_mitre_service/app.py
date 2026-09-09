@@ -1,9 +1,9 @@
 """mitre-service application factory.
 
-Consumes `detections` (group `mitre-mapping`), writes `technique_mapping`, and
-serves the internal MITRE API. Health / metrics + the query API HTTP surface; no
-ingest. The lifespan owns the DB pool, the Kafka consumer, and one background
-consumer task.
+Consumes `detections` and `attack_chains` (group `mitre-mapping`), writes
+`technique_mapping`, and serves the internal MITRE API. Health / metrics + the
+query API HTTP surface; no ingest. The lifespan owns the DB pool, the Kafka
+consumer, and one background consumer task.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from .engine import MappingHandler
 from .mapping import MappingEngine
 from .metrics import MitreMetrics
 from .routes import health, metrics, mitre
-from .topics import DETECTIONS_TOPIC
+from .topics import CHAINS_TOPIC, DETECTIONS_TOPIC
 from .version import DEFAULT_CONSUMER_GROUP, SERVICE_NAME, SERVICE_VERSION
 
 __all__ = ["build_services", "create_app"]
@@ -47,7 +47,7 @@ def build_services(settings: AppSettings) -> Services:
     mapping = MappingEngine(catalog, db)
     group = settings.kafka_consumer_group or DEFAULT_CONSUMER_GROUP
     consumer = EventBusConsumer.from_settings(
-        settings, topics=[DETECTIONS_TOPIC], group_id=group, metrics=base_metrics
+        settings, topics=[DETECTIONS_TOPIC, CHAINS_TOPIC], group_id=group, metrics=base_metrics
     )
     handler = MappingHandler(engine=mapping, metrics=mitre_metrics)
     # RecordProcessor needs a producer for the DLQ; mitre-service produces nothing

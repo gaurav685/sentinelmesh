@@ -1,7 +1,8 @@
 """detection-engine application factory.
 
 Consumes `events.canonical`, runs the detection pipeline, writes Postgres
-(`detection` / `anomaly` / `threat_score` / `security_alert`), and emits
+(`detection` / `anomaly` / `security_alert`; `threat_score` is written by
+`correlation-engine` from Phase 7), and emits
 `detections`. Health / metrics HTTP surface only. The lifespan owns the DB pool,
 an httpx client for `ml-inference`, the Kafka producer + consumer, and one
 background consumer task.

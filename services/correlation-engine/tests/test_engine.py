@@ -33,6 +33,14 @@ async def test_handle_correlates_and_emits_an_attack_chain_event() -> None:
     assert chains[0].subject_id == "alice"
 
 
+async def test_handle_also_projects_the_chain_onto_graph_commands() -> None:
+    repo, producer = FakeChainRepo(), FakeProducer()
+    await _handler(repo, producer).handle(record_for(detection_payload(technique_ids=["T1110"])))
+    topics = [t for t, _ in producer.sent]
+    assert "attack_chains" in topics
+    assert "graph.commands" in topics
+
+
 async def test_a_record_that_is_not_a_detection_is_poison() -> None:
     repo, producer = FakeChainRepo(), FakeProducer()
     bad = ConsumerRecord(

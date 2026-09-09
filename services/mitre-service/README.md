@@ -25,9 +25,10 @@ never guessed. A known id gets its name, tactic, and the matrix version.
 `MappingSource.llm` is accepted via `/map` but never produced automatically and
 never authoritative alone (ADR-014).
 
-- Consumes `detections` (group `mitre-mapping`) → upserts `technique_mapping`
-  rows (`source = rule`, `confidence = medium`, rationale names the detection
-  rule). Poison record → `detections.dlq`; a DB failure → retried.
+- Consumes `detections` and `attack_chains` (group `mitre-mapping`) → upserts
+  `technique_mapping` rows (`source = rule`, `confidence = medium`; a detection's
+  subject is `detection`, a chain's is `attack_chain`). Poison record →
+  `<topic>.dlq`; a DB failure → retried.
 - `GET /api/v1/mitre/techniques` — the catalog.
 - `POST /api/v1/mitre/map` — `{subject_type, subject_id, technique_ids,
   rationale, source?, confidence?, persist?}` → matches + unmapped.
