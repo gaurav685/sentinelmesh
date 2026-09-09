@@ -53,7 +53,7 @@ warn_unreachable = true
 # (`metadata`, `settings`) are `dict[str, Any]` by design — non-authoritative
 # JSON validated at trust boundaries, not in the type system.
 plugins = ["pydantic.mypy"]
-mypy_path = "packages/contracts-py/src:packages/common-py/src"
+mypy_path = "packages/contracts-py/src:packages/common-py/src:packages/ml-py/src"
 
 [[tool.mypy.overrides]]
 # aiokafka ships no py.typed marker / stubs.

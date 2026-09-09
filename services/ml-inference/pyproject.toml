@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sm-ml-inference"
+version = "0.1.0"
+description = "SentinelMesh model-serving service (ADR-013): loads registered anomaly models in-process and serves typed inference. A missing model returns MODEL_UNAVAILABLE; the caller degrades. No accuracy or latency target is claimed."
+requires-python = ">=3.11"
+dependencies = [
+    "sm-contracts",
+    "sm-common",
+    "sm-ml",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+# Statistical models serve with the base install. This extra adds numpy +
+# scikit-learn for Isolation Forest artifacts. Deploy it where those exist.
+serving = ["sm-ml[serving]"]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sm_ml_inference"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
