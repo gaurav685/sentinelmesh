@@ -48,8 +48,10 @@ class AuditWriter:
         meta: dict[str, Any] | None = None,
         occurred_at: datetime | None = None,
     ) -> AuditLog:
-        created_at = occurred_at or utcnow()
         await self._lock_tenant(session, tenant_id)
+        # Captured inside the lock: the timestamp then reflects the real append
+        # order. Chain order still comes from `seq`, not this value.
+        created_at = occurred_at or utcnow()
         prev_hash = await self._last_hash(session, tenant_id)
 
         payload: dict[str, Any] = {
@@ -122,7 +124,7 @@ class AuditWriter:
             if tenant_id is None
             else stmt.where(AuditLog.tenant_id == tenant_id)
         )
-        stmt = stmt.order_by(AuditLog.created_at.desc(), AuditLog.id.desc()).limit(1)
+        stmt = stmt.order_by(AuditLog.seq.desc()).limit(1)
         result = await session.execute(stmt)
         last = result.scalar_one_or_none()
         return last if last is not None else GENESIS_HASH

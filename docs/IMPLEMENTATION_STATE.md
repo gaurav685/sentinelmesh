@@ -7,13 +7,32 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 1 — Foundation. EXITING: IMPLEMENTED / LOCALLY VERIFIED; INTEGRATION NOT
-VERIFIED.** Phase 0 COMPLETE; architecture LOCKED 2026-09-08.
+**Phase 1 — Foundation. IMPLEMENTED / LOCALLY VERIFIED / INTEGRATION VERIFIED
+(local Docker). CI job not yet run.** Phase 0 COMPLETE; architecture LOCKED
+2026-09-08.
 
-Phase 1 is **not** being declared COMPLETE. Its completion criteria include the
-integration tests passing, and they have never run — no Docker on the
-development machine, no GitHub remote. Everything else the phase called for is
-implemented and covered by unit / contract tests. See the exit report below.
+Docker Desktop was installed on the development machine on 2026-09-09 (engine
+29.7.2, WSL2 2.5.10). The full compose stack and the integration suite now run
+here. As of 2026-09-09 the integration verification is done locally:
+
+- `docker compose -f deploy/docker/docker-compose.yml up -d postgres redis` then
+  `pytest tests/integration -q -m integration` with `SM_REQUIRE_INTEGRATION=1`:
+  **52 passed** against real PostgreSQL 16 and Redis 7.
+- Full stack `docker compose up -d --build`: the `migrate` container applied
+  `0001 -> 0002` (exit 0); `app` returns `/healthz` 200, `/readyz`
+  `{"ready":true}` with live postgres and redis probes, and `/api/v1/meta` 200.
+- `docker build -f deploy/docker/Dockerfile.app`: builds; the image runs as uid
+  10001; a production CORS wildcard is rejected inside the built image;
+  `docker compose config` validates.
+
+Four first-run defects were found and fixed (see the verification section for
+Unit 6 — integration). The one remaining gap is the CI workflow: it needs a
+GitHub remote and `gh auth login`, then `bash scripts/push_and_watch.sh`. The
+local branch was renamed `master -> main` so the `on.push` trigger matches.
+
+Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
+`integration` and `image` jobs remain the independent confirmation and must run
+before Phase 2 is itself declared complete.
 
 ## Phase 1 exit report
 
@@ -343,10 +362,53 @@ was proven red/green.
 | 5 | `BodySizeLimitMiddleware` could emit a second `http.response.start` (ASGI violation) | Track `response_started`; re-raise instead of double-sending | `6e5becc` |
 | 6 | Audit advisory lock keyed on `hashtext` (int4) — 2^-32 tenant collision | `hashtextextended(key, 0)` (int8) — 2^-64 | `6e5becc` |
 
-**Not verified (Phase 1, Unit 6):** the workflow has never run — no job, no
-image build, no integration execution. Everything listed under *Not verified
-(Phase 1, Unit 5)* still stands. The six review fixes are covered by unit tests;
-the ones touching SQL (1, 6) also have integration tests that are still skipped.
+**Not verified (Phase 1, Unit 6) — superseded 2026-09-09 by the integration run
+below.** At the time this was written the workflow had never run and every
+integration test was skipped.
+
+## Verification performed (Phase 1, Unit 6 — integration, executed 2026-09-09)
+
+Docker Desktop was installed on the development machine (engine 29.7.2, WSL2
+2.5.10). This is the first non-offline verification in the project.
+
+| Check | Command | Result |
+|---|---|---|
+| Integration suite | `pytest tests/integration -q -m integration` with `SM_REQUIRE_INTEGRATION=1`, against `docker compose up -d postgres redis` | **52 passed** |
+| Concurrency (chain fork) | `test_concurrent_appends_do_not_fork_the_chain`, 5 repeated runs | **green every run** |
+| Migrations on real Postgres | `migrate` container in `docker compose up -d --build` | `0001 -> 0002` applied, exit 0; `alembic_version = 0002`; 14 permissions, 5 system roles seeded |
+| App on the stack | `curl` against the running `app` container | `/healthz` 200, `/readyz` `{"ready":true}` with live postgres+redis probes, `/api/v1/meta` 200 |
+| Image build | `docker build -f deploy/docker/Dockerfile.app -t sentinelmesh/app:local .` | builds |
+| Image runs non-root | `docker run --entrypoint id sentinelmesh/app:local -u` | `10001` |
+| Prod config guard in the image | `docker run -e SM_ENV=production -e SM_CORS_ALLOWED_ORIGINS='*' ... AppSettings()` | rejected: "SM_CORS_ALLOWED_ORIGINS must not contain '*' in production" |
+| Compose config | `docker compose --env-file .env -f deploy/docker/docker-compose.yml config` | valid |
+| Non-integration suite | `pytest packages services tests -q -m "not integration"` | **189 passed** |
+| Type check | `mypy --strict --python-version 3.11` over all three packages | **no issues in 69 source files** |
+| Lint | `ruff check packages services tests migrations scripts` | **All checks passed** |
+| Contract schema | `python scripts/gen_contracts.py --check` | up to date |
+
+### First-run defects found and fixed
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | **Audit hash chain forked under concurrency.** `_last_hash` ordered a tenant's chain by `created_at, id`. `created_at` is captured by the application *before* the serializing advisory lock, and `uuid7` ids are not monotonic within a millisecond, so two concurrent appends for one tenant could read the same predecessor and both chain onto it. `test_concurrent_appends_do_not_fork_the_chain` caught it (9 distinct `prev_hash` for 10 rows). | Added `audit_log.seq` — `BIGINT GENERATED ALWAYS AS IDENTITY`, assigned by the database *inside* the advisory lock — as the canonical chain order (model + migration `0001`, new `uq_audit_log_seq`, new `ix_audit_log_tenant_id_seq`). `_last_hash` now orders by `seq DESC`; `created_at` capture moved inside the lock. |
+| 2 | **Migration `0002` downgrade was broken under asyncpg.** `sa.text("DELETE ... WHERE role_id = ANY(:ids::uuid[])")` — SQLAlchemy reads `::` as an escaped colon, so asyncpg received `ANY($1:uuid[])` → `syntax error at or near ":"`. `upgrade -> downgrade -> upgrade` failed. | Rewrote the downgrade with table constructs and typed `.in_()` bindings; hoisted the `permission` / `role` / `role_permission` `sa.table(...)` definitions to module scope so `upgrade` and `downgrade` share them. |
+| 3 | **Integration fixtures bound to a dead event loop.** `database` and `cache` were `scope="session"` async fixtures; pytest-asyncio 1.4 gives each test its own loop, so the reused asyncpg/redis clients raised "attached to a different loop" (24 errors). | Made both fixtures function-scoped, matching every other async fixture in the repo. |
+| 4 | **`test_head_is_the_expected_revision` asserted against an un-upgraded database.** It ran `alembic current`, which is empty on a fresh database. | Switched to `alembic heads` (reads the migration scripts), and it now also asserts `current` after an `upgrade`. |
+
+### Corrections to earlier counts
+
+The integration suite is **52 tests**, not 49 — the earlier count predates
+`tests/integration/test_rate_limit_redis.py` (3 tests). Occurrences of "49
+integration tests" elsewhere in this file are historical.
+
+### Still not verified
+
+- The CI workflow: no job has run. It needs a GitHub remote and `gh auth login`,
+  then `bash scripts/push_and_watch.sh`. The local branch is now `main` so the
+  `on.push` trigger will match.
+- A real OIDC round-trip against Keycloak (the `oidc` compose profile was not
+  started).
+- Any metric scraped from a running Prometheus; any span at a collector.
 
 ## APIs
 
@@ -375,15 +437,19 @@ Topic catalog + semantics in `event-model.md`. Exactly-once not claimed.
     `role_permission`, `sensor`, `audit_log`; full PK/FK/unique/check/index;
     `sm_set_updated_at()` trigger on `tenant`/`user`/`role`/`sensor`;
     `sm_audit_log_immutable()` BEFORE UPDATE OR DELETE trigger on `audit_log`;
-    descending `(tenant_id, created_at)` / `(actor_id, created_at)` audit
-    indexes. Reversible.
+    `audit_log.seq` (`BIGINT GENERATED ALWAYS AS IDENTITY`, `uq_audit_log_seq`) —
+    the canonical hash-chain order; `(tenant_id, seq DESC)` plus descending
+    `(tenant_id, created_at)` / `(actor_id, created_at)` audit indexes.
+    Reversible.
   - `0002_seed_rbac` — 14 permissions, 5 system roles, role→permission grants,
     ids derived via `uuid5` from a fixed namespace (idempotent, exactly
-    reversible).
+    reversible); downgrade uses typed `.in_()` bindings (not `ANY(::uuid[])`).
   - Enum columns are `varchar` + `CHECK` rendered from the `sm_contracts`
     enums; a drift-guard test asserts every enum value appears in its CHECK.
   - `identity_link` remains **Phase 2** (owned by `normalization-engine`).
-  - **Never applied to a real database** — no Docker (see *Not verified*).
+  - **Applied to a real PostgreSQL 16 on 2026-09-09** — `upgrade head`,
+    `upgrade -> downgrade -> upgrade`, seed idempotency and the triggers are all
+    covered by the passing integration suite.
 - Neo4j: constraint/index migration `neo4j/0001` specified, not written.
 
 ## Dependencies
@@ -508,7 +574,7 @@ integration test. Docker is still absent.
 
 | Need | For | Status |
 |---|---|---|
-| Docker Desktop | local `docker-compose` (Postgres, Redis, Keycloak, Redpanda, Neo4j, MinIO, Prometheus, Grafana, MLflow) | **NOT INSTALLED** — required from Phase 1 for integration tests |
+| Docker Desktop | local `docker-compose` (Postgres, Redis, Keycloak, Redpanda, Neo4j, MinIO, Prometheus, Grafana, MLflow) | **INSTALLED 2026-09-09** (engine 29.7.2, WSL2 2.5.10); postgres/redis/migrate/app stack and the 52 integration tests run locally |
 | `npm install` under `packages/contracts-ts` | TypeScript contract types for the frontend | not run — JSON Schema is committed; TS is generated on demand |
 | JDK 11+ | Apache Flink jobs | **NOT INSTALLED** — Phase 3+ |
 | GPU + CUDA | GNN / autoencoder / predictive training at dataset scale | not available — Phase 5 |
@@ -533,13 +599,13 @@ integration test. Docker is still absent.
 
 **PHASE 2, Unit 1 — the canonical telemetry contracts and the ingestion gateway.**
 
-Phase 1's integration layer is still unverified (49 tests, image, CI — all
-blocked on Docker/remote). Phase 2 proceeds on it because: the unit/contract
-layer is thorough (189 tests), the §23 review found and fixed 7 defects, and
-Phase 2 mostly adds new services that consume the *event contract*, not the
-api-gateway internals. **Standing requirement:** the Phase 1 integration run
-must happen before Phase 2 is itself declared complete — whichever comes first,
-`make test-integration` locally or the CI `integration` job.
+Phase 1's integration layer is now verified on local Docker (52 tests, the full
+compose stack, and the image build all pass — see the Unit 6 integration
+verification section; four first-run defects were found and fixed). The one
+remaining confirmation is the CI `integration` and `image` jobs, which need a
+GitHub remote and `gh auth login` then `bash scripts/push_and_watch.sh`.
+**Standing requirement:** the CI run must happen before Phase 2 is itself
+declared complete.
 
 Unit 1:
 
@@ -717,6 +783,7 @@ Original Phase-1 step list (for reference):
 
 | Date | Phase | Change |
 |---|---|---|
+| 2026-09-09 | 1 (Unit 6 — integration) | Docker Desktop installed on the dev machine (engine 29.7.2, WSL2 2.5.10). First non-offline verification: **52 integration tests pass** against real PostgreSQL 16 + Redis 7; full `docker compose` stack (postgres/redis/migrate/app) comes up, migrations apply `0001 -> 0002`, `/healthz` + `/readyz` + `/api/v1/meta` green; image builds, runs as uid 10001, rejects a prod CORS wildcard. Four first-run defects fixed: (1) audit hash chain forked under concurrency — added DB-assigned `audit_log.seq` identity column as the canonical chain order, `_last_hash` orders by it; (2) migration `0002` downgrade broken under asyncpg (`ANY(:ids::uuid[])`) — rewritten with typed `.in_()`; (3) session-scoped integration fixtures clashed with pytest-asyncio per-test loops — made function-scoped; (4) `test_head_is_the_expected_revision` asserted against an un-upgraded DB — uses `alembic heads`. Non-integration suite 189 passed, mypy --strict clean (69 files), ruff clean. Branch renamed `master -> main`. Remaining: the CI `integration`/`image` jobs (need remote + `gh auth login`). |
 | 2026-09-08 | 0 | Repo created at `C:\Users\gmalh\sentinelmesh`; skeleton + doc set; ADR-001…024; all 38 requirements traced. Commit `0b91ed2`. Status: NOT LOCKED. |
 | 2026-09-08 | 0 (close) | `packages/contracts-py` implemented (envelope, error contract, Phase-1 entities + APIs, enums); `scripts/gen_contracts.py` + `packages/contracts-ts` schemas; consistency-review pass (2 fixes). Verified: pytest 19 passed, mypy --strict clean, ruff clean, codegen + `--check` pass. **Architecture status: LOCKED.** |
 | 2026-09-08 | 1 (Unit 1) | `packages/common-py` platform primitives: `config` (typed `AppSettings`, startup validation, production guards), `logging` (structlog JSON + redaction), `redaction`, `context`, `ids` (uuid7), `clock`, `errors` (`SmError` → canonical `ErrorResponse`), `security.passwords` (Argon2id + dummy-verify), `security.jwt_internal` (mint/verify + rotation), `observability.health`, `fastapi` (request-context middleware, exception handlers, security headers, body-size limit, CORS builder). Verified: **pytest 64 passed** (19+45), mypy --strict clean (17 files), ruff clean. Root pytest `--import-mode=importlib`; ruff `line-length=120`, `**/errors.py` N818 ignore. |
