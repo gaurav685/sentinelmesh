@@ -59,7 +59,8 @@ jobs:
                       -e "services/detection-engine[dev]" \
                       -e "services/mitre-service[dev]" \
                       -e "services/threat-intel-service[dev]" \
-                      -e "services/correlation-engine[dev]"
+                      -e "services/correlation-engine[dev]" \
+                      -e "services/ml-training[dev]"
           pip install ruff mypy alembic pyyaml respx
 
       - name: Ruff
@@ -80,7 +81,8 @@ jobs:
             services/detection-engine/src/sm_detection_engine \
             services/mitre-service/src/sm_mitre_service \
             services/threat-intel-service/src/sm_ti_service \
-            services/correlation-engine/src/sm_correlation_engine
+            services/correlation-engine/src/sm_correlation_engine \
+            services/ml-training/src/sm_ml_training
 
   unit:
     name: unit and contract tests
@@ -111,7 +113,8 @@ jobs:
                       -e "services/detection-engine[dev]" \
                       -e "services/mitre-service[dev]" \
                       -e "services/threat-intel-service[dev]" \
-                      -e "services/correlation-engine[dev]"
+                      -e "services/correlation-engine[dev]" \
+                      -e "services/ml-training[dev]"
           pip install alembic pyyaml respx
 
       - name: Tests (integration excluded)
@@ -207,7 +210,8 @@ jobs:
                       -e "services/detection-engine[dev]" \
                       -e "services/mitre-service[dev]" \
                       -e "services/threat-intel-service[dev]" \
-                      -e "services/correlation-engine[dev]"
+                      -e "services/correlation-engine[dev]" \
+                      -e "services/ml-training[dev]"
           pip install alembic pyyaml respx
 
       # Redpanda cannot be a `services:` container — the image needs a start

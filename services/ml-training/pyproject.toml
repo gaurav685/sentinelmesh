@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sm-ml-training"
+version = "0.1.0"
+description = "SentinelMesh ML training pipeline (Phase 8): a reproducible dataset -> preprocessing -> graph construction -> feature generation -> training -> validation -> checkpoint -> model version -> inference -> evaluation pipeline with defined seeds, config, model metadata and artifact handling. Runs offline. No benchmark metric is claimed without a registered dataset."
+requires-python = ">=3.11"
+dependencies = [
+    "sm-contracts",
+    "sm-ml",
+    "pydantic>=2.7,<3",
+]
+
+[project.optional-dependencies]
+# GNN training needs torch; pulls sm-ml[gnn]. Not installed in CI.
+gnn = ["sm-ml[gnn]"]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[project.scripts]
+sm-ml-train = "sm_ml_training.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sm_ml_training"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

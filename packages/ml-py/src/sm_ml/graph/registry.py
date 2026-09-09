@@ -20,6 +20,7 @@ from pathlib import Path
 
 from .models.base import GraphModelUnavailable
 from .models.gnn import GAT_SPEC, GRAPHSAGE_SPEC, GnnNodeAnomalyModel
+from .models.structural import StructuralGraphAnomaly
 
 __all__ = ["DEFAULT_GRAPH_MODEL_DIR", "GraphModelRef", "GraphModelRegistry"]
 
@@ -69,10 +70,13 @@ class GraphModelRegistry:
             ))
         return refs
 
-    def load(self, name: str) -> GnnNodeAnomalyModel:
+    def load(self, name: str) -> GnnNodeAnomalyModel | StructuralGraphAnomaly:
         ref = next((r for r in self.available() if r.name == name), None)
         if ref is None:
             raise GraphModelUnavailable(f"no registered graph model named {name!r} under {self._dir}")
+        if ref.method in ("structural_zscore", "structural"):
+            data = json.loads((ref.path / "model.json").read_text(encoding="utf-8"))
+            return StructuralGraphAnomaly.from_dict({**data, "model_version": ref.version})
         spec = _SPECS.get(ref.method)
         if spec is None:
             raise GraphModelUnavailable(f"registry cannot serve graph method {ref.method!r}")

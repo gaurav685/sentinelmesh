@@ -39,6 +39,16 @@ class StructuralGraphAnomaly:
     method: str = "structural_zscore"
     model_version: str | None = None
 
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> StructuralGraphAnomaly:
+        z = data.get("z_threshold", DEFAULT_Z_THRESHOLD)
+        mv = data.get("model_version")
+        return cls(
+            z_threshold=float(z) if isinstance(z, (int, float, str)) else DEFAULT_Z_THRESHOLD,
+            method=str(data.get("method", "structural_zscore")),
+            model_version=str(mv) if isinstance(mv, str) else None,
+        )
+
     def score_nodes(self, sample: GraphSample) -> NodeAnomalyResult:
         cols = list(zip(*(row[:_N_STRUCTURAL] for row in sample.node_features), strict=True)) \
             if sample.num_nodes else []
