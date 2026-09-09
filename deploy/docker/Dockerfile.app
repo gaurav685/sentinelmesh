@@ -1,7 +1,7 @@
 # SentinelMesh application image.
 #
 # Builds the Python distributions (contracts, common, api-gateway,
-# ingestion-gateway, normalization-engine, stream-processor, graph-service, ml-py, ml-inference, detection-engine, mitre-service) into a virtualenv in a builder stage, then copies only that
+# ingestion-gateway, normalization-engine, stream-processor, graph-service, ml-py, ml-inference, detection-engine, mitre-service, threat-intel-service) into a virtualenv in a builder stage, then copies only that
 # venv into a slim runtime. One image serves every service; the compose
 # `command:` selects which `python -m ...` entrypoint runs. The runtime has no
 # compiler, no build cache and runs as a non-root user.
@@ -42,6 +42,7 @@ COPY services/graph-service/pyproject.toml services/graph-service/README.md serv
 COPY services/ml-inference/pyproject.toml services/ml-inference/README.md services/ml-inference/
 COPY services/detection-engine/pyproject.toml services/detection-engine/README.md services/detection-engine/
 COPY services/mitre-service/pyproject.toml services/mitre-service/README.md services/mitre-service/
+COPY services/threat-intel-service/pyproject.toml services/threat-intel-service/README.md services/threat-intel-service/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
@@ -54,8 +55,9 @@ COPY services/graph-service/src services/graph-service/src
 COPY services/ml-inference/src services/ml-inference/src
 COPY services/detection-engine/src services/detection-engine/src
 COPY services/mitre-service/src services/mitre-service/src
+COPY services/threat-intel-service/src services/threat-intel-service/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #

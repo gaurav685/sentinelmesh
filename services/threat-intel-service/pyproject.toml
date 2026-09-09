@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sm-threat-intel-service"
+version = "0.1.0"
+description = "SentinelMesh threat-intelligence service (req 9, TB-4): IOC store of record, enrichment API, confidence/freshness/expiry/provenance, provider-failure tolerance. Never fabricates intelligence."
+requires-python = ">=3.11"
+dependencies = [
+    "sm-contracts",
+    "sm-common",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "respx>=0.21",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sm_ti_service"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

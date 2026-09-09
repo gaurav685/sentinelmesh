@@ -33,6 +33,7 @@ PROFILED = {
     "ml-inference": "detect",
     "detection-engine": "detect",
     "mitre-service": "detect",
+    "threat-intel-service": "detect",
     "redpanda": "bus",
     "minio": "objects",
 }
