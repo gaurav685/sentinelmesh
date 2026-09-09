@@ -8,12 +8,15 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 2 — Telemetry Ingestion + Normalization. Units 1–4 IMPLEMENTED +
-LOCALLY / INTEGRATION VERIFIED against real infrastructure.** The full pipeline
-runs: sensor → `ingestion-gateway` → `telemetry.raw` → `normalization-engine` →
-`events.canonical` (poison → `telemetry.raw.dlq`). **Phase 2 exit is blocked on
-CI** — the `integration` / `image` jobs have never run (no GitHub remote); they
-must, per the standing rule, before Phase 2 is declared complete. Next after
-that: the Phase 3 prompt (graph / detection).
+INTEGRATION VERIFIED against real infrastructure**, including the full compose
+stack (6 containers healthy) and a live end-to-end: a real sensor POST to
+`ingestion-gateway` produced an `events.canonical` envelope out of
+`normalization-engine`, tenant bound to the sensor identity, lineage preserved.
+Pipeline: sensor → `ingestion-gateway` → `telemetry.raw` → `normalization-engine`
+→ `events.canonical` (poison → `telemetry.raw.dlq`). **Phase 2 exit is blocked
+on CI** — the `integration` / `image` jobs have never run (no GitHub remote);
+they must, per the standing rule, before Phase 2 is declared complete. Next
+after that: the Phase 3 prompt (graph / detection).
 
 Phase 1 exited INTEGRATION VERIFIED on local Docker.
 
@@ -112,8 +115,8 @@ Verified (2026-09-09): pytest **249** non-integration (7 new — `test_kafka_sin
 `tests/integration/test_ingestion_bus_pg.py`: accepted event round-trips through
 `telemetry.raw`; malformed body lands on `telemetry.raw.dlq` with headers —
 against real Redpanda + Postgres + Redis). `mypy --strict` clean (90 files),
-`ruff` clean, `gen_contracts --check` clean, `docker compose --profile bus config`
-valid. NOT VERIFIED: either gateway container actually starting under compose; CI.
+`ruff` clean, `gen_contracts --check` clean. Compose stack + live end-to-end
+verified later the same day — see "Verification performed (Phase 2, Units 2–4)".
 
 ### Phase 2, Unit 4 — normalization-engine (DONE)
 
@@ -156,8 +159,9 @@ integration (2 new — `tests/integration/test_normalization_bus.py`: a
 `telemetry.raw` network-flow record becomes an `events.canonical` envelope with
 lineage; a poison record lands on `telemetry.raw.dlq` (wrapped) and the next
 good record still processes — real Redpanda). `mypy --strict` clean (106 files),
-`ruff` clean, `gen_contracts --check` clean, `compose --profile bus config`
-valid. NOT VERIFIED: the container starting under compose; CI.
+`ruff` clean, `gen_contracts --check` clean. Compose stack (all 6 containers
+healthy) + live end-to-end verified the same day — see "Verification performed
+(Phase 2, Units 2–4)". NOT VERIFIED: CI.
 
 ### Phase 1 — INTEGRATION VERIFIED on local Docker (kept for the record)
 
@@ -632,10 +636,13 @@ integration tests" elsewhere in this file are historical.
 | Type check | `mypy --strict --python-version 3.11` over all five src trees | **no issues in 106 files** |
 | Lint | `ruff check packages services tests migrations scripts` | **All checks passed** |
 | Contract schema | `python scripts/gen_contracts.py --check` | up to date |
-| Compose | `docker compose --profile bus config` | valid |
+| Compose config | `docker compose --profile bus config` | valid |
+| **Compose stack** | `docker compose --profile bus up -d --build` | all 6 containers **healthy** (postgres, redis, redpanda, app, ingestion-gateway, normalization-engine); `migrate` applied `0001 -> 0002` and exited 0 |
+| Service readiness (in-container) | `curl :8000/:8001/:8002 /healthz + /readyz` | all `200` / `{"ready":true}`; ingestion-gateway probes `kafka` healthy (`event_bus=True`), normalization-engine probes `kafka_producer` + `kafka_consumer` healthy (`consumer_group=normalization`) |
+| **Live end-to-end** | seed a `sensor` row → `POST :8001/api/v1/ingest/network_flow` → consume `events.canonical` | `202` accepted; the canonical event arrived within ~1s: `event.canonical`, `producer=normalization-engine@0.1.0`, `tenant_id` from the sensor (not the body), `payload.kind=network_flow`, `payload.raw_event_id` = the ingest `event_id`, actor/target = src/dst ip |
 
-**Not verified:** any service container actually starting under compose;
-anything in CI (no GitHub remote).
+**Not verified:** anything in CI (no GitHub remote); a real OIDC round-trip; a
+scraped Prometheus / collected span.
 
 ## APIs
 

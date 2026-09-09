@@ -46,7 +46,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-1 (untrusted sensors); `tenant_id` bound to sensor identity, never trusted from body.
 - **Test:** contract tests on envelope; security tests (bad credential, wrong-tenant payload, oversize, rate limit fail-closed); integration test sensor→topic.
 - **Verification method:** integration test against Redpanda in docker-compose.
-- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Units 1–3), INTEGRATION VERIFIED on local infrastructure; CI confirmation pending (no GitHub remote).
+- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Units 1–3), INTEGRATION VERIFIED on local infrastructure incl. the full compose stack and a live end-to-end (real sensor POST → `events.canonical`); CI confirmation pending (no GitHub remote).
   - `sensor` registry table + `Sensor` contract + `SensorAuth` (`sm_common.security.sensor_auth`): INTEGRATION VERIFIED against real PostgreSQL — `tests/integration/test_sensor_auth_pg.py` (7 tests).
   - Telemetry payload contracts (`sm_contracts.telemetry`): IMPLEMENTED + unit-tested (`test_telemetry.py`, 13).
   - `ingestion-gateway` service (envelope built server-side, dedup, fail-closed limiter, batch): unit-tested against the real app with in-memory infra (`services/ingestion-gateway/tests`, ~40).
@@ -66,7 +66,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-4 (outbound TI via service); tenant preserved on every output event.
 - **Test:** unit (normalizers per source type, enrichment skip paths), integration (raw→canonical), contract (canonical schema).
 - **Verification method:** integration test; golden-file normalization tests using dataset samples.
-- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Unit 4), INTEGRATION VERIFIED on local infrastructure; CI confirmation pending.
+- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Unit 4), INTEGRATION VERIFIED on local infrastructure incl. the full compose stack and a live end-to-end (`telemetry.raw` → `events.canonical` through the running `normalization-engine` container); CI confirmation pending.
   - `services/normalization-engine` — a stream processor consuming `telemetry.raw`, producing `events.canonical` (`event.canonical` v1). Deterministic per-source mapping (`normalize/mappers.py`) → `CanonicalEventPayload` with `actor`/`target`/`entities` and `raw_event_id`/`raw_event_type` lineage; `occurred_at`, `correlation_id`, `source` carried from the raw event.
   - `enrich/` is a stubbed `Enricher` protocol + runner — **Geo-IP, hostname resolution, identity stitching (`identity_link`), threat-intel tagging are NOT implemented** (no provider yet, so `enrichment = {}`); each is a later unit/phase. The `asset` / `identity_link` reads and the Redis geoip/TI cache are likewise not built.
   - Delivery: `sm_common.bus.EventBusConsumer`, manual commit after the side effect; poison → `telemetry.raw.dlq` wrapped per event-model.md §5; produce failure → retry then uncommitted redelivery.
