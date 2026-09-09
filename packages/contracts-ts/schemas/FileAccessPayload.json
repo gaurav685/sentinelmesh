@@ -1,0 +1,103 @@
+{
+  "$defs": {
+    "FileAction": {
+      "enum": [
+        "read",
+        "write",
+        "create",
+        "delete",
+        "rename",
+        "execute",
+        "permission_change"
+      ],
+      "title": "FileAction",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "$ref": "#/definitions/FileAction"
+    },
+    "hash_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hash Sha256"
+    },
+    "host": {
+      "maxLength": 253,
+      "minLength": 1,
+      "title": "Host",
+      "type": "string"
+    },
+    "occurred_at": {
+      "description": "Event time as observed by the sensor. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "path": {
+      "maxLength": 4096,
+      "minLength": 1,
+      "title": "Path",
+      "type": "string"
+    },
+    "process_id": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Process Id"
+    },
+    "process_name": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Process Name"
+    },
+    "user": {
+      "anyOf": [
+        {
+          "maxLength": 320,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "User"
+    }
+  },
+  "required": [
+    "occurred_at",
+    "host",
+    "path",
+    "action"
+  ],
+  "title": "FileAccessPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

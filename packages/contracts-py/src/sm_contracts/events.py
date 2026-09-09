@@ -160,4 +160,8 @@ EVENT_PAYLOAD_REGISTRY: dict[EventType, type[SmBaseModel]] = {
 }
 """Maps an `event_type` to its payload model. Grows one entry per phase as
 payloads are implemented. Consumers use this to pick the concrete
-`EventEnvelope[...]` to validate against."""
+`EventEnvelope[...]` to validate against.
+
+Phase 2's telemetry payloads register themselves here on import of
+`sm_contracts.telemetry` (see the bottom of that module) so this module does not
+take a dependency on it."""

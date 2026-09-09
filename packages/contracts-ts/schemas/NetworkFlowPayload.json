@@ -1,0 +1,173 @@
+{
+  "$defs": {
+    "Direction": {
+      "enum": [
+        "inbound",
+        "outbound",
+        "lateral",
+        "unknown"
+      ],
+      "title": "Direction",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "app_protocol": {
+      "anyOf": [
+        {
+          "maxLength": 32,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "e.g. http, dns, ssh.",
+      "title": "App Protocol"
+    },
+    "bytes_received": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Bytes Received",
+      "type": "integer"
+    },
+    "bytes_sent": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Bytes Sent",
+      "type": "integer"
+    },
+    "direction": {
+      "$ref": "#/definitions/Direction",
+      "default": "unknown"
+    },
+    "dst_host": {
+      "anyOf": [
+        {
+          "maxLength": 253,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dst Host"
+    },
+    "dst_ip": {
+      "format": "ipvanyaddress",
+      "title": "Dst Ip",
+      "type": "string"
+    },
+    "dst_port": {
+      "anyOf": [
+        {
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dst Port"
+    },
+    "ended_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ended At"
+    },
+    "occurred_at": {
+      "description": "Event time as observed by the sensor. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "packets_received": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Packets Received",
+      "type": "integer"
+    },
+    "packets_sent": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Packets Sent",
+      "type": "integer"
+    },
+    "protocol": {
+      "description": "Transport, e.g. tcp/udp/icmp.",
+      "maxLength": 16,
+      "minLength": 1,
+      "title": "Protocol",
+      "type": "string"
+    },
+    "src_host": {
+      "anyOf": [
+        {
+          "maxLength": 253,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Src Host"
+    },
+    "src_ip": {
+      "format": "ipvanyaddress",
+      "title": "Src Ip",
+      "type": "string"
+    },
+    "src_port": {
+      "anyOf": [
+        {
+          "maximum": 65535,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Src Port"
+    },
+    "verdict": {
+      "anyOf": [
+        {
+          "maxLength": 32,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Firewall/IDS verdict if any.",
+      "title": "Verdict"
+    }
+  },
+  "required": [
+    "occurred_at",
+    "src_ip",
+    "dst_ip",
+    "protocol"
+  ],
+  "title": "NetworkFlowPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

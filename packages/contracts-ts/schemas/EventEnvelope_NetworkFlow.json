@@ -1,0 +1,339 @@
+{
+  "$defs": {
+    "Direction": {
+      "enum": [
+        "inbound",
+        "outbound",
+        "lateral",
+        "unknown"
+      ],
+      "title": "Direction",
+      "type": "string"
+    },
+    "EventSource": {
+      "additionalProperties": false,
+      "properties": {
+        "sensor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sensor Id"
+        },
+        "site": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site"
+        },
+        "type": {
+          "$ref": "#/definitions/SourceType"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "EventSource",
+      "type": "object"
+    },
+    "EventType": {
+      "enum": [
+        "telemetry.network_flow",
+        "telemetry.auth_event",
+        "telemetry.dns_query",
+        "telemetry.process_exec",
+        "telemetry.file_access",
+        "event.canonical",
+        "graph.command",
+        "detection.raised",
+        "attack_chain.updated",
+        "ti.indicator_updated",
+        "agent.task",
+        "response.action",
+        "campaign.updated",
+        "report.generated",
+        "user.event"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "NetworkFlowPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "app_protocol": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. http, dns, ssh.",
+          "title": "App Protocol"
+        },
+        "bytes_received": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Bytes Received",
+          "type": "integer"
+        },
+        "bytes_sent": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Bytes Sent",
+          "type": "integer"
+        },
+        "direction": {
+          "$ref": "#/definitions/Direction",
+          "default": "unknown"
+        },
+        "dst_host": {
+          "anyOf": [
+            {
+              "maxLength": 253,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dst Host"
+        },
+        "dst_ip": {
+          "format": "ipvanyaddress",
+          "title": "Dst Ip",
+          "type": "string"
+        },
+        "dst_port": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dst Port"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "occurred_at": {
+          "description": "Event time as observed by the sensor. UTC.",
+          "format": "date-time",
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "packets_received": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Packets Received",
+          "type": "integer"
+        },
+        "packets_sent": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Packets Sent",
+          "type": "integer"
+        },
+        "protocol": {
+          "description": "Transport, e.g. tcp/udp/icmp.",
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Protocol",
+          "type": "string"
+        },
+        "src_host": {
+          "anyOf": [
+            {
+              "maxLength": 253,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src Host"
+        },
+        "src_ip": {
+          "format": "ipvanyaddress",
+          "title": "Src Ip",
+          "type": "string"
+        },
+        "src_port": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Src Port"
+        },
+        "verdict": {
+          "anyOf": [
+            {
+              "maxLength": 32,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Firewall/IDS verdict if any.",
+          "title": "Verdict"
+        }
+      },
+      "required": [
+        "occurred_at",
+        "src_ip",
+        "dst_ip",
+        "protocol"
+      ],
+      "title": "NetworkFlowPayload",
+      "type": "object"
+    },
+    "SourceType": {
+      "enum": [
+        "sensor",
+        "deception",
+        "simulation",
+        "internal"
+      ],
+      "title": "SourceType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "correlation_id": {
+      "format": "uuid",
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "event_id": {
+      "description": "Globally unique, time-ordered (UUIDv7). Idempotency key.",
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "event_type": {
+      "$ref": "#/definitions/EventType"
+    },
+    "event_version": {
+      "description": "Schema version of `payload`.",
+      "minimum": 1,
+      "title": "Event Version",
+      "type": "integer"
+    },
+    "ingested_at": {
+      "description": "Set by ingestion-gateway on receipt. UTC.",
+      "format": "date-time",
+      "title": "Ingested At",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "description": "Non-authoritative annotations (enrichment provenance, tags).",
+      "title": "Metadata",
+      "type": "object"
+    },
+    "occurred_at": {
+      "description": "Event time, from the source. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "partition_key": {
+      "description": "Derived (tenant + primary entity). Controls ordering.",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Partition Key",
+      "type": "string"
+    },
+    "payload": {
+      "$ref": "#/definitions/NetworkFlowPayload"
+    },
+    "producer": {
+      "description": "`<service>@<semver>`, e.g. ingestion-gateway@0.1.0",
+      "title": "Producer",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/definitions/EventSource"
+    },
+    "tenant_id": {
+      "description": "Set from the authenticated producer context, never trusted from input.",
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "trace_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "W3C trace-context trace-id.",
+      "title": "Trace Id"
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "ingested_at",
+    "producer",
+    "tenant_id",
+    "source",
+    "correlation_id",
+    "partition_key",
+    "payload"
+  ],
+  "title": "EventEnvelope[NetworkFlowPayload]",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

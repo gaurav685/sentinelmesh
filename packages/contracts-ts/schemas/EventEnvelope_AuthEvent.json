@@ -1,0 +1,279 @@
+{
+  "$defs": {
+    "AuthEventPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "auth_type": {
+          "description": "interactive/network/kerberos/ntlm/ssh/\u2026",
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Auth Type",
+          "type": "string"
+        },
+        "failure_reason": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Failure Reason"
+        },
+        "logon_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Logon Id"
+        },
+        "occurred_at": {
+          "description": "Event time as observed by the sensor. UTC.",
+          "format": "date-time",
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/definitions/AuthOutcome"
+        },
+        "principal": {
+          "description": "user@domain or username as seen.",
+          "maxLength": 320,
+          "minLength": 1,
+          "title": "Principal",
+          "type": "string"
+        },
+        "source_host": {
+          "anyOf": [
+            {
+              "maxLength": 253,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Host"
+        },
+        "source_ip": {
+          "anyOf": [
+            {
+              "format": "ipvanyaddress",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Ip"
+        },
+        "target_host": {
+          "anyOf": [
+            {
+              "maxLength": 253,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Host"
+        }
+      },
+      "required": [
+        "occurred_at",
+        "outcome",
+        "auth_type",
+        "principal"
+      ],
+      "title": "AuthEventPayload",
+      "type": "object"
+    },
+    "AuthOutcome": {
+      "enum": [
+        "success",
+        "failure"
+      ],
+      "title": "AuthOutcome",
+      "type": "string"
+    },
+    "EventSource": {
+      "additionalProperties": false,
+      "properties": {
+        "sensor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sensor Id"
+        },
+        "site": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site"
+        },
+        "type": {
+          "$ref": "#/definitions/SourceType"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "EventSource",
+      "type": "object"
+    },
+    "EventType": {
+      "enum": [
+        "telemetry.network_flow",
+        "telemetry.auth_event",
+        "telemetry.dns_query",
+        "telemetry.process_exec",
+        "telemetry.file_access",
+        "event.canonical",
+        "graph.command",
+        "detection.raised",
+        "attack_chain.updated",
+        "ti.indicator_updated",
+        "agent.task",
+        "response.action",
+        "campaign.updated",
+        "report.generated",
+        "user.event"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "SourceType": {
+      "enum": [
+        "sensor",
+        "deception",
+        "simulation",
+        "internal"
+      ],
+      "title": "SourceType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "correlation_id": {
+      "format": "uuid",
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "event_id": {
+      "description": "Globally unique, time-ordered (UUIDv7). Idempotency key.",
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "event_type": {
+      "$ref": "#/definitions/EventType"
+    },
+    "event_version": {
+      "description": "Schema version of `payload`.",
+      "minimum": 1,
+      "title": "Event Version",
+      "type": "integer"
+    },
+    "ingested_at": {
+      "description": "Set by ingestion-gateway on receipt. UTC.",
+      "format": "date-time",
+      "title": "Ingested At",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "description": "Non-authoritative annotations (enrichment provenance, tags).",
+      "title": "Metadata",
+      "type": "object"
+    },
+    "occurred_at": {
+      "description": "Event time, from the source. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "partition_key": {
+      "description": "Derived (tenant + primary entity). Controls ordering.",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Partition Key",
+      "type": "string"
+    },
+    "payload": {
+      "$ref": "#/definitions/AuthEventPayload"
+    },
+    "producer": {
+      "description": "`<service>@<semver>`, e.g. ingestion-gateway@0.1.0",
+      "title": "Producer",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/definitions/EventSource"
+    },
+    "tenant_id": {
+      "description": "Set from the authenticated producer context, never trusted from input.",
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "trace_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "W3C trace-context trace-id.",
+      "title": "Trace Id"
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "ingested_at",
+    "producer",
+    "tenant_id",
+    "source",
+    "correlation_id",
+    "partition_key",
+    "payload"
+  ],
+  "title": "EventEnvelope[AuthEventPayload]",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

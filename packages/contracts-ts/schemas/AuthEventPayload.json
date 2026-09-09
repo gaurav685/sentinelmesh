@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "AuthOutcome": {
+      "enum": [
+        "success",
+        "failure"
+      ],
+      "title": "AuthOutcome",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "auth_type": {
+      "description": "interactive/network/kerberos/ntlm/ssh/\u2026",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Auth Type",
+      "type": "string"
+    },
+    "failure_reason": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Failure Reason"
+    },
+    "logon_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logon Id"
+    },
+    "occurred_at": {
+      "description": "Event time as observed by the sensor. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "outcome": {
+      "$ref": "#/definitions/AuthOutcome"
+    },
+    "principal": {
+      "description": "user@domain or username as seen.",
+      "maxLength": 320,
+      "minLength": 1,
+      "title": "Principal",
+      "type": "string"
+    },
+    "source_host": {
+      "anyOf": [
+        {
+          "maxLength": 253,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Host"
+    },
+    "source_ip": {
+      "anyOf": [
+        {
+          "format": "ipvanyaddress",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Ip"
+    },
+    "target_host": {
+      "anyOf": [
+        {
+          "maxLength": 253,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Target Host"
+    }
+  },
+  "required": [
+    "occurred_at",
+    "outcome",
+    "auth_type",
+    "principal"
+  ],
+  "title": "AuthEventPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

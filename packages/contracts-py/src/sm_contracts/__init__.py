@@ -63,6 +63,21 @@ from .events import (
     UserEventAction,
     UserEventPayload,
 )
+from .telemetry import (
+    TELEMETRY_PAYLOADS,
+    AuthEventPayload,
+    AuthOutcome,
+    CanonicalEventPayload,
+    CanonicalKind,
+    Direction,
+    DnsQueryPayload,
+    EntityKind,
+    EntityRef,
+    FileAccessPayload,
+    FileAction,
+    NetworkFlowPayload,
+    ProcessExecPayload,
+)
 from .version import CONTRACTS_VERSION, ENVELOPE_SCHEMA_VERSION
 
 __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetically)
@@ -87,6 +102,20 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "UserEventAction",
     "UserEventPayload",
     "EVENT_PAYLOAD_REGISTRY",
+    # telemetry payloads (Phase 2)
+    "NetworkFlowPayload",
+    "AuthEventPayload",
+    "DnsQueryPayload",
+    "ProcessExecPayload",
+    "FileAccessPayload",
+    "CanonicalEventPayload",
+    "EntityRef",
+    "EntityKind",
+    "CanonicalKind",
+    "Direction",
+    "AuthOutcome",
+    "FileAction",
+    "TELEMETRY_PAYLOADS",
     # enums
     "TenantStatus",
     "UserStatus",
