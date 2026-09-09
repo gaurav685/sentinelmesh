@@ -23,9 +23,11 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Identity,
     Index,
     Integer,
     String,
@@ -229,6 +231,12 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
 
     id: Mapped[UUID] = mapped_column(postgresql.UUID(as_uuid=True), primary_key=True, default=uuid7)
+    # Database-assigned, strictly increasing per INSERT. It is the canonical
+    # order of a tenant's hash chain: `created_at` is captured by the application
+    # and races under concurrency (and `uuid7` ids are not monotonic within a
+    # millisecond), so ordering the chain by either can fork it. `seq` is
+    # assigned inside the per-tenant advisory lock, so it never can.
+    seq: Mapped[int] = mapped_column(BigInteger, Identity(always=True), nullable=False)
     # NULL for platform-level (cross-tenant) events.
     tenant_id: Mapped[UUID | None] = mapped_column(
         postgresql.UUID(as_uuid=True), ForeignKey("tenant.id", ondelete="RESTRICT"), nullable=True
@@ -258,6 +266,8 @@ class AuditLog(Base):
         CheckConstraint("hash ~ '^[0-9a-f]{64}$'", name="audit_log_hash_format"),
         CheckConstraint("prev_hash ~ '^[0-9a-f]{64}$'", name="audit_log_prev_hash_format"),
         UniqueConstraint("hash", name="uq_audit_log_hash"),
+        UniqueConstraint("seq", name="uq_audit_log_seq"),
+        Index("ix_audit_log_tenant_id_seq", "tenant_id", text("seq DESC")),
         Index("ix_audit_log_tenant_id_created_at", "tenant_id", text("created_at DESC")),
         Index("ix_audit_log_actor_id_created_at", "actor_id", text("created_at DESC")),
         Index("ix_audit_log_action", "action"),

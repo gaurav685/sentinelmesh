@@ -145,8 +145,13 @@ async def test_upgrade_downgrade_upgrade_is_clean(alembic, migration_database: A
 
 @pytest.mark.asyncio
 async def test_head_is_the_expected_revision(alembic):
-    out = alembic("current").stdout
+    # `heads` reads the migration scripts, not the database, so it does not
+    # depend on an upgrade having run first.
+    out = alembic("heads").stdout
     assert "0002" in out
+
+    alembic("upgrade", "head")
+    assert "0002" in alembic("current").stdout
 
 
 @pytest.mark.asyncio

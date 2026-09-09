@@ -52,7 +52,7 @@ async def _chain(db: Database, tenant_id: UUID) -> list[AuditLog]:
         rows = await session.scalars(
             select(AuditLog)
             .where(AuditLog.tenant_id == tenant_id)
-            .order_by(AuditLog.created_at, AuditLog.id)
+            .order_by(AuditLog.seq)
         )
         return list(rows.all())
 

@@ -218,6 +218,11 @@ def upgrade() -> None:
     op.create_table(
         "audit_log",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        # Database-assigned, strictly increasing. Canonical hash-chain order:
+        # `created_at` is application-set and races under concurrency, and uuid7
+        # ids are not monotonic within a millisecond. `seq` is assigned inside
+        # the per-tenant advisory lock, so the chain cannot fork on it.
+        sa.Column("seq", sa.BigInteger(), sa.Identity(always=True), nullable=False),
         sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("actor_type", sa.String(length=20), nullable=False),
         sa.Column("actor_id", postgresql.UUID(as_uuid=True), nullable=True),
@@ -239,6 +244,7 @@ def upgrade() -> None:
             ["tenant_id"], ["tenant.id"], name="fk_audit_log_tenant_id_tenant", ondelete="RESTRICT"
         ),
         sa.UniqueConstraint("hash", name="uq_audit_log_hash"),
+        sa.UniqueConstraint("seq", name="uq_audit_log_seq"),
         sa.CheckConstraint(f"actor_type IN ({_ACTOR_TYPE})", name="audit_log_actor_type"),
         sa.CheckConstraint(f"result IN ({_AUDIT_RESULT})", name="audit_log_result"),
         sa.CheckConstraint("hash ~ '^[0-9a-f]{64}$'", name="audit_log_hash_format"),
@@ -247,6 +253,8 @@ def upgrade() -> None:
         ),
     )
     op.create_index("ix_audit_log_tenant_id", "audit_log", ["tenant_id"])
+    # Chain-tip lookup: `... WHERE tenant_id [IS NULL | = :t] ORDER BY seq DESC LIMIT 1`.
+    op.execute("CREATE INDEX ix_audit_log_tenant_id_seq ON audit_log (tenant_id, seq DESC)")
     op.execute(
         "CREATE INDEX ix_audit_log_tenant_id_created_at ON audit_log (tenant_id, created_at DESC)"
     )

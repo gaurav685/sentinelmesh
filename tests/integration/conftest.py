@@ -87,8 +87,11 @@ def settings() -> AppSettings:
     return integration_settings()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def database(settings: AppSettings) -> AsyncIterator[Database]:
+    # Function-scoped: an async engine binds its pool to the running event loop,
+    # and pytest-asyncio gives each test its own loop. A session-scoped engine
+    # reused across tests raises "attached to a different loop".
     db = Database.from_settings(settings)
     if not await _reachable(db.ping):
         await db.dispose()
@@ -102,8 +105,10 @@ async def database(settings: AppSettings) -> AsyncIterator[Database]:
         await db.dispose()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def cache(settings: AppSettings) -> AsyncIterator[Cache]:
+    # Function-scoped for the same reason as `database`: the redis client is
+    # bound to the event loop it was created on.
     c = Cache.from_settings(settings)
     if not await _reachable(c.ping):
         await c.close()

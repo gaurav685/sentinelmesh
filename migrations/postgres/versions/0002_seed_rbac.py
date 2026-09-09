@@ -105,6 +105,31 @@ GRANTS: dict[str, tuple[str, ...]] = {
 }
 
 
+# Explicit column types: offline (`--sql`) rendering needs them to emit literal
+# UUID/boolean values, and `downgrade` needs them to adapt UUID bind values.
+_UUID_T = postgresql.UUID(as_uuid=True)
+
+permission_table = sa.table(
+    "permission",
+    sa.column("id", _UUID_T),
+    sa.column("code", sa.String),
+    sa.column("description", sa.String),
+    sa.column("resource_type", sa.String),
+    sa.column("action", sa.String),
+)
+role_table = sa.table(
+    "role",
+    sa.column("id", _UUID_T),
+    sa.column("tenant_id", _UUID_T),
+    sa.column("name", sa.String),
+    sa.column("description", sa.String),
+    sa.column("is_system", sa.Boolean),
+)
+role_permission_table = sa.table(
+    "role_permission", sa.column("role_id", _UUID_T), sa.column("permission_id", _UUID_T)
+)
+
+
 def upgrade() -> None:
     permission_rows = []
     for code, description in PERMISSIONS.items():
@@ -136,48 +161,21 @@ def upgrade() -> None:
         for code in codes
     ]
 
-    # Explicit column types: offline (`--sql`) rendering needs them to emit
-    # literal UUID/boolean values.
-    uuid_t = postgresql.UUID(as_uuid=True)
-    permission_table = sa.table(
-        "permission",
-        sa.column("id", uuid_t),
-        sa.column("code", sa.String),
-        sa.column("description", sa.String),
-        sa.column("resource_type", sa.String),
-        sa.column("action", sa.String),
-    )
-    role_table = sa.table(
-        "role",
-        sa.column("id", uuid_t),
-        sa.column("tenant_id", uuid_t),
-        sa.column("name", sa.String),
-        sa.column("description", sa.String),
-        sa.column("is_system", sa.Boolean),
-    )
-    role_permission_table = sa.table(
-        "role_permission", sa.column("role_id", uuid_t), sa.column("permission_id", uuid_t)
-    )
-
     op.bulk_insert(permission_table, permission_rows)
     op.bulk_insert(role_table, role_rows)
     op.bulk_insert(role_permission_table, grant_rows)
 
 
 def downgrade() -> None:
-    role_ids = [str(_role_id(name)) for name in ROLES]
-    permission_ids = [str(_permission_id(code)) for code in PERMISSIONS]
+    role_ids = [_role_id(name) for name in ROLES]
+    permission_ids = [_permission_id(code) for code in PERMISSIONS]
 
-    conn = op.get_bind()
-    conn.execute(
-        sa.text("DELETE FROM role_permission WHERE role_id = ANY(:ids::uuid[])"),
-        {"ids": role_ids},
+    # Typed `IN` bindings: SQLAlchemy compiles an expanding parameter list per
+    # dialect and adapts the UUID values from the column types above. The earlier
+    # `ANY(:ids::uuid[])` text broke under asyncpg — `::` is an escaped colon, so
+    # the cast was emitted as `$1:uuid[]`.
+    op.execute(
+        role_permission_table.delete().where(role_permission_table.c.role_id.in_(role_ids))
     )
-    conn.execute(
-        sa.text("DELETE FROM role WHERE id = ANY(:ids::uuid[])"),
-        {"ids": role_ids},
-    )
-    conn.execute(
-        sa.text("DELETE FROM permission WHERE id = ANY(:ids::uuid[])"),
-        {"ids": permission_ids},
-    )
+    op.execute(role_table.delete().where(role_table.c.id.in_(role_ids)))
+    op.execute(permission_table.delete().where(permission_table.c.id.in_(permission_ids)))
