@@ -38,6 +38,18 @@ from .models import (
 )
 from .preprocessing import PREPROCESSING_VERSION, Preprocessor
 from .registry import ModelRef, ModelRegistry
+from .temporal import (
+    EventTimeline,
+    ProgressionTrack,
+    ReplayCursor,
+    Session,
+    StitchedTrack,
+    TemporalEvent,
+    TemporalGraphState,
+    build_progression,
+    replay,
+    stitch_sessions,
+)
 
 __all__ = [
     "FEATURE_SCHEMA_VERSION",
@@ -46,6 +58,7 @@ __all__ = [
     "AnomalyModel",
     "AnomalyScore",
     "ConnectedComponentClusterer",
+    "EventTimeline",
     "FeatureSchema",
     "FeatureVector",
     "GnnNodeAnomalyModel",
@@ -61,10 +74,19 @@ __all__ = [
     "ModelRegistry",
     "ModelUnavailable",
     "Preprocessor",
+    "ProgressionTrack",
+    "ReplayCursor",
+    "Session",
     "StatisticalModel",
+    "StitchedTrack",
     "StructuralGraphAnomaly",
     "SuspiciousSubgraphHeuristic",
+    "TemporalEvent",
+    "TemporalGraphState",
     "build_graph_sample",
+    "build_progression",
     "extract_features",
+    "replay",
     "schema_for",
+    "stitch_sessions",
 ]
