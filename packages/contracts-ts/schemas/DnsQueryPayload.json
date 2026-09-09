@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "answers": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Answers",
+      "type": "array"
+    },
+    "client_host": {
+      "anyOf": [
+        {
+          "maxLength": 253,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Client Host"
+    },
+    "client_ip": {
+      "format": "ipvanyaddress",
+      "title": "Client Ip",
+      "type": "string"
+    },
+    "occurred_at": {
+      "description": "Event time as observed by the sensor. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "query_name": {
+      "maxLength": 253,
+      "minLength": 1,
+      "title": "Query Name",
+      "type": "string"
+    },
+    "query_type": {
+      "description": "A, AAAA, CNAME, TXT, PTR, MX, \u2026",
+      "maxLength": 16,
+      "minLength": 1,
+      "title": "Query Type",
+      "type": "string"
+    },
+    "resolver_ip": {
+      "anyOf": [
+        {
+          "format": "ipvanyaddress",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resolver Ip"
+    },
+    "response_code": {
+      "anyOf": [
+        {
+          "maxLength": 16,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "NOERROR/NXDOMAIN/SERVFAIL/\u2026",
+      "title": "Response Code"
+    }
+  },
+  "required": [
+    "occurred_at",
+    "client_ip",
+    "query_name",
+    "query_type"
+  ],
+  "title": "DnsQueryPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

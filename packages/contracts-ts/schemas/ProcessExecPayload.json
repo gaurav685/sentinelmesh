@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "command_line": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Command Line"
+    },
+    "hash_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hash Sha256"
+    },
+    "host": {
+      "maxLength": 253,
+      "minLength": 1,
+      "title": "Host",
+      "type": "string"
+    },
+    "occurred_at": {
+      "description": "Event time as observed by the sensor. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "parent_process_id": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Process Id"
+    },
+    "parent_process_name": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Process Name"
+    },
+    "process_id": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Process Id"
+    },
+    "process_name": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Process Name",
+      "type": "string"
+    },
+    "process_path": {
+      "anyOf": [
+        {
+          "maxLength": 1024,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Process Path"
+    },
+    "signed": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Signed"
+    },
+    "user": {
+      "anyOf": [
+        {
+          "maxLength": 320,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "User"
+    }
+  },
+  "required": [
+    "occurred_at",
+    "host",
+    "process_name"
+  ],
+  "title": "ProcessExecPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

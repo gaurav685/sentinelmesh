@@ -106,8 +106,11 @@ Implementation: `sm_contracts.events.EventEnvelope[PayloadT]`.
 | `report.generated` | 1 | `ReportGeneratedPayload` | reporting-service | 8 |
 | `user.event` | 1 | `UserEventPayload` | api-gateway | 1 |
 
-All payload models are **DRAFT** except `user.event` (Phase 1) and the envelope
-itself.
+The five `telemetry.*` payloads and `event.canonical` (`CanonicalEventPayload`)
+are **implemented** in `sm_contracts.telemetry` and registered in
+`EVENT_PAYLOAD_REGISTRY` (Phase 2, Unit 1). They are **STABLE target** — promoted
+to STABLE when the ingestion gateway and normalization engine that produce them
+ship. Every other payload model is **DRAFT**.
 
 ---
 
@@ -282,5 +285,6 @@ Action without `rollback_plan` cannot be `auto`.
 | Date | Change | Phase |
 |---|---|---|
 | 2026-09-08 | Initial contract set authored (Phase 0). API conventions, error contract, envelope, entity list, ownership, graph/ML/AI contract skeletons. | 0 |
+| 2026-09-09 | Telemetry payload contracts implemented (Phase 2, Unit 1): `NetworkFlowPayload`, `AuthEventPayload`, `DnsQueryPayload`, `ProcessExecPayload`, `FileAccessPayload`, `CanonicalEventPayload` + `EntityRef`; all registered in `EVENT_PAYLOAD_REGISTRY` and `SCHEMA_MODELS` (34 JSON Schema files). Sensor payloads validate IPs, bound free-text fields and normalize case; the canonical payload keeps `raw_event_id` lineage and requires `actor`/`target` to appear in `entities`. Status: STABLE target. | 2 (Unit 1) |
 | 2026-09-08 | Phase-1 auth/admin API surface **implemented** in `services/api-gateway` and its contracts promoted DRAFT → **STABLE**: API conventions, the canonical error contract, the foundation endpoint set (§1.2), and the `Tenant`/`User`/`Role`/`Permission`/`UserRole`/`RolePermission`/`Sensor`/`AuditRecord` entity contracts. Cursor pagination, CSRF header (`X-CSRF-Token`) and the session cookie names are part of the stable surface. | 1 (Unit 4) |
 | 2026-09-08 | `packages/contracts-py` implements the canonical `EventEnvelope`, the `ErrorResponse` contract (`HTTP_STATUS_BY_CODE`), Phase-1 entity DTOs (`Tenant`, `User`, `Role`, `Permission`, `RolePermission`, `UserRoleGrant`, `Sensor`, `AuditRecord`), Phase-1 API models, and shared enums. JSON Schema generated to `packages/contracts-ts/schemas/` via `scripts/gen_contracts.py`. Status of these contracts: **STABLE target** — promoted to STABLE when the Phase-1 endpoints that use them ship. `identity_link` ownership corrected to `normalization-engine` (Phase 2) — see `architecture/consistency-review.md`. | 0 (close) |

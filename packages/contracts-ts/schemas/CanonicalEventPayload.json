@@ -1,0 +1,165 @@
+{
+  "$defs": {
+    "CanonicalKind": {
+      "enum": [
+        "network_flow",
+        "auth",
+        "dns",
+        "process_exec",
+        "file_access"
+      ],
+      "title": "CanonicalKind",
+      "type": "string"
+    },
+    "EntityKind": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "process",
+        "file"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/EntityKind"
+        },
+        "value": {
+          "description": "Canonical identifier for the entity.",
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "EventType": {
+      "enum": [
+        "telemetry.network_flow",
+        "telemetry.auth_event",
+        "telemetry.dns_query",
+        "telemetry.process_exec",
+        "telemetry.file_access",
+        "event.canonical",
+        "graph.command",
+        "detection.raised",
+        "attack_chain.updated",
+        "ti.indicator_updated",
+        "agent.task",
+        "response.action",
+        "campaign.updated",
+        "report.generated",
+        "user.event"
+      ],
+      "title": "EventType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The normalized view of one telemetry event. Written by\n`normalization-engine`, consumed by the graph, detection and memory\nsubsystems.",
+  "properties": {
+    "action": {
+      "description": "Normalized verb, e.g. 'connected_to'.",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Action",
+      "type": "string"
+    },
+    "actor": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/EntityRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Entity that initiated the event."
+    },
+    "attributes": {
+      "additionalProperties": true,
+      "description": "Normalized flat attributes (ports, bytes, query name, \u2026).",
+      "title": "Attributes",
+      "type": "object"
+    },
+    "enrichment": {
+      "additionalProperties": true,
+      "description": "Enrichment results keyed by provider, each carrying its own provenance and freshness. Absent or partial when a provider was unavailable.",
+      "title": "Enrichment",
+      "type": "object"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/definitions/EntityRef"
+      },
+      "maxItems": 64,
+      "title": "Entities",
+      "type": "array"
+    },
+    "kind": {
+      "$ref": "#/definitions/CanonicalKind"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "outcome": {
+      "anyOf": [
+        {
+          "maxLength": 32,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Outcome"
+    },
+    "raw_event_id": {
+      "description": "The telemetry.raw event this was derived from (lineage).",
+      "format": "uuid",
+      "title": "Raw Event Id",
+      "type": "string"
+    },
+    "raw_event_type": {
+      "$ref": "#/definitions/EventType"
+    },
+    "target": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/EntityRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Entity acted upon."
+    }
+  },
+  "required": [
+    "kind",
+    "occurred_at",
+    "action",
+    "raw_event_id",
+    "raw_event_type"
+  ],
+  "title": "CanonicalEventPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

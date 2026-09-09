@@ -36,16 +36,42 @@ from .entities import (
 )
 from .errors import ErrorResponse
 from .events import EventEnvelope, UserEventPayload
+from .telemetry import (
+    AuthEventPayload,
+    CanonicalEventPayload,
+    DnsQueryPayload,
+    FileAccessPayload,
+    NetworkFlowPayload,
+    ProcessExecPayload,
+)
 
 __all__ = ["SCHEMA_MODELS", "export_all"]
 
-# Concrete envelope parameterization for schema generation.
+# Concrete envelope parameterizations for schema generation.
 UserEventEnvelope = EventEnvelope[UserEventPayload]
+NetworkFlowEnvelope = EventEnvelope[NetworkFlowPayload]
+AuthEventEnvelope = EventEnvelope[AuthEventPayload]
+DnsQueryEnvelope = EventEnvelope[DnsQueryPayload]
+ProcessExecEnvelope = EventEnvelope[ProcessExecPayload]
+FileAccessEnvelope = EventEnvelope[FileAccessPayload]
+CanonicalEventEnvelope = EventEnvelope[CanonicalEventPayload]
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ErrorResponse": ErrorResponse,
     "EventEnvelope_UserEvent": UserEventEnvelope,
     "UserEventPayload": UserEventPayload,
+    "EventEnvelope_NetworkFlow": NetworkFlowEnvelope,
+    "EventEnvelope_AuthEvent": AuthEventEnvelope,
+    "EventEnvelope_DnsQuery": DnsQueryEnvelope,
+    "EventEnvelope_ProcessExec": ProcessExecEnvelope,
+    "EventEnvelope_FileAccess": FileAccessEnvelope,
+    "EventEnvelope_CanonicalEvent": CanonicalEventEnvelope,
+    "NetworkFlowPayload": NetworkFlowPayload,
+    "AuthEventPayload": AuthEventPayload,
+    "DnsQueryPayload": DnsQueryPayload,
+    "ProcessExecPayload": ProcessExecPayload,
+    "FileAccessPayload": FileAccessPayload,
+    "CanonicalEventPayload": CanonicalEventPayload,
     "Tenant": Tenant,
     "User": User,
     "Role": Role,
