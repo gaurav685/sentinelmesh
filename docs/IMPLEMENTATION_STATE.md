@@ -1748,20 +1748,13 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Unit 1 DONE** (`sm_ml.graph`: graph
-construction + feature schema + structural models + GNN boundary + registry +
-CONTRACT.md ×3; config `SM_ML_SEED` / `SM_GRAPH_ANOMALY_Z` / `SM_TEMPORAL_*`).
-Local: ruff, `mypy --strict` (252 files), 540 unit tests + `gen_contracts --check`.
-No new integration / image / CI wiring (`sm_ml` already installed everywhere; the
-`sm-ml[gnn]` extra is deliberately not in CI). **Commit Unit 1, push, confirm CI
-green.**
-
-**Then Unit 2 — `sm_ml.temporal`:** event timeline (ordered, dedup by event id,
-out-of-order tolerant), temporal graph state (`state.at(t)`), attack progression
-over time, deterministic replay, cross-session stitching (link sessions/chains of
-one entity within `SM_TEMPORAL_SESSION_LINK_SECONDS`). Handle out-of-order /
-missing / clock-skew (clamp to `SM_TEMPORAL_MAX_CLOCK_SKEW_SECONDS`) / duplicate.
-Tests: temporal ordering, replay, cross-session stitching, malformed input.
+**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Units 1–2 DONE.** Unit 1
+(`sm_ml.graph`) CI-green (run `34408045416`). Unit 2 (`sm_ml.temporal`: event
+timeline / temporal graph state / progression track / deterministic replay /
+cross-session stitching — all stdlib, deterministic, handling out-of-order /
+duplicate / clock-skew / missing): local gauntlet green — ruff, `mypy --strict`,
+549 unit tests + `gen_contracts --check`. No new integration / image / CI wiring.
+**Commit Unit 2, push, confirm CI green.**
 
 **Then Unit 3 — `services/ml-training`:** the reproducible pipeline
 `dataset → preprocessing → graph construction → feature generation → training →
