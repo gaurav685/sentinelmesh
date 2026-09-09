@@ -1,0 +1,355 @@
+{
+  "$defs": {
+    "DetectionPayload": {
+      "additionalProperties": false,
+      "description": "`detections` topic event \u2014 the thin projection of a Postgres `detection`.",
+      "properties": {
+        "dedup_key": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Dedup Key",
+          "type": "string"
+        },
+        "detected_at": {
+          "description": "When detection-engine raised it. UTC.",
+          "format": "date-time",
+          "title": "Detected At",
+          "type": "string"
+        },
+        "detection_id": {
+          "format": "uuid",
+          "title": "Detection Id",
+          "type": "string"
+        },
+        "detector": {
+          "$ref": "#/definitions/DetectorKind"
+        },
+        "entities": {
+          "items": {
+            "$ref": "#/definitions/EntityRef"
+          },
+          "maxItems": 64,
+          "title": "Entities",
+          "type": "array"
+        },
+        "evidence_count": {
+          "minimum": 0,
+          "title": "Evidence Count",
+          "type": "integer"
+        },
+        "occurred_at": {
+          "description": "Event time of the telemetry that triggered this. UTC.",
+          "format": "date-time",
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "raw_event_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lineage to the canonical event.",
+          "title": "Raw Event Id"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        },
+        "score": {
+          "description": "Composite threat score in [0,1].",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        },
+        "scoring_status": {
+          "$ref": "#/definitions/ScoringStatus"
+        },
+        "severity": {
+          "$ref": "#/definitions/Severity"
+        },
+        "technique_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Technique Ids",
+          "type": "array"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "detection_id",
+        "tenant_id",
+        "occurred_at",
+        "detected_at",
+        "detector",
+        "title",
+        "severity",
+        "score",
+        "scoring_status",
+        "evidence_count",
+        "dedup_key"
+      ],
+      "title": "DetectionPayload",
+      "type": "object"
+    },
+    "DetectorKind": {
+      "description": "How a detection was produced.",
+      "enum": [
+        "rule",
+        "statistical",
+        "isolation_forest",
+        "autoencoder",
+        "composite"
+      ],
+      "title": "DetectorKind",
+      "type": "string"
+    },
+    "EntityKind": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "process",
+        "file"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/EntityKind"
+        },
+        "value": {
+          "description": "Canonical identifier for the entity.",
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "EventSource": {
+      "additionalProperties": false,
+      "properties": {
+        "sensor_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sensor Id"
+        },
+        "site": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site"
+        },
+        "type": {
+          "$ref": "#/definitions/SourceType"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "EventSource",
+      "type": "object"
+    },
+    "EventType": {
+      "enum": [
+        "telemetry.network_flow",
+        "telemetry.auth_event",
+        "telemetry.dns_query",
+        "telemetry.process_exec",
+        "telemetry.file_access",
+        "event.canonical",
+        "graph.command",
+        "graph.event",
+        "detection.raised",
+        "attack_chain.updated",
+        "ti.indicator_updated",
+        "agent.task",
+        "response.action",
+        "campaign.updated",
+        "report.generated",
+        "user.event"
+      ],
+      "title": "EventType",
+      "type": "string"
+    },
+    "ScoringStatus": {
+      "description": "ADR-013: a model timeout / outage degrades the score, never drops it.",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "ScoringStatus",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SourceType": {
+      "enum": [
+        "sensor",
+        "deception",
+        "simulation",
+        "internal"
+      ],
+      "title": "SourceType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "correlation_id": {
+      "format": "uuid",
+      "title": "Correlation Id",
+      "type": "string"
+    },
+    "event_id": {
+      "description": "Globally unique, time-ordered (UUIDv7). Idempotency key.",
+      "format": "uuid",
+      "title": "Event Id",
+      "type": "string"
+    },
+    "event_type": {
+      "$ref": "#/definitions/EventType"
+    },
+    "event_version": {
+      "description": "Schema version of `payload`.",
+      "minimum": 1,
+      "title": "Event Version",
+      "type": "integer"
+    },
+    "ingested_at": {
+      "description": "Set by ingestion-gateway on receipt. UTC.",
+      "format": "date-time",
+      "title": "Ingested At",
+      "type": "string"
+    },
+    "metadata": {
+      "additionalProperties": true,
+      "description": "Non-authoritative annotations (enrichment provenance, tags).",
+      "title": "Metadata",
+      "type": "object"
+    },
+    "occurred_at": {
+      "description": "Event time, from the source. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "partition_key": {
+      "description": "Derived (tenant + primary entity). Controls ordering.",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Partition Key",
+      "type": "string"
+    },
+    "payload": {
+      "$ref": "#/definitions/DetectionPayload"
+    },
+    "producer": {
+      "description": "`<service>@<semver>`, e.g. ingestion-gateway@0.1.0",
+      "title": "Producer",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/definitions/EventSource"
+    },
+    "tenant_id": {
+      "description": "Set from the authenticated producer context, never trusted from input.",
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "trace_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "W3C trace-context trace-id.",
+      "title": "Trace Id"
+    }
+  },
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "ingested_at",
+    "producer",
+    "tenant_id",
+    "source",
+    "correlation_id",
+    "partition_key",
+    "payload"
+  ],
+  "title": "EventEnvelope[DetectionPayload]",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

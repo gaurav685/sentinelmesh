@@ -1,0 +1,188 @@
+{
+  "$defs": {
+    "DetectorKind": {
+      "description": "How a detection was produced.",
+      "enum": [
+        "rule",
+        "statistical",
+        "isolation_forest",
+        "autoencoder",
+        "composite"
+      ],
+      "title": "DetectorKind",
+      "type": "string"
+    },
+    "EntityKind": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "process",
+        "file"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/EntityKind"
+        },
+        "value": {
+          "description": "Canonical identifier for the entity.",
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "ScoringStatus": {
+      "description": "ADR-013: a model timeout / outage degrades the score, never drops it.",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "ScoringStatus",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`detections` topic event \u2014 the thin projection of a Postgres `detection`.",
+  "properties": {
+    "dedup_key": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Dedup Key",
+      "type": "string"
+    },
+    "detected_at": {
+      "description": "When detection-engine raised it. UTC.",
+      "format": "date-time",
+      "title": "Detected At",
+      "type": "string"
+    },
+    "detection_id": {
+      "format": "uuid",
+      "title": "Detection Id",
+      "type": "string"
+    },
+    "detector": {
+      "$ref": "#/definitions/DetectorKind"
+    },
+    "entities": {
+      "items": {
+        "$ref": "#/definitions/EntityRef"
+      },
+      "maxItems": 64,
+      "title": "Entities",
+      "type": "array"
+    },
+    "evidence_count": {
+      "minimum": 0,
+      "title": "Evidence Count",
+      "type": "integer"
+    },
+    "occurred_at": {
+      "description": "Event time of the telemetry that triggered this. UTC.",
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "raw_event_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Lineage to the canonical event.",
+      "title": "Raw Event Id"
+    },
+    "rule_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rule Id"
+    },
+    "score": {
+      "description": "Composite threat score in [0,1].",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Score",
+      "type": "number"
+    },
+    "scoring_status": {
+      "$ref": "#/definitions/ScoringStatus"
+    },
+    "severity": {
+      "$ref": "#/definitions/Severity"
+    },
+    "technique_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 32,
+      "title": "Technique Ids",
+      "type": "array"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "title": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "detection_id",
+    "tenant_id",
+    "occurred_at",
+    "detected_at",
+    "detector",
+    "title",
+    "severity",
+    "score",
+    "scoring_status",
+    "evidence_count",
+    "dedup_key"
+  ],
+  "title": "DetectionPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

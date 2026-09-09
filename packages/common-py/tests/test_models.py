@@ -22,6 +22,11 @@ EXPECTED_TABLES = {
     "role_permission",
     "sensor",
     "audit_log",
+    # detection domain (Phase 5)
+    "detection",
+    "anomaly",
+    "threat_score",
+    "security_alert",
 }
 
 
@@ -43,7 +48,7 @@ def _uniques(table_name: str) -> dict[str, tuple[str, ...]]:
     }
 
 
-def test_exactly_the_phase1_tables():
+def test_exactly_the_expected_tables():
     assert set(Base.metadata.tables) == EXPECTED_TABLES
 
 

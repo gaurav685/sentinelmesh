@@ -24,13 +24,18 @@ from .api import (
     RoleSummary,
     UserResponse,
 )
+from .detection import DetectionPayload
 from .entities import (
+    Anomaly,
     AuditRecord,
+    Detection,
     Permission,
     Role,
     RolePermission,
+    SecurityAlert,
     Sensor,
     Tenant,
+    ThreatScore,
     User,
     UserRoleGrant,
 )
@@ -58,6 +63,7 @@ FileAccessEnvelope = EventEnvelope[FileAccessPayload]
 CanonicalEventEnvelope = EventEnvelope[CanonicalEventPayload]
 GraphCommandEnvelope = EventEnvelope[GraphCommandPayload]
 GraphEventEnvelope = EventEnvelope[GraphEventPayload]
+DetectionEnvelope = EventEnvelope[DetectionPayload]
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ErrorResponse": ErrorResponse,
@@ -79,6 +85,12 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ProcessExecPayload": ProcessExecPayload,
     "FileAccessPayload": FileAccessPayload,
     "CanonicalEventPayload": CanonicalEventPayload,
+    "EventEnvelope_Detection": DetectionEnvelope,
+    "DetectionPayload": DetectionPayload,
+    "Detection": Detection,
+    "Anomaly": Anomaly,
+    "ThreatScore": ThreatScore,
+    "SecurityAlert": SecurityAlert,
     "Tenant": Tenant,
     "User": User,
     "Role": Role,

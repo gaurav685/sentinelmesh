@@ -7,6 +7,17 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Unit 1 DONE (contracts +
+schema).** Unit 1: `sm_contracts` detection domain (`DetectionPayload` on the
+`detections` topic + `EventType.detection_raised`, `EvidenceItem` / `EvidenceKind`,
+`detection_dedup_key` / `detection_id_for`, the `Detection` / `Anomaly` /
+`ThreatScore` / `SecurityAlert` DTOs, the `Severity` / `DetectorKind` /
+`AnomalyMethod` / `ScoringStatus` / `DetectionStatus` / `AlertStatus` /
+`ThreatSubjectType` enums), the SQLAlchemy models + Alembic migration `0003`
+(`detection`, `anomaly`, `threat_score`, `security_alert` — the `detection-engine`
+system of record). Units 2–5 (the `sm_ml` feature/model layer, `ml-inference`,
+`detection-engine`, wiring + e2e + exit report) follow.
+
 **Phase 4 — Neo4j + Graph Intelligence Foundation. COMPLETE / CI-VERIFIED.**
 Units 1–4, all four CI jobs green on a clean runner: runs
 [`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544)
@@ -1332,15 +1343,30 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; commits `5c17a33` / `a19c61b`
-/ `6b46a8e` / `7824507`; final run `34350607501` — all four jobs green).
+**Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; final run `34350607501`).
 
-**Next: await the PHASE 5 — DETECTION + ANOMALY DETECTION prompt.** Do not start
-speculatively. Phase 5 will add `services/detection-engine` (anomaly + rule
-detection over `events.canonical` / feature streams → `detections` topic +
-Postgres `detection` / `anomaly` tables), the ML I/O contract (CONTRACTS.md §6),
-and `(:Detection)-[:INVOLVES]->…` graph commands (labels already on the
-allowlist). `sm_common.graph` + `graph-service` are ready to receive them.
+**Phase 5 Unit 1 (contracts + `0003` migration) is code-complete and locally
+verified** (359 unit tests, ruff, `mypy --strict`, `gen_contracts --check`; 6
+real-PG detection-model tests + the migration up/down/up cycle). **Commit Unit 1,
+push, confirm CI green.**
+
+**Then Phase 5, Unit 2 — `packages/ml-py` (`sm_ml`).** The feature + model layer:
+versioned `FeatureSchema` + `FEATURE_SCHEMA_VERSION` + per-`CanonicalKind`
+deterministic extractors (numpy-free); `Preprocessor` (fit/transform, versioned);
+the `AnomalyModel` protocol + a numpy/statistics `StatisticalModel` (MAD z-score /
+rolling quantile — always available, the ADR-013 degraded path), an
+`IsolationForestModel` (sklearn, `sm-ml[serving]` extra), an `AutoencoderModel`
+architecture spec + `NOT_TRAINED` guard; a `ModelRegistry` loading artifacts from
+`SM_ML_MODEL_DIR`; `ml/models/<name>/CONTRACT.md` per CONTRACTS.md §6 with
+`METRICS: NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION`.
+Unit 3 = `services/ml-inference` (ADR-013 in-process serving, typed
+`MODEL_UNAVAILABLE`). Unit 4 = `services/detection-engine` (rules + composite
+deterministic score + adaptive thresholds + evidence + alert + `detections`
+topic + degrade-on-model-failure). Unit 5 = wiring + e2e + exit report + §23 +
+`REQUIREMENTS_TRACEABILITY` R5/R8/R20.
+
+Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
+(user pastes the prompt; do not start speculatively).
 
 ### Standing debt carried past Phase 2
 
