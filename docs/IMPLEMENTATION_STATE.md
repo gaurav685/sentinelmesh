@@ -7,8 +7,23 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 7 — Attack Chain Reconstruction + Threat Scoring. COMPLETE — full local
-gauntlet green; CI run pending.** Units 1–3.
+**Phase 8 — GNN + Temporal Intelligence. IN PROGRESS — Unit 1 (`sm_ml.graph`).**
+Graph construction (`GraphSample` — deterministic, numpy-free node features from
+the edge set + temporal fractions), the versioned `GraphFeatureSchema`, the
+graph-model interface (`NodeAnomalyResult` / `SubgraphVerdict` / `ClusterResult`,
+all carrying `model_version` + explicit `confidence`), the always-available
+structural path (`StructuralGraphAnomaly` MAD-z-score over node features,
+`SuspiciousSubgraphHeuristic`, `ConnectedComponentClusterer` /
+`LabelPropagationClusterer` — all stdlib, deterministic), and the GNN boundary
+(`GraphSAGEModel` / `GATModel` / `GraphAutoencoderModel` — `sm-ml[gnn]` optional,
+`GraphModelUnavailable` without torch, `GraphModelNotTrained` without weights).
+`ml/models/{graphsage,gat,graph_anomaly}/CONTRACT.md`. No metric is fabricated —
+`METRICS: NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION` everywhere.
+
+**Phase 7 — Attack Chain Reconstruction + Threat Scoring. COMPLETE / CI-VERIFIED**
+(all four jobs, run
+[`34406870398`](https://github.com/gaurav685/sentinelmesh/actions/runs/34406870398)).
+Units 1–3.
 Unit 3: `correlation-engine` also emits `graph.commands` (`graph.py` — `:AttackChain`
 node + `INVOLVES` → subject + `MAPPED_TO` → `:AttackTechnique`, deterministic
 `command_id` per chain). `mitre-service` now consumes `attack_chains` too (one
@@ -535,11 +550,10 @@ before Phase 2 is itself declared complete.
 
 ## Phase 7 exit report
 
-**State: COMPLETE — full local gauntlet green (ruff, `mypy --strict` over 13 src
-trees, unit tests + `gen_contracts --check`, real-infra integration against
-PostgreSQL 16 + Redis 7 + Neo4j 5, `Dockerfile.app` build + entrypoint import).
-CI run pending — this section is updated with the run id once all four jobs are
-green on a clean runner.**
+**State: COMPLETE / CI-VERIFIED (all four jobs, run
+[`34406870398`](https://github.com/gaurav685/sentinelmesh/actions/runs/34406870398))
+against real PostgreSQL 16 + Redis 7 + Redpanda + Neo4j 5. Units 1–3 commits
+`daaf20e` / `8c3a177` / `8f4becb`.**
 
 **A chain is a *correlation*, never a verdict. `confidence` is bounded at 0.95 —
 the platform never claims certainty about an attack. Stage assignment is a
@@ -597,7 +611,7 @@ scoring performance is claimed anywhere.**
 | scoring factors where architecture supports them | ✅ severity / anomaly / threat-intel / progression / confidence wired; asset-criticality / identity-risk accepted + renormalised, no registry yet |
 | do not fabricate validated performance | ✅ no accuracy / F1 / precision / recall number anywhere |
 | tests: construction / ordering / duplicate / incomplete / scoring / boundaries / determinism / tenant isolation | ✅ `test_staging` / `test_scoring` / `test_engine` / `test_graph` / `test_chain_correlation_pg` / `test_chain_pipeline_e2e_pg` |
-| **CI green on a clean runner** | ⏳ run pending — updated here when green |
+| **CI green on a clean runner** | ✅ **all four jobs — run `34406870398`** |
 
 ## Phase 6 exit report
 
@@ -1732,8 +1746,10 @@ consumer + `threat_score` handoff + close): local gauntlet green — ruff,
 §23 + `REQUIREMENTS_TRACEABILITY` R6/R8 + `CONTRACTS.md` written. **Commit Unit 3,
 push, confirm CI green → closes Phase 7.**
 
-**Then, immediately (do not wait for a paste — the Phase 8/9/10 prompts are
-already given, see the memory file): PHASE 8 — GNN + TEMPORAL INTELLIGENCE.**
+**Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
+
+**Now in PHASE 8 — GNN + TEMPORAL INTELLIGENCE** (prompt already given — see the
+`phase-8-9-10-11-prompts` memory; do not wait for a paste).
 ML intelligence layer (GraphSAGE / GAT / graph anomaly detection / suspicious
 subgraph classification / threat-cluster discovery / temporal analysis /
 historical replay / cross-session stitching / predictive-attacker-modeling
