@@ -9,7 +9,7 @@
 # so the same `.env` works in both places.
 #
 # Profiles keep the default stack small:
-#   (default)        postgres, redis, migrate, app   <- what the integration tests need
+#   (default)        postgres, redis, migrate, app, ingestion-gateway
 #   --profile oidc   keycloak
 #   --profile obs    prometheus, grafana
 #   --profile graph  neo4j            (Phase 3+)
@@ -93,6 +93,34 @@ services:
       SM_DEPLOYMENT_PROFILE: monolith
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  ingestion-gateway:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_ingestion_gateway"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: ingestion-gateway
+      SM_DEPLOYMENT_PROFILE: monolith
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
     depends_on:
       postgres:
         condition: service_healthy

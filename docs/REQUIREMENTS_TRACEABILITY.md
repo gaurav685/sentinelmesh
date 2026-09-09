@@ -38,7 +38,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Service:** `ingestion-gateway` (+ `normalization-engine` boundary).
 - **Module/File:** `services/ingestion-gateway/`, envelope in `packages/contracts-py/.../events`.
 - **Database:** Postgres `sensor` (read); Redis (rate-limit, dedup). No durable writes.
-- **API:** `POST /api/v1/ingest/{source_type}` (per-sensor auth); size/rate limited.
+- **API:** `POST /api/v1/ingest/{source_type}` + `POST /api/v1/ingest/batch` (per-sensor auth); size/rate limited (fail-closed).
 - **Event:** produces `telemetry.raw` (payloads `telemetry.network_flow|auth_event|dns_query|process_exec|file_access` v1).
 - **Frontend:** sensor-management screens (list/register/rotate) — P8.
 - **ML/AI:** N/A — NOT REQUIRED BY ARCHITECTURE.
@@ -46,7 +46,10 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-1 (untrusted sensors); `tenant_id` bound to sensor identity, never trusted from body.
 - **Test:** contract tests on envelope; security tests (bad credential, wrong-tenant payload, oversize, rate limit fail-closed); integration test sensor→topic.
 - **Verification method:** integration test against Redpanda in docker-compose.
-- **Phase:** P2. **Status:** ARCHITECTURE DEFINED. The `sensor` registry table, its model and the tenant-bound `Sensor` contract are **IMPLEMENTED** (Phase 1, Units 3-4); the ingest endpoint itself is not.
+- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Units 1–2), LOCALLY VERIFIED, NOT YET INTEGRATION VERIFIED.
+  - `sensor` registry table + `Sensor` contract: IMPLEMENTED (Phase 1) and INTEGRATION VERIFIED — `SensorAuth` (`sm_common.security.sensor_auth`) is exercised against real PostgreSQL by `tests/integration/test_sensor_auth_pg.py` (7 tests).
+  - Telemetry payload contracts (`sm_contracts.telemetry`): IMPLEMENTED + unit-tested (`test_telemetry.py`, 13).
+  - `ingestion-gateway` service (envelope built server-side, dedup, fail-closed limiter, DLQ, batch): IMPLEMENTED + unit-tested against the real app with in-memory infra (`services/ingestion-gateway/tests`, 29). **Accepted events land only in a logging stopgap `RawEventSink`** — the Kafka producer to `telemetry.raw` / `telemetry.raw.dlq` is Phase 2 Unit 3, and the sensor→topic integration test with it is what moves this to INTEGRATION VERIFIED.
 
 ### R2 — Event Normalization Engine
 - **Purpose:** raw → canonical: schema standardization, Geo-IP, hostname resolution, user-device linking, threat-intel enrichment, cross-session identity stitching.
