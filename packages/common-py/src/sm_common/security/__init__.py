@@ -1,4 +1,5 @@
-"""Security primitives: password hashing, internal service tokens, OIDC client."""
+"""Security primitives: password hashing, internal service tokens, OIDC client,
+sensor credential authentication."""
 
 from __future__ import annotations
 
@@ -12,6 +13,7 @@ from .oidc import (
     new_state,
 )
 from .passwords import PasswordVerification, dummy_verify, hash_password, verify_password
+from .sensor_auth import SensorAuth, SensorIdentity
 
 __all__ = [
     "InternalPrincipal",
@@ -20,6 +22,8 @@ __all__ = [
     "OidcTokens",
     "PasswordVerification",
     "PkcePair",
+    "SensorAuth",
+    "SensorIdentity",
     "dummy_verify",
     "hash_password",
     "make_pkce",
