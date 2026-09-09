@@ -14,6 +14,20 @@ from .features import (
     extract_features,
     schema_for,
 )
+from .graph import (
+    GRAPH_FEATURE_SCHEMA_VERSION,
+    ConnectedComponentClusterer,
+    GnnNodeAnomalyModel,
+    GraphEdge,
+    GraphModelRegistry,
+    GraphModelUnavailable,
+    GraphNode,
+    GraphSample,
+    LabelPropagationClusterer,
+    StructuralGraphAnomaly,
+    SuspiciousSubgraphHeuristic,
+    build_graph_sample,
+)
 from .models import (
     AnomalyModel,
     AnomalyScore,
@@ -27,11 +41,20 @@ from .registry import ModelRef, ModelRegistry
 
 __all__ = [
     "FEATURE_SCHEMA_VERSION",
+    "GRAPH_FEATURE_SCHEMA_VERSION",
     "PREPROCESSING_VERSION",
     "AnomalyModel",
     "AnomalyScore",
+    "ConnectedComponentClusterer",
     "FeatureSchema",
     "FeatureVector",
+    "GnnNodeAnomalyModel",
+    "GraphEdge",
+    "GraphModelRegistry",
+    "GraphModelUnavailable",
+    "GraphNode",
+    "GraphSample",
+    "LabelPropagationClusterer",
     "ModelError",
     "ModelNotTrained",
     "ModelRef",
@@ -39,6 +62,9 @@ __all__ = [
     "ModelUnavailable",
     "Preprocessor",
     "StatisticalModel",
+    "StructuralGraphAnomaly",
+    "SuspiciousSubgraphHeuristic",
+    "build_graph_sample",
     "extract_features",
     "schema_for",
 ]

@@ -1748,8 +1748,40 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**Now in PHASE 8 — GNN + TEMPORAL INTELLIGENCE** (prompt already given — see the
-`phase-8-9-10-11-prompts` memory; do not wait for a paste).
+**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Unit 1 DONE** (`sm_ml.graph`: graph
+construction + feature schema + structural models + GNN boundary + registry +
+CONTRACT.md ×3; config `SM_ML_SEED` / `SM_GRAPH_ANOMALY_Z` / `SM_TEMPORAL_*`).
+Local: ruff, `mypy --strict` (252 files), 540 unit tests + `gen_contracts --check`.
+No new integration / image / CI wiring (`sm_ml` already installed everywhere; the
+`sm-ml[gnn]` extra is deliberately not in CI). **Commit Unit 1, push, confirm CI
+green.**
+
+**Then Unit 2 — `sm_ml.temporal`:** event timeline (ordered, dedup by event id,
+out-of-order tolerant), temporal graph state (`state.at(t)`), attack progression
+over time, deterministic replay, cross-session stitching (link sessions/chains of
+one entity within `SM_TEMPORAL_SESSION_LINK_SECONDS`). Handle out-of-order /
+missing / clock-skew (clamp to `SM_TEMPORAL_MAX_CLOCK_SKEW_SECONDS`) / duplicate.
+Tests: temporal ordering, replay, cross-session stitching, malformed input.
+
+**Then Unit 3 — `services/ml-training`:** the reproducible pipeline
+`dataset → preprocessing → graph construction → feature generation → training →
+validation → checkpoint → model version → inference → evaluation` as a real
+CLI + pydantic config with seeds / model metadata / artifact handling. Runs
+end to end on a labelled synthetic fixture graph to prove the plumbing and writes
+an artifact whose `metadata.json` carries `metrics: NOT VERIFIED — REQUIRES
+DATASET/TRAINING EXECUTION`. Tests: pipeline stages, determinism, artifact
+handling, model loading.
+
+**Then Unit 4 — serving + failure behaviour + close:** `ml-inference` serves the
+GNN graph models (`POST /api/v1/infer/graph/{model}`; missing / unloadable → 503
+`MODEL_UNAVAILABLE`, structural fallback documented); a `graph-intel` capability
+(a periodic scorer over the Neo4j graph, or folded into `correlation-engine`)
+emits findings; failure tests (model can't load → fail safe, observable error, no
+crash of unrelated services). Phase 8 exit report + §23 + `REQUIREMENTS_TRACEABILITY`
+R11–R13 (GNN / temporal / predictive) + `CONTRACTS.md`.
+
+Exit next action after Phase 8: **PHASE 9 — ENTERPRISE SOC DASHBOARD**
+(prompt already given).
 ML intelligence layer (GraphSAGE / GAT / graph anomaly detection / suspicious
 subgraph classification / threat-cluster discovery / temporal analysis /
 historical replay / cross-session stitching / predictive-attacker-modeling

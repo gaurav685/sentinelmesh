@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "sm-ml"
 version = "0.1.0"
-description = "SentinelMesh ML layer: versioned feature schemas + deterministic extractors, preprocessing, the anomaly-model interface, and a statistical detector (always available). Trained models (Isolation Forest, autoencoder) load from artifacts and are served by ml-inference."
+description = "SentinelMesh ML layer: versioned feature + graph-feature schemas with deterministic extractors, preprocessing, the anomaly-model + graph-model interfaces, always-available statistical + structural-graph detectors, and the GNN boundary (GraphSAGE / GAT, optional sm-ml[gnn]). Trained models load from artifacts and are served by ml-inference. No accuracy figure is claimed anywhere."
 requires-python = ">=3.11"
 dependencies = [
     "sm-contracts",
@@ -17,6 +17,12 @@ serving = [
     "numpy>=1.26,<3",
     "scikit-learn>=1.4,<2",
     "joblib>=1.3",
+]
+# GNN training + serving (`ml-training`, `ml-inference` graph models). Heavy;
+# not installed in CI. Without it the structural graph models are the only path.
+gnn = [
+    "torch>=2.2,<3",
+    "torch-geometric>=2.5,<3",
 ]
 dev = [
     "pytest>=8",
