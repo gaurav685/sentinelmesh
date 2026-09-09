@@ -28,6 +28,26 @@ lineage). Registered in `EVENT_PAYLOAD_REGISTRY` and `SCHEMA_MODELS`;
 Verified: pytest 32 (contracts-py) / 202 (non-integration), mypy --strict clean
 (19 files), ruff clean, schema `--check` clean. Commit `ce2d616`.
 
+### Phase 2, Unit 2 — sensor authentication (DONE)
+
+`sm_common.security.sensor_auth`: `SensorAuth` / `SensorIdentity`. Given a
+presented credential `<sensor_id>.<secret>` (optional `Bearer ` prefix), it
+parses, looks up the `sensor` row, verifies the secret against `credential_hash`
+with Argon2id (`dummy_verify` for an unknown / malformed id so there is no timing
+oracle), then gates on `status == active` and `deleted_at is null`. Every failure
+is one generic `Unauthenticated`; the reason is never returned. `last_seen_at` is
+touched on success, throttled to one write per 60s so a chatty sensor does not
+turn its registry row into a write hot-spot — so `authenticate` runs inside
+`Database.transaction()`. Verified: `test_sensor_auth.py` (11 unit tests —
+parsing + no-DB rejection paths), `tests/integration/test_sensor_auth_pg.py`
+(7 tests against real PostgreSQL — active auth, `Bearer` prefix, wrong secret,
+unknown / disabled / soft-deleted sensor, `last_seen_at` touch + throttle).
+pytest 213 non-integration / 7 new integration, mypy --strict clean (71 files),
+ruff clean.
+
+The rest of Unit 2 (the `ingestion-gateway` service itself) is next — see
+**Exact next action**.
+
 ### Phase 1 — INTEGRATION VERIFIED on local Docker (kept for the record)
 
 Docker Desktop was installed on the development machine on 2026-09-09 (engine
@@ -616,17 +636,11 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 2, Unit 2 — the ingestion gateway.**
+**PHASE 2, Unit 2 (remaining) — the `ingestion-gateway` service.**
 
-`sm_contracts.telemetry` (Unit 1) is done. Unit 2:
+Unit 1 (`sm_contracts.telemetry`) and Unit 2 step 1 (`SensorAuth`) are done.
+Remaining:
 
-1. `packages/common-py/src/sm_common/security/sensor_auth.py`: `SensorAuth` —
-   given a presented credential (`<sensor_id>.<secret>` or a bearer token),
-   look up the `sensor` row, verify the secret against `credential_hash` with
-   Argon2id (constant-time; `dummy_verify` for an unknown id), check
-   `status == active` and `deleted_at is null`, and touch `last_seen_at`.
-   Returns a `SensorIdentity(sensor_id, tenant_id, type)`. Every failure is one
-   generic `Unauthenticated`.
 2. `services/ingestion-gateway`: FastAPI service.
    - `POST /api/v1/ingest/{source_type}` where `source_type` is one of
      `network_flow|auth_event|dns_query|process_exec|file_access`. Per-sensor
@@ -663,7 +677,7 @@ Then **Unit 3** = the Kafka producer (Redpanda) behind `RawEventSink`, the real
 DLQ topic, and the ingestion -> topic integration test (needs the `bus`
 compose profile). **Unit 4** = `normalization-engine`.
 
-### Superseded plan for Phase 1 Unit 6### Superseded plan for Phase 1 Unit 6 (kept for the record)
+### Superseded plan for Phase 1 Unit 6 (kept for the record)
 
 **PHASE 1, Unit 6 (remaining) — close out Phase 1.** Blocked until Docker is
 available, by either route (`make up` + `make test-integration`, or push to
@@ -671,7 +685,7 @@ GitHub). Then: record the real output, fix first-run failures, add the
 end-to-end OIDC sign-in, and promote traceability statuses to
 `INTEGRATION VERIFIED` only for what the run proves.
 
-### Superseded plan for Unit 5### Superseded plan for Unit 5 (kept for the record — AUTHORED, NOT EXECUTED)
+### Superseded plan for Unit 5 (kept for the record — AUTHORED, NOT EXECUTED)
 
 - `deploy/docker/docker-compose.yml`: `postgres:16`, `redis:7`,
   `quay.io/keycloak/keycloak` (dev realm `sentinelmesh`), `prom/prometheus`,
