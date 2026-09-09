@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import timedelta
 
 import pytest
@@ -19,6 +20,10 @@ TENANT_ID = uuid7()
 IDENTITY = SensorIdentity(sensor_id=SENSOR_ID, tenant_id=TENANT_ID, type=SensorType.network)
 
 
+def _pkey(primary: str) -> str:
+    return hashlib.sha256(f"{TENANT_ID}:{primary}".encode()).hexdigest()[:16]
+
+
 def test_build_envelope_stamps_server_fields() -> None:
     env = build_envelope(
         event_type=EventType.telemetry_network_flow,
@@ -34,7 +39,7 @@ def test_build_envelope_stamps_server_fields() -> None:
     assert env.source.sensor_id == SENSOR_ID
     assert env.occurred_at == NOW
     assert env.event_version == 1
-    assert env.partition_key == f"{TENANT_ID}:10.1.2.3"
+    assert env.partition_key == _pkey("10.1.2.3")
     assert env.metadata == {"sensor_type": "network", "client_event_id": "evt-9"}
 
 
@@ -46,7 +51,7 @@ def test_partition_key_uses_principal_for_auth_events() -> None:
                      "auth_type": "ssh", "principal": "alice@corp"},
         identity=IDENTITY,
     )
-    assert env.partition_key == f"{TENANT_ID}:alice@corp"
+    assert env.partition_key == _pkey("alice@corp")
 
 
 def test_future_occurred_at_beyond_skew_is_a_validation_error() -> None:

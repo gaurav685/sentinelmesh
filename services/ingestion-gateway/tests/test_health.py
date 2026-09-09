@@ -41,6 +41,7 @@ def test_no_openapi_in_production(rig: Any, settings_builder: Any) -> None:
         env="production",
         cors_allowed_origins="https://sentinelmesh.example",
         kafka_security_protocol="SASL_SSL",
+        event_bus_enabled=True,
     )
     app = create_app(services=rig.services)
     with TestClient(app, raise_server_exceptions=False) as c:

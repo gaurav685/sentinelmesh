@@ -43,6 +43,14 @@ class IngestionMetrics:
             ("service",),
             registry=registry,
         )
+        self.sink_errors = Counter(
+            "sm_ingest_sink_errors_total",
+            "Sink writes that failed. `sink=raw` means an accepted event could "
+            "not be produced (the request was failed with 503); `sink=dlq` means "
+            "a rejected body could not be dead-lettered.",
+            ("service", "sink"),
+            registry=registry,
+        )
 
     def accepted_inc(self, source_type: str) -> None:
         self.accepted.labels(self._service, source_type).inc()
@@ -55,3 +63,6 @@ class IngestionMetrics:
 
     def dedup_error_inc(self) -> None:
         self.dedup_errors.labels(self._service).inc()
+
+    def sink_error_inc(self, sink: str) -> None:
+        self.sink_errors.labels(self._service, sink).inc()

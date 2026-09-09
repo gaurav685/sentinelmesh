@@ -22,10 +22,13 @@ router = APIRouter(tags=["health"])
 
 
 def _checks(services: Services) -> list[DependencyCheck]:
-    return [
+    checks = [
         probe_check("postgres", services.db, required=True),
         probe_check("redis", services.cache, required=True),
     ]
+    if services.bus is not None:
+        checks.append(probe_check("kafka", services.bus, required=True))
+    return checks
 
 
 @router.get("/healthz", response_model=HealthResponse)

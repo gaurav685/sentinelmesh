@@ -9,8 +9,9 @@ is set here, server-side:
 - `occurred_at` — lifted from the payload's own event time.
 - `ingested_at` — now.
 - `producer` — `ingestion-gateway@<version>`.
-- `partition_key` — `<tenant_id>:<primary entity>` so all events for one entity
-  stay ordered on one partition.
+- `partition_key` — `sha256(tenant_id + ':' + primary_entity)[:16]`
+  (event-model.md), so all events for one entity stay ordered on one partition
+  and the key length is bounded regardless of the entity string.
 
 `build_envelope` raises `pydantic.ValidationError` when the body fails the
 payload schema (bad IP, out-of-range port, unknown field, …) or when the
@@ -23,6 +24,7 @@ open generic, so `model_dump()` in the sink keeps every payload field.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any, cast
 
 from sm_common.clock import utcnow
@@ -41,8 +43,6 @@ from sm_contracts.telemetry import (
 from .version import PRODUCER
 
 __all__ = ["build_envelope"]
-
-_MAX_KEY_LEN = 128
 
 _ENVELOPE_BY_TYPE: dict[EventType, type[EventEnvelope[Any]]] = {
     EventType.telemetry_network_flow: EventEnvelope[NetworkFlowPayload],
@@ -66,8 +66,8 @@ _PARTITION_FIELD: dict[EventType, str] = {
 def _partition_key(tenant_id: str, event_type: EventType, payload: SmBaseModel) -> str:
     field = _PARTITION_FIELD.get(event_type)
     entity = getattr(payload, field, None) if field else None
-    suffix = str(entity) if entity is not None else "unknown"
-    return f"{tenant_id}:{suffix}"[:_MAX_KEY_LEN]
+    primary = str(entity) if entity is not None else "unknown"
+    return hashlib.sha256(f"{tenant_id}:{primary}".encode()).hexdigest()[:16]
 
 
 def build_envelope(

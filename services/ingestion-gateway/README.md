@@ -41,11 +41,20 @@ payload schema, `401` for any sensor-auth failure, `413` over
   `event_id` anyway.
 - No interactive docs (`/docs`, `/openapi.json`) in production.
 
-## Sinks — stopgap
+## Sinks
 
-`RawEventSink` and `DeadLetterSink` are interfaces. The current implementations
-(`LoggingRawEventSink`, `LoggingDeadLetterSink`) only log. The Kafka producer
-writing `telemetry.raw` / `telemetry.raw.dlq` arrives in Phase 2 Unit 3.
+`RawEventSink` / `DeadLetterSink` are interfaces with two implementations:
+
+- `SM_EVENT_BUS_ENABLED=true` — `KafkaRawEventSink` → `telemetry.raw` (canonical
+  JSON, keyed on `partition_key`), `KafkaDeadLetterSink` → `telemetry.raw.dlq`
+  (raw body, `reason`/`source_type`/`sensor_id` headers). aiokafka producer,
+  idempotent, `acks=all`. `/readyz` probes it. **Mandatory in production.**
+- otherwise — `LoggingRawEventSink` / `LoggingDeadLetterSink` (dev, tests).
+
+A `telemetry.raw` produce failure fails the request with `503`
+(`sm_ingest_sink_errors_total{sink=raw}`); the sensor retries and the idempotent
+producer prevents partition duplicates. A DLQ produce failure is swallowed and
+metered (`{sink=dlq}`) so it cannot turn a client `4xx` into a `5xx`.
 
 ## Run locally
 

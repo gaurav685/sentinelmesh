@@ -18,11 +18,12 @@ from enum import Enum, auto
 from typing import Any
 from uuid import UUID
 
+import structlog
 from pydantic import ValidationError
 
-from sm_common.errors import ValidationFailed
+from sm_common.errors import DependencyUnavailable, ValidationFailed
 from sm_common.security import SensorIdentity
-from sm_contracts import ErrorDetail
+from sm_contracts import ErrorDetail, EventEnvelope
 
 from .dedup import Dedup, DedupState
 from .envelope import build_envelope
@@ -41,6 +42,8 @@ __all__ = [
 
 _MAX_DETAILS = 20
 
+_log = structlog.get_logger("sm.ingestion.pipeline")
+
 
 @dataclass
 class IngestContext:
@@ -48,6 +51,32 @@ class IngestContext:
     dlq_sink: DeadLetterSink
     dedup: Dedup
     metrics: IngestionMetrics
+
+
+async def _sink_accepted(ctx: IngestContext, envelope: EventEnvelope[Any], source_type: str) -> None:
+    """Produce an accepted event. A sink failure is a `503`: the event is valid
+    and must not be lost, so the sensor has to retry."""
+    try:
+        await ctx.raw_sink.put(envelope)
+    except Exception as exc:
+        ctx.metrics.sink_error_inc("raw")
+        _log.error("raw_sink_failed", error_type=type(exc).__name__, event_id=str(envelope.event_id))
+        raise DependencyUnavailable("the event bus is unavailable; retry") from exc
+    ctx.metrics.accepted_inc(source_type)
+
+
+async def _dead_letter(
+    ctx: IngestContext, *, source_type: str, raw_body: bytes, reason: str, sensor_id: UUID | None
+) -> None:
+    """Best-effort DLQ write. Never raises — the caller is already returning a
+    4xx and must not have it turned into a 5xx by a second sink failure."""
+    try:
+        await ctx.dlq_sink.put(
+            source_type=source_type, raw_body=raw_body, reason=reason, sensor_id=sensor_id
+        )
+    except Exception as exc:
+        ctx.metrics.sink_error_inc("dlq")
+        _log.error("dlq_sink_failed", error_type=type(exc).__name__, reason=reason)
 
 
 class IngestOutcome(Enum):
@@ -90,8 +119,8 @@ async def ingest_one(
     try:
         parsed = json.loads(raw_body)
     except (ValueError, UnicodeDecodeError):
-        await ctx.dlq_sink.put(
-            source_type=source_type, raw_body=raw_body, reason="invalid_json",
+        await _dead_letter(
+            ctx, source_type=source_type, raw_body=raw_body, reason="invalid_json",
             sensor_id=identity.sensor_id,
         )
         ctx.metrics.rejected_inc(source_type)
@@ -103,15 +132,14 @@ async def ingest_one(
             identity=identity, client_event_id=client_event_id,
         )
     except ValidationError as exc:
-        await ctx.dlq_sink.put(
-            source_type=source_type, raw_body=raw_body, reason="schema_validation",
+        await _dead_letter(
+            ctx, source_type=source_type, raw_body=raw_body, reason="schema_validation",
             sensor_id=identity.sensor_id,
         )
         ctx.metrics.rejected_inc(source_type)
         raise ValidationFailed("telemetry payload failed validation", details=_details(exc)) from None
 
-    await ctx.raw_sink.put(envelope)
-    ctx.metrics.accepted_inc(source_type)
+    await _sink_accepted(ctx, envelope, source_type)
     return OneResult(IngestOutcome.accepted, envelope.event_id)
 
 
@@ -140,15 +168,16 @@ async def ingest_batch(
             )
         except ValidationError:
             raw = json.dumps(body).encode()
-            await ctx.dlq_sink.put(
-                source_type=source_type, raw_body=raw, reason="schema_validation",
+            await _dead_letter(
+                ctx, source_type=source_type, raw_body=raw, reason="schema_validation",
                 sensor_id=identity.sensor_id,
             )
             ctx.metrics.rejected_inc(source_type)
             rejected.append((index, "schema_validation"))
             continue
-        await ctx.raw_sink.put(envelope)
-        ctx.metrics.accepted_inc(source_type)
+        # A produce failure aborts the batch with 503; the sensor retries the
+        # whole batch (downstream consumers are idempotent on event_id).
+        await _sink_accepted(ctx, envelope, source_type)
         event_ids.append(envelope.event_id)
 
     return BatchResult(event_ids=event_ids, rejected=rejected)

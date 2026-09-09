@@ -136,6 +136,7 @@ jobs:
       SM_PG_DB: sentinelmesh
       SM_PG_USER: sentinelmesh
       SM_TEST_REDIS_URL: redis://localhost:6379/15
+      SM_TEST_KAFKA_BOOTSTRAP: localhost:19092
       # A skipped integration test must fail the build, not pass it quietly.
       SM_REQUIRE_INTEGRATION: "1"
 
@@ -158,6 +159,23 @@ jobs:
                       -e "services/api-gateway[dev]" \
                       -e "services/ingestion-gateway[dev]"
           pip install alembic pyyaml respx
+
+      # Redpanda cannot be a `services:` container — the image needs a start
+      # command with listener args, which service containers do not support. Run
+      # it as a plain container on the runner host instead.
+      - name: Start Redpanda
+        run: |
+          docker run -d --name redpanda -p 19092:19092 \
+            redpandadata/redpanda:v24.2.11 \
+            redpanda start --smp 1 --overprovisioned --node-id 0 \
+            --kafka-addr EXTERNAL://0.0.0.0:19092 \
+            --advertise-kafka-addr EXTERNAL://localhost:19092
+          for _ in $(seq 1 30); do
+            if docker exec redpanda rpk cluster health 2>/dev/null | grep -q 'Healthy:.*true'; then
+              echo "redpanda healthy"; break
+            fi
+            sleep 2
+          done
 
       - name: Apply migrations
         run: |

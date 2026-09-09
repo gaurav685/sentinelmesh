@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from fastapi import Depends, Request
 
+from sm_common.bus import EventBusProducer
 from sm_common.cache import Cache
 from sm_common.config import AppSettings
 from sm_common.db import Database
@@ -43,6 +44,9 @@ class Services:
     raw_sink: RawEventSink
     dlq_sink: DeadLetterSink
     dedup: Dedup
+    bus: EventBusProducer | None = None
+    """The Kafka producer, present iff `settings.event_bus_enabled`. Started and
+    stopped by the app lifespan; probed by `/readyz` when present."""
 
 
 def get_services(request: Request) -> Services:

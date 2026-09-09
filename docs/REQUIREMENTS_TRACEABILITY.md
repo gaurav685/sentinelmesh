@@ -46,10 +46,11 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-1 (untrusted sensors); `tenant_id` bound to sensor identity, never trusted from body.
 - **Test:** contract tests on envelope; security tests (bad credential, wrong-tenant payload, oversize, rate limit fail-closed); integration test sensor→topic.
 - **Verification method:** integration test against Redpanda in docker-compose.
-- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Units 1–2), LOCALLY VERIFIED, NOT YET INTEGRATION VERIFIED.
-  - `sensor` registry table + `Sensor` contract: IMPLEMENTED (Phase 1) and INTEGRATION VERIFIED — `SensorAuth` (`sm_common.security.sensor_auth`) is exercised against real PostgreSQL by `tests/integration/test_sensor_auth_pg.py` (7 tests).
+- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Units 1–3), INTEGRATION VERIFIED on local infrastructure; CI confirmation pending (no GitHub remote).
+  - `sensor` registry table + `Sensor` contract + `SensorAuth` (`sm_common.security.sensor_auth`): INTEGRATION VERIFIED against real PostgreSQL — `tests/integration/test_sensor_auth_pg.py` (7 tests).
   - Telemetry payload contracts (`sm_contracts.telemetry`): IMPLEMENTED + unit-tested (`test_telemetry.py`, 13).
-  - `ingestion-gateway` service (envelope built server-side, dedup, fail-closed limiter, DLQ, batch): IMPLEMENTED + unit-tested against the real app with in-memory infra (`services/ingestion-gateway/tests`, 29). **Accepted events land only in a logging stopgap `RawEventSink`** — the Kafka producer to `telemetry.raw` / `telemetry.raw.dlq` is Phase 2 Unit 3, and the sensor→topic integration test with it is what moves this to INTEGRATION VERIFIED.
+  - `ingestion-gateway` service (envelope built server-side, dedup, fail-closed limiter, batch): unit-tested against the real app with in-memory infra (`services/ingestion-gateway/tests`, ~40).
+  - Bus: `sm_common.bus.EventBusProducer` (aiokafka, idempotent, `acks=all`) + `KafkaRawEventSink` / `KafkaDeadLetterSink`. **INTEGRATION VERIFIED** against real Redpanda — `tests/integration/test_ingestion_bus_pg.py`: an accepted sensor POST round-trips through `telemetry.raw` with the server-built envelope; a malformed body lands on `telemetry.raw.dlq` with `reason` / `sensor_id` headers. A produce failure fails the request with 503.
 
 ### R2 — Event Normalization Engine
 - **Purpose:** raw → canonical: schema standardization, Geo-IP, hostname resolution, user-device linking, threat-intel enrichment, cross-session identity stitching.
