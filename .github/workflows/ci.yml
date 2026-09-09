@@ -26,13 +26,8 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.11"
-  # Non-secret values used by the test configuration. Real secrets are never
-  # needed here: no job talks to a third-party provider.
-  SM_ENV: ci
-  SM_SERVICE_NAME: ci
-  SM_PG_PASSWORD: ci-postgres-password
-  SM_INTERNAL_JWT_SIGNING_KEY: ci-internal-signing-key-0123456789
-  SM_OIDC_CLIENT_SECRET: ci-oidc-client-secret
+  # No SM_* here. Unit tests are hermetic (repo-root conftest strips SM_*); the
+  # integration job sets what it needs in its own `env:` and step `env:`.
 
 jobs:
   static:
@@ -141,6 +136,7 @@ jobs:
       SM_TEST_PG_PORT: "5432"
       SM_PG_DB: sentinelmesh
       SM_PG_USER: sentinelmesh
+      SM_PG_PASSWORD: ci-postgres-password
       SM_TEST_REDIS_URL: redis://localhost:6379/15
       SM_TEST_KAFKA_BOOTSTRAP: localhost:19092
       # A skipped integration test must fail the build, not pass it quietly.
