@@ -2,12 +2,15 @@ name: CI
 
 # Runs on every push to main and every pull request.
 #
-# This workflow is the path to the verification the development machine cannot
-# produce: GitHub runners have Docker, so the `integration` job actually applies
-# the migrations and runs the integration tests against real PostgreSQL and
-# Redis, and the `image` job actually builds `Dockerfile.app`.
+# This workflow is the independent confirmation the development machine cannot
+# give on its own: a clean runner. The `integration` job applies the migrations
+# and runs the integration tests against real PostgreSQL + Redis (service
+# containers) + Redpanda (a plain container); the `image` job builds the single
+# `Dockerfile.app` for all four services and asserts non-root, importability and
+# the production fail-fast guards.
 #
-# NOTE: this workflow has never been executed. It is authored, not verified.
+# NOTE: this workflow has never run on a runner. Its `image` and `integration`
+# steps have been executed by hand locally and pass (see docs/IMPLEMENTATION_STATE.md).
 
 on:
   push:
@@ -209,6 +212,11 @@ jobs:
           uid=$(docker run --rm --entrypoint id sentinelmesh/app:ci -u)
           test "$uid" = "10001" || { echo "::error::image runs as uid $uid"; exit 1; }
 
+      - name: Every service entrypoint is importable in the image
+        run: |
+          docker run --rm --entrypoint python sentinelmesh/app:ci -c \
+            "import sm_api_gateway, sm_ingestion_gateway, sm_normalization_engine, sm_common.bus, aiokafka"
+
       - name: Configuration validation refuses an unsafe production setup
         # Proves the fail-fast guards are live in the built image.
         run: |
@@ -222,5 +230,21 @@ jobs:
               -e SM_KAFKA_SECURITY_PROTOCOL=SASL_SSL \
               sentinelmesh/app:ci python -c "from sm_common.config import AppSettings; AppSettings()"; then
             echo "::error::a CORS wildcard was accepted in production"
+            exit 1
+          fi
+
+      - name: Ingestion gateway refuses to start in production without the bus
+        run: |
+          if docker run --rm \
+              -e SM_ENV=production \
+              -e SM_SERVICE_NAME=ingestion-gateway \
+              -e SM_CORS_ALLOWED_ORIGINS='https://sentinelmesh.example' \
+              -e SM_PG_PASSWORD=x \
+              -e SM_INTERNAL_JWT_SIGNING_KEY=x \
+              -e SM_OIDC_CLIENT_SECRET=x \
+              -e SM_KAFKA_SECURITY_PROTOCOL=SASL_SSL \
+              -e SM_EVENT_BUS_ENABLED=false \
+              sentinelmesh/app:ci python -c "from sm_ingestion_gateway.app import create_app; create_app()"; then
+            echo "::error::ingestion-gateway started in production with the event bus disabled"
             exit 1
           fi
