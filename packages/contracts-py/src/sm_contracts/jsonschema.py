@@ -24,6 +24,7 @@ from .api import (
     RoleSummary,
     UserResponse,
 )
+from .chains import AttackChainModel, AttackChainPayload, ChainStageModel
 from .detection import DetectionPayload
 from .entities import (
     Anomaly,
@@ -80,6 +81,7 @@ GraphCommandEnvelope = EventEnvelope[GraphCommandPayload]
 GraphEventEnvelope = EventEnvelope[GraphEventPayload]
 DetectionEnvelope = EventEnvelope[DetectionPayload]
 TiUpdateEnvelope = EventEnvelope[TiUpdatePayload]
+AttackChainEnvelope = EventEnvelope[AttackChainPayload]
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ErrorResponse": ErrorResponse,
@@ -119,6 +121,10 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "AttackMatrixVersion": AttackMatrixVersion,
     "TechniqueMapping": TechniqueMapping,
     "TechniqueMatch": TechniqueMatch,
+    "EventEnvelope_AttackChain": AttackChainEnvelope,
+    "AttackChainPayload": AttackChainPayload,
+    "AttackChainModel": AttackChainModel,
+    "ChainStageModel": ChainStageModel,
     "Tenant": Tenant,
     "User": User,
     "Role": Role,

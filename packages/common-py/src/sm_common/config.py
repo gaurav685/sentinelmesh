@@ -191,6 +191,17 @@ class AppSettings(BaseSettings):
     # Sliding window for the stateful rule detectors (failed-login burst, etc.).
     detection_rule_window_s: int = Field(default=300, ge=30, le=3600)
 
+    # ---- correlation engine (Phase 7) --------------------------
+    correlation_engine_url: str = "http://localhost:8009"
+    # Tumbling window: all detections about one subject inside one window belong
+    # to one chain. Fixed (not sliding) so chain ids stay deterministic under
+    # at-least-once redelivery and out-of-order events.
+    chain_window_seconds: int = Field(default=86_400, ge=300, le=2_592_000)
+    # A chain with no new evidence for this long is marked `dormant`.
+    chain_dormant_seconds: int = Field(default=21_600, ge=300, le=604_800)
+    # A chain whose deterministic score crosses this is worth surfacing.
+    chain_score_alert_threshold: float = Field(default=0.75, ge=0.0, le=1.0)
+
     # ---- ingestion gateway (Phase 2) ------------------------------
     # A sensor may send `X-Sensor-Event-Id` for at-most-once delivery of a single
     # event; the id is remembered this long in Redis.
