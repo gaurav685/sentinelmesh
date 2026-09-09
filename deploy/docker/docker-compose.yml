@@ -184,6 +184,35 @@ services:
       topics-init:
         condition: service_completed_successfully
 
+  stream-processor:
+    profiles: ["bus"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_stream_processor"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: stream-processor
+      SM_DEPLOYMENT_PROFILE: monolith
+      SM_EVENT_BUS_ENABLED: "true"
+      SM_KAFKA_CONSUMER_GROUP: stream-processor
+    ports:
+      - "8003:8003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8003/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      topics-init:
+        condition: service_completed_successfully
+
   keycloak:
     profiles: ["oidc"]
     image: quay.io/keycloak/keycloak:26.0

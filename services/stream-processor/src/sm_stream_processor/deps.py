@@ -1,9 +1,5 @@
-"""Dependency wiring for the normalization engine.
-
-`Services` is built once at startup. There is no request-scoped dependency — the
-only HTTP surface is health / metrics; the work happens in the consumer loop the
-lifespan owns.
-"""
+"""Dependency wiring for the stream processor. HTTP surface is health / metrics
+only; the work happens in the consumer loop the lifespan owns."""
 
 from __future__ import annotations
 
@@ -15,8 +11,8 @@ from sm_common.bus import EventBusConsumer, EventBusProducer, RecordProcessor
 from sm_common.config import AppSettings
 from sm_common.observability import Metrics
 
-from .engine import NormalizationEngine
-from .metrics import NormalizationMetrics
+from .engine import StreamEngine
+from .metrics import StreamMetrics
 
 __all__ = ["Services", "get_services"]
 
@@ -25,10 +21,10 @@ __all__ = ["Services", "get_services"]
 class Services:
     settings: AppSettings
     metrics: Metrics
-    norm_metrics: NormalizationMetrics
+    stream_metrics: StreamMetrics
     producer: EventBusProducer
     consumer: EventBusConsumer
-    engine: NormalizationEngine
+    engine: StreamEngine
     processor: RecordProcessor
 
 

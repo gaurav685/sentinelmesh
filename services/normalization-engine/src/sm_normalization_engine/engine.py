@@ -1,21 +1,21 @@
-"""The record handler: `telemetry.raw` record -> `events.canonical`.
+"""The domain handler: `telemetry.raw` record -> `events.canonical`.
 
-`NormalizationEngine.handle` is the `RecordHandler` passed to
-`EventBusConsumer.run`. Contract with the consumer wrapper:
+`NormalizationEngine.handle` is wrapped by `sm_common.bus.RecordProcessor`, which
+owns the retry / DLQ policy (event-model.md §4/§5). This handler only signals
+intent:
 
-- A **poison** record (unparseable, unknown `event_type`, invalid envelope,
-  mapper failure) is written to `telemetry.raw.dlq` and `handle` returns
-  normally, so the consumer commits the offset and the partition keeps moving
-  (event-model.md §4/§5).
-- A **produce** failure (the canonical topic or the DLQ topic is unreachable) is
-  retried with backoff; if it still fails, `handle` raises so the consumer does
-  **not** commit and the batch is redelivered. The canonical producer is
-  idempotent, so redelivery cannot duplicate a committed record on a partition.
+- bad JSON / unknown `event_type` / invalid envelope / mapper failure ->
+  `PoisonError` (the processor dead-letters it).
+- a failed produce to `events.canonical` -> `TransientError` (retried, then
+  dead-lettered).
+
+The canonical `event_id` is `uuid5` of the raw `event_id`, so an at-least-once
+redelivery re-emits the identical id and downstream `event_id` dedup suppresses
+the duplicate.
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import uuid
 from typing import Any
@@ -24,7 +24,7 @@ import structlog
 from aiokafka.structs import ConsumerRecord
 from pydantic import ValidationError
 
-from sm_common.bus import EventBusProducer, dlq_payload
+from sm_common.bus import EventBusProducer, PoisonError, TransientError
 from sm_common.clock import utcnow
 from sm_common.observability import Metrics
 from sm_contracts import (
@@ -38,22 +38,19 @@ from sm_contracts import (
 from .enrich import Enricher, run_enrichers
 from .metrics import NormalizationMetrics
 from .normalize import UnknownEventTypeError, normalize
-from .topics import CANONICAL_TOPIC, DLQ_TOPIC
+from .topics import CANONICAL_TOPIC
 from .version import PRODUCER
 
 __all__ = ["NormalizationEngine", "canonical_event_id"]
 
 _log = structlog.get_logger("sm.normalization.engine")
 
-# Fixed namespace for deriving the canonical event id from the raw event id.
 _CANONICAL_NS = uuid.UUID("6f1c3a4e-2b8d-5c7a-9e0f-1a2b3c4d5e6f")
 
 
 def canonical_event_id(raw_event_id: uuid.UUID) -> uuid.UUID:
     """Deterministic `event_id` for the canonical event derived from one raw
-    event. Consumption is at-least-once: a redelivered raw record must produce a
-    canonical record with the **same** `event_id` so downstream `event_id` dedup
-    (event-model.md §4) suppresses the duplicate."""
+    event (event-model.md §4 idempotency)."""
     return uuid.uuid5(_CANONICAL_NS, f"canonical:{raw_event_id}")
 
 
@@ -67,8 +64,6 @@ class NormalizationEngine:
         norm_metrics: NormalizationMetrics,
         enrichers: tuple[Enricher, ...] = (),
         canonical_topic: str = CANONICAL_TOPIC,
-        dlq_topic: str = DLQ_TOPIC,
-        produce_attempts: int = 3,
     ) -> None:
         self._producer = producer
         self._group = consumer_group
@@ -76,8 +71,6 @@ class NormalizationEngine:
         self._m = norm_metrics
         self._enrichers = enrichers
         self._canonical_topic = canonical_topic
-        self._dlq_topic = dlq_topic
-        self._attempts = produce_attempts
 
     async def handle(self, record: ConsumerRecord) -> None:
         raw = record.value if isinstance(record.value, bytes) else bytes(record.value or b"")
@@ -86,47 +79,48 @@ class NormalizationEngine:
             doc: Any = json.loads(raw)
             event_type = EventType(doc["event_type"])
         except (ValueError, TypeError, KeyError) as exc:
-            await self._dead_letter(record, raw, "unparseable", repr(exc))
-            return
+            raise PoisonError(f"unparseable telemetry.raw record: {exc!r}") from exc
 
         payload_model = EVENT_PAYLOAD_REGISTRY.get(event_type)
         if payload_model is None:
-            await self._dead_letter(record, raw, "unknown_event_type", event_type.value)
-            return
+            raise PoisonError(f"unknown event_type {event_type.value!r}")
 
         try:
             envelope = EventEnvelope[payload_model].model_validate(doc)  # type: ignore[valid-type]
         except ValidationError as exc:
-            await self._dead_letter(record, raw, "envelope_invalid", str(exc))
-            return
+            raise PoisonError(f"envelope invalid: {exc}") from exc
 
         self._m.consumed_inc(event_type.value)
 
         try:
             canonical = normalize(envelope)
         except UnknownEventTypeError as exc:
-            await self._dead_letter(record, raw, "unknown_event_type", str(exc))
-            return
+            raise PoisonError(str(exc)) from exc
         except Exception as exc:  # a mapper bug — do not wedge the partition
             _log.exception("normalize_failed", event_type=event_type.value)
-            await self._dead_letter(record, raw, "normalize_failed", repr(exc))
-            return
+            raise PoisonError(f"normalize failed: {exc!r}") from exc
 
         enrichment = await run_enrichers(canonical, self._enrichers)
         if enrichment:
             canonical = canonical.model_copy(update={"enrichment": enrichment})
 
         out = self._wrap(envelope, canonical)
-        await self._produce(
-            self._canonical_topic, key=out.partition_key, value=out.model_dump_json().encode("utf-8")
-        )
+        try:
+            await self._producer.send(
+                self._canonical_topic,
+                key=out.partition_key,
+                value=out.model_dump_json().encode("utf-8"),
+            )
+        except Exception as exc:
+            raise TransientError(f"produce to {self._canonical_topic} failed: {exc!r}") from exc
         self._m.produced_inc(event_type.value)
 
-    # ----------------------------------------------------------------- #
     def _wrap(
         self, source: EventEnvelope[Any], canonical: CanonicalEventPayload
     ) -> EventEnvelope[CanonicalEventPayload]:
-        primary = (canonical.actor or canonical.target or (canonical.entities[0] if canonical.entities else None))
+        primary = canonical.actor or canonical.target or (
+            canonical.entities[0] if canonical.entities else None
+        )
         partition_key = make_partition_key(
             source.tenant_id, primary.value if primary else "unknown"
         )
@@ -145,28 +139,3 @@ class NormalizationEngine:
             payload=canonical,
             metadata={"raw_event_id": str(source.event_id)},
         )
-
-    async def _produce(self, topic: str, *, key: str, value: bytes) -> None:
-        last: Exception | None = None
-        for attempt in range(1, self._attempts + 1):
-            try:
-                await self._producer.send(topic, key=key, value=value)
-                return
-            except Exception as exc:  # transient broker error
-                last = exc
-                _log.warning("produce_retry", topic=topic, attempt=attempt, error_type=type(exc).__name__)
-                await asyncio.sleep(min(2 ** (attempt - 1), 5))
-        self._m.produce_error_inc(topic)
-        raise RuntimeError(f"produce to {topic} failed after {self._attempts} attempts") from last
-
-    async def _dead_letter(
-        self, record: ConsumerRecord, raw: bytes, reason: str, detail: str
-    ) -> None:
-        payload = dlq_payload(
-            original=raw, error_type=reason, error_detail=detail,
-            consumer_group=self._group, attempts=1,
-        )
-        key = record.key.decode("utf-8", "replace") if record.key else "unknown"
-        await self._produce(self._dlq_topic, key=key, value=payload)
-        self._m.dlq_inc(reason)
-        _log.warning("record_dead_lettered", reason=reason, partition=record.partition, offset=record.offset)

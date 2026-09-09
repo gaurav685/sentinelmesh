@@ -19,7 +19,7 @@ from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaConnectionError
 from aiokafka.structs import ConsumerRecord
 
-from sm_common.bus import EventBusConsumer, EventBusProducer
+from sm_common.bus import EventBusConsumer, EventBusProducer, RecordProcessor
 from sm_common.clock import utcnow
 from sm_common.ids import uuid7
 from sm_common.observability import build_metrics
@@ -68,11 +68,15 @@ async def producer(kafka_ready: None) -> AsyncIterator[EventBusProducer]:
 
 
 @pytest_asyncio.fixture
-async def engine(producer: EventBusProducer) -> NormalizationEngine:
+async def processor(producer: EventBusProducer) -> RecordProcessor:
     base = build_metrics("normalization-engine")
-    return NormalizationEngine(
+    engine = NormalizationEngine(
         producer=producer, consumer_group="it-normalization", metrics=base,
-        norm_metrics=NormalizationMetrics(base, "normalization-engine"), produce_attempts=3,
+        norm_metrics=NormalizationMetrics(base, "normalization-engine"),
+    )
+    return RecordProcessor(
+        producer=producer, consumer_group="it-normalization", handle=engine.handle,
+        metrics=base, service_name="normalization-engine", max_attempts=3,
     )
 
 
@@ -132,7 +136,7 @@ async def _process_raw(
 
 
 async def test_raw_flow_becomes_canonical_on_events_canonical(
-    producer: EventBusProducer, engine: NormalizationEngine
+    producer: EventBusProducer, processor: RecordProcessor
 ) -> None:
     group = f"it-normalization-{uuid7()}"
 
@@ -140,7 +144,7 @@ async def test_raw_flow_becomes_canonical_on_events_canonical(
     source_event_id = json.loads(raw)["event_id"]
     await producer.send(RAW_TOPIC, key="k", value=raw)
 
-    assert await _process_raw(group, engine.handle, expect=1) >= 1
+    assert await _process_raw(group, processor, expect=1) >= 1
 
     def _match(m: ConsumerRecord) -> bool:
         try:
@@ -160,7 +164,7 @@ async def test_raw_flow_becomes_canonical_on_events_canonical(
 
 
 async def test_poison_record_goes_to_dlq_and_next_good_record_still_processes(
-    producer: EventBusProducer, engine: NormalizationEngine
+    producer: EventBusProducer, processor: RecordProcessor
 ) -> None:
     group = f"it-normalization-{uuid7()}"
 
@@ -170,13 +174,13 @@ async def test_poison_record_goes_to_dlq_and_next_good_record_still_processes(
     good_id = json.loads(good)["event_id"]
     await producer.send(RAW_TOPIC, key="g", value=good)
 
-    assert await _process_raw(group, engine.handle, expect=2) >= 2
+    assert await _process_raw(group, processor, expect=2) >= 2
 
     dlq = await _drain(DLQ_TOPIC, lambda m: marker in m.value)
     assert dlq is not None, "poison record not dead-lettered"
     wrapped = json.loads(dlq.value)
-    assert wrapped["error_type"] in {"unparseable", "envelope_invalid"}
-    assert wrapped["consumer_group"] == "it-normalization"  # the engine's configured group
+    assert wrapped["error_type"] == "poison"
+    assert wrapped["consumer_group"] == "it-normalization"
 
     canonical = await _drain(
         CANONICAL_TOPIC,

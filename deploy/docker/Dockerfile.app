@@ -1,7 +1,7 @@
 # SentinelMesh application image.
 #
 # Builds the Python distributions (contracts, common, api-gateway,
-# ingestion-gateway, normalization-engine) into a virtualenv in a builder stage, then copies only that
+# ingestion-gateway, normalization-engine, stream-processor) into a virtualenv in a builder stage, then copies only that
 # venv into a slim runtime. One image serves every service; the compose
 # `command:` selects which `python -m ...` entrypoint runs. The runtime has no
 # compiler, no build cache and runs as a non-root user.
@@ -36,14 +36,16 @@ COPY packages/common-py/pyproject.toml   packages/common-py/README.md   packages
 COPY services/api-gateway/pyproject.toml services/api-gateway/README.md services/api-gateway/
 COPY services/ingestion-gateway/pyproject.toml services/ingestion-gateway/README.md services/ingestion-gateway/
 COPY services/normalization-engine/pyproject.toml services/normalization-engine/README.md services/normalization-engine/
+COPY services/stream-processor/pyproject.toml services/stream-processor/README.md services/stream-processor/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
 COPY services/api-gateway/src  services/api-gateway/src
 COPY services/ingestion-gateway/src services/ingestion-gateway/src
 COPY services/normalization-engine/src services/normalization-engine/src
+COPY services/stream-processor/src services/stream-processor/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./services/stream-processor \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #

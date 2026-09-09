@@ -64,6 +64,13 @@ from .events import (
     UserEventPayload,
     make_partition_key,
 )
+from .graph import (
+    GRAPH_PAYLOADS,
+    GraphCommandPayload,
+    GraphEndpoint,
+    GraphOp,
+    graph_command_id,
+)
 from .telemetry import (
     TELEMETRY_PAYLOADS,
     AuthEventPayload,
@@ -135,6 +142,12 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "topic_for_event_type",
     "dlq_topic",
     "replay_group",
+    # graph commands (Phase 3)
+    "GraphCommandPayload",
+    "GraphEndpoint",
+    "GraphOp",
+    "GRAPH_PAYLOADS",
+    "graph_command_id",
     # enums
     "TenantStatus",
     "UserStatus",

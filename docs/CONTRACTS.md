@@ -202,14 +202,21 @@ Every entity above is justified by a numbered requirement in
 
 ---
 
-## 5. Graph contract (DRAFT — Phase 2/3)
+## 5. Graph contract (`GraphCommandPayload` **IMPLEMENTED** Phase 3; the graph write path is Phase 4)
 
 - Node labels, key properties, relationship types, and invariants:
   `docs/architecture/data-model.md`.
-- Write path: only via `graph.commands` Kafka topic → `graph-service`. Command
-  schema `GraphCommandPayload`: `{ command_id, op: MERGE_NODE|MERGE_EDGE|
-  SET_PROPS|PRUNE, label/type, key, props, tenant_id, observed_at }`. Idempotent
-  by `command_id` + MERGE semantics.
+- Write path: only via `graph.commands` Kafka topic → `graph-writer`
+  (Phase 4). Command schema `sm_contracts.GraphCommandPayload`:
+  `{ command_id, op: MERGE_NODE|MERGE_EDGE|SET_PROPS|PRUNE, tenant_id,
+  observed_at, raw_event_id, label, key, props, start?, end? }` — for
+  `MERGE_EDGE`, `label` is the relationship type and `start`/`end` are
+  `GraphEndpoint{label, key}`. Idempotent by `command_id` (deterministic in the
+  source event — `graph_command_id(...)`) + MERGE semantics.
+- Producers so far: `stream-processor`'s `graph-update-emitter`
+  (`events.canonical` → node upserts + one `actor -[REL]-> target` edge, `REL`
+  from the canonical `kind`). `detection-engine` will also produce
+  (`(:Detection)-[:INVOLVES]->…`).
 - Read path: `graph-service` query API. Parameterized only. Every query
   tenant-scoped, depth-bounded (`max_depth`, default 4, hard cap 8), row-capped,
   time-limited. No caller supplies raw Cypher.
@@ -321,5 +328,6 @@ Action without `rollback_plan` cannot be `auto`.
 | 2026-09-09 | Phase 2 §23 review: (1) the canonical `event_id` is now `uuid5(raw_event_id)` — deterministic, so at-least-once redelivery re-emits the same id (event-model.md §4). (2) `DnsQueryPayload.answers` now rejects an empty-string answer (was a silent downstream DLQ). (3) ingestion-gateway frees the `X-Sensor-Event-Id` dedup mark on a 4xx so a corrected retry is not suppressed. | 2 (review) |
 | 2026-09-09 | **Phase 2 exit — CI green** (GitHub Actions run `34333269219`). The five `telemetry.*` payloads promoted **DRAFT → STABLE** (a producer and a consumer both exercise them). `event.canonical` stays **STABLE target** — first downstream consumer is Phase 3. | 2 (close) |
 | 2026-09-09 | **Topic registry** (Phase 3, Unit 1): `sm_contracts.topics` — `TOPICS` mirrors event-model.md §3; `EVENT_TYPE_TOPIC` / `topic_for_event_type` map every `EventType`; `dlq_topic` / `replay_group` helpers; `EVENT_TYPE_VERSION` (all v1). The "versioned event types" policy is documented (§2.1). `ingestion-gateway` / `normalization-engine` refactored to the registry. STABLE. | 3 (Unit 1) |
+| 2026-09-09 | **`GraphCommandPayload`** implemented (Phase 3, Unit 3): `sm_contracts.graph` — `command_id` / `op` / `tenant_id` / `observed_at` / `raw_event_id` / `label` / `key` / `props` / `start` / `end` (§5). Registered for `EventType.graph_command`; `EventEnvelope_GraphCommand` + `GraphCommandPayload` JSON Schemas. `stream-processor`'s `graph-update-emitter` produces them from `events.canonical`; `command_id` is deterministic (`graph_command_id`). Status: **STABLE target** — the first consumer (`graph-writer`) is Phase 4. | 3 (Unit 3) |
 | 2026-09-08 | Phase-1 auth/admin API surface **implemented** in `services/api-gateway` and its contracts promoted DRAFT → **STABLE**: API conventions, the canonical error contract, the foundation endpoint set (§1.2), and the `Tenant`/`User`/`Role`/`Permission`/`UserRole`/`RolePermission`/`Sensor`/`AuditRecord` entity contracts. Cursor pagination, CSRF header (`X-CSRF-Token`) and the session cookie names are part of the stable surface. | 1 (Unit 4) |
 | 2026-09-08 | `packages/contracts-py` implements the canonical `EventEnvelope`, the `ErrorResponse` contract (`HTTP_STATUS_BY_CODE`), Phase-1 entity DTOs (`Tenant`, `User`, `Role`, `Permission`, `RolePermission`, `UserRoleGrant`, `Sensor`, `AuditRecord`), Phase-1 API models, and shared enums. JSON Schema generated to `packages/contracts-ts/schemas/` via `scripts/gen_contracts.py`. Status of these contracts: **STABLE target** — promoted to STABLE when the Phase-1 endpoints that use them ship. `identity_link` ownership corrected to `normalization-engine` (Phase 2) — see `architecture/consistency-review.md`. | 0 (close) |
