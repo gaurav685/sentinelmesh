@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import uuid
 from typing import Any
 
 import structlog
@@ -25,7 +26,6 @@ from pydantic import ValidationError
 
 from sm_common.bus import EventBusProducer, dlq_payload
 from sm_common.clock import utcnow
-from sm_common.ids import uuid7
 from sm_common.observability import Metrics
 from sm_contracts import (
     EVENT_PAYLOAD_REGISTRY,
@@ -41,9 +41,20 @@ from .normalize import UnknownEventTypeError, normalize
 from .topics import CANONICAL_TOPIC, DLQ_TOPIC
 from .version import PRODUCER
 
-__all__ = ["NormalizationEngine"]
+__all__ = ["NormalizationEngine", "canonical_event_id"]
 
 _log = structlog.get_logger("sm.normalization.engine")
+
+# Fixed namespace for deriving the canonical event id from the raw event id.
+_CANONICAL_NS = uuid.UUID("6f1c3a4e-2b8d-5c7a-9e0f-1a2b3c4d5e6f")
+
+
+def canonical_event_id(raw_event_id: uuid.UUID) -> uuid.UUID:
+    """Deterministic `event_id` for the canonical event derived from one raw
+    event. Consumption is at-least-once: a redelivered raw record must produce a
+    canonical record with the **same** `event_id` so downstream `event_id` dedup
+    (event-model.md §4) suppresses the duplicate."""
+    return uuid.uuid5(_CANONICAL_NS, f"canonical:{raw_event_id}")
 
 
 class NormalizationEngine:
@@ -120,7 +131,7 @@ class NormalizationEngine:
             source.tenant_id, primary.value if primary else "unknown"
         )
         return EventEnvelope[CanonicalEventPayload](
-            event_id=uuid7(),
+            event_id=canonical_event_id(source.event_id),
             event_type=EventType.event_canonical,
             event_version=1,
             occurred_at=source.occurred_at,

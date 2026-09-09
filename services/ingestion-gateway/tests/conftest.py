@@ -67,6 +67,11 @@ class FakeRedis:
         self._store[key] = value
         return True
 
+    async def delete(self, key: str) -> int:
+        if not self.healthy:
+            raise ConnectionError("redis down")
+        return 1 if self._store.pop(key, None) is not None else 0
+
     async def flushdb(self) -> None:
         self._store.clear()
 

@@ -63,6 +63,9 @@ reducing) with awareness that `partition_key` distribution changes.
 - **At-least-once** end to end. **Exactly-once is not claimed anywhere.**
 - Consumers commit offsets **after** side effects succeed (or after DLQ-ing).
 - Idempotency mechanisms per consumer:
+  - `normalization-engine`: the canonical `event_id` is `uuid5` of the raw
+    `event_id`, so a redelivered raw record re-emits the same canonical
+    `event_id` and every downstream `event_id` check below suppresses it.
   - `graph-writer`: `command_id` uniqueness + MERGE semantics in Cypher.
   - `detection`: `(tenant_id, event_id, detector_version)` unique row.
   - `api-projection`: upsert by natural key; projections are rebuildable.

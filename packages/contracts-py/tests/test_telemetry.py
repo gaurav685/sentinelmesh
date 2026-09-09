@@ -109,6 +109,11 @@ def test_dns_normalizes_type_and_rcode_and_bounds_answers():
             occurred_at=NOW, client_ip="10.0.0.5", query_name="x.com",
             query_type="A", answers=["y" * 300],
         )
+    with pytest.raises(ValidationError):
+        DnsQueryPayload(
+            occurred_at=NOW, client_ip="10.0.0.5", query_name="x.com",
+            query_type="A", answers=[""],
+        )
 
 
 # ---- ProcessExecPayload -------------------------------------------------

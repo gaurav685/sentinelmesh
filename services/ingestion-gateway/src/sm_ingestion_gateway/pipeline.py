@@ -116,14 +116,21 @@ async def ingest_one(
         if state is DedupState.unavailable:
             ctx.metrics.dedup_error_inc()
 
-    try:
-        parsed = json.loads(raw_body)
-    except (ValueError, UnicodeDecodeError):
+    async def _reject(reason: str) -> None:
         await _dead_letter(
-            ctx, source_type=source_type, raw_body=raw_body, reason="invalid_json",
+            ctx, source_type=source_type, raw_body=raw_body, reason=reason,
             sensor_id=identity.sensor_id,
         )
         ctx.metrics.rejected_inc(source_type)
+        # The event was never accepted; free the id so a corrected retry with the
+        # same X-Sensor-Event-Id is not suppressed as a duplicate.
+        if client_event_id:
+            await ctx.dedup.forget(identity.sensor_id, client_event_id)
+
+    try:
+        parsed = json.loads(raw_body)
+    except (ValueError, UnicodeDecodeError):
+        await _reject("invalid_json")
         raise ValidationFailed("request body is not valid JSON") from None
 
     try:
@@ -132,11 +139,7 @@ async def ingest_one(
             identity=identity, client_event_id=client_event_id,
         )
     except ValidationError as exc:
-        await _dead_letter(
-            ctx, source_type=source_type, raw_body=raw_body, reason="schema_validation",
-            sensor_id=identity.sensor_id,
-        )
-        ctx.metrics.rejected_inc(source_type)
+        await _reject("schema_validation")
         raise ValidationFailed("telemetry payload failed validation", details=_details(exc)) from None
 
     await _sink_accepted(ctx, envelope, source_type)

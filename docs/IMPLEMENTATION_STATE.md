@@ -158,7 +158,9 @@ Verified (2026-09-09): pytest **266** non-integration (17 new —
 integration (2 new — `tests/integration/test_normalization_bus.py`: a
 `telemetry.raw` network-flow record becomes an `events.canonical` envelope with
 lineage; a poison record lands on `telemetry.raw.dlq` (wrapped) and the next
-good record still processes — real Redpanda). `mypy --strict` clean (106 files),
+good record still processes — real Redpanda). §23 review added 3 regression
+tests (deterministic canonical `event_id`; corrected-retry dedup; empty DNS
+answer). `mypy --strict` clean (106 files),
 `ruff` clean, `gen_contracts --check` clean. Compose stack (all 6 containers
 healthy) + live end-to-end verified the same day — see "Verification performed
 (Phase 2, Units 2–4)". NOT VERIFIED: CI.
@@ -629,7 +631,7 @@ integration tests" elsewhere in this file are historical.
 
 | Check | Command | Result |
 |---|---|---|
-| Non-integration suite | `pytest packages services tests -q -m "not integration"` | **266 passed** |
+| Non-integration suite | `pytest packages services tests -q -m "not integration"` | **268 passed** (incl. the 3 §23 regression tests) |
 | Integration suite | `pytest tests/integration -q` with `SM_REQUIRE_INTEGRATION=1`, real Postgres 16 + Redis 7 + Redpanda v24.2.11 | **63 passed** |
 | Ingest → bus | `test_ingestion_bus_pg.py` — POST → `telemetry.raw`; malformed → `telemetry.raw.dlq` | **2 passed** against real Redpanda |
 | Bus → canonical | `test_normalization_bus.py` — `telemetry.raw` → `events.canonical` with lineage; poison → `telemetry.raw.dlq` (wrapped), next good still processes | **2 passed** against real Redpanda |
@@ -643,6 +645,33 @@ integration tests" elsewhere in this file are historical.
 
 **Not verified:** anything in CI (no GitHub remote); a real OIDC round-trip; a
 scraped Prometheus / collected span.
+
+### Pre-output engineering review (Constitution §23) — Phase 2
+
+Adversarial read of Units 1–4 (code that has only ever run locally). Three
+defects, all fixed with a regression test:
+
+| # | Defect | Fix | Commit |
+|---|---|---|---|
+| 1 | **`normalization-engine` broke `event_id` idempotency.** It stamped a fresh UUIDv7 on the canonical event every time it processed a raw record. Consumption is at-least-once — a rebalance or crash before the offset commits redelivers the batch — so a redelivered raw record produced a *second* canonical event with a *different* `event_id`, which downstream `event_id` dedup (event-model.md §4) cannot suppress → double detection / double graph write. | `canonical_event_id(raw_event_id) = uuid5(fixed-ns, "canonical:"+raw)` — deterministic, so a redelivery produces the identical `event_id`. `test_redelivery_produces_the_same_canonical_event_id`. | �23 |
+| 2 | **`ingestion-gateway` dropped a corrected retry.** The dedup key was set (`SET NX`) *before* payload validation. A sensor that sent a malformed body with an `X-Sensor-Event-Id`, got `422`, fixed the body and retried with the same id → the retry was suppressed as a duplicate (`200`) and the corrected event was never sinked. | `Dedup.forget()` deletes the key on every 4xx path; only an *accepted* event keeps its mark. `test_corrected_retry_after_a_422_is_not_suppressed_as_duplicate`. | �23 |
+| 3 | **An empty-string DNS answer DLQ'd the whole event.** `DnsQueryPayload.answers` bounded length but not emptiness; `EntityRef(value="")` then failed `min_length` in the mapper, so `normalize_failed` → DLQ instead of a processed event. | `_bounded_answers` rejects an empty answer at the contract boundary (a clear `422` at ingest, not a silent DLQ downstream). Extra assertion in `test_dns_normalizes_type_and_rcode_and_bounds_answers`. | �23 |
+
+Six-role sign-off (Phase-2 surface): **Principal Engineer** — `ingestion-gateway`
+and `normalization-engine` own no other service's data; the bus is the only
+coupling; `sm_common.bus` is the shared transport, sink/handler semantics are
+per-service; dependency graph acyclic. **Security Engineer** — tenant / sensor
+identity is server-side only (payloads are `extra="forbid"`, cannot carry
+`tenant_id`); one generic `401` for every sensor-auth failure with `dummy_verify`
+for unknown ids; ingestion rate limiter fails **closed**; no secret in any error
+body or DLQ record. Open: per-sensor rate quota is still per-IP (recorded);
+`identity_link` / enrichment providers not built (R2, later). **SRE** — every
+produce failure is a `503` + a metric, never a silent drop; the consumer commits
+only after the side effect; poison messages never wedge a partition; `/readyz`
+degrades on a broker outage. **Database Engineer** — `SensorAuth` touches
+`last_seen_at` throttled to 1/min so a chatty sensor is not a write hot-spot;
+no new tables this phase. **ML Engineer** — N/A. **Frontend Engineer** — N/A (no
+frontend until Phase 4); the canonical schema is generated.
 
 ## APIs
 
@@ -670,9 +699,11 @@ against Redpanda; malformed bodies go to `telemetry.raw.dlq`.
 `events.canonical`** — `CanonicalEventPayload` envelopes with `raw_event_id`
 lineage — verified end-to-end against Redpanda (`test_normalization_bus.py`).
 Poison records → `telemetry.raw.dlq` (wrapped per event-model.md §5). Consumer
-commits offsets only after the side effect. `make_partition_key` (shared) is the
-single `partition_key` derivation. Topic catalog + semantics in `event-model.md`.
-At-least-once; exactly-once not claimed.
+commits offsets only after the side effect. The canonical `event_id` is
+**deterministic** — `uuid5` of the raw `event_id` — so an at-least-once
+redelivery re-emits the identical `event_id` and downstream dedup suppresses it.
+`make_partition_key` (shared) is the single `partition_key` derivation. Topic
+catalog + semantics in `event-model.md`. At-least-once; exactly-once not claimed.
 
 ## Schemas / migrations
 
