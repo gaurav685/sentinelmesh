@@ -141,6 +141,13 @@ class AppSettings(BaseSettings):
     # count only when running behind a known ingress.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=10)
 
+    # ---- ingestion gateway (Phase 2) ------------------------------
+    # A sensor may send `X-Sensor-Event-Id` for at-most-once delivery of a single
+    # event; the id is remembered this long in Redis.
+    ingest_dedup_ttl_seconds: int = Field(default=900, ge=60, le=86_400)
+    # Upper bound on `events` in one `POST /api/v1/ingest/batch` call.
+    ingest_batch_max_events: int = Field(default=500, ge=1, le=10_000)
+
     # ---- autonomous response safety ------------------------------
     response_mode: ResponseMode = ResponseMode.suggest_only
     response_approval_required: bool = True

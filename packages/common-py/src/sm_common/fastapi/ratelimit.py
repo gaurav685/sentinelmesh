@@ -4,11 +4,17 @@ Keyed on the resolved client IP (never a spoofable header — see `clientinfo`).
 A fixed one-minute window in Redis: `INCR` the bucket, `EXPIRE` it on first
 touch, reject once the count passes the limit.
 
-Failure policy for the API gateway (a read-facing service): **fail open** if the
-limiter's store is unavailable, and raise `sm_rate_limiter_errors_total` so the
-outage is visible. Taking the SOC UI down because Redis blinked would be worse
-than briefly not rate-limiting. Ingestion, which must fail closed, will use a
-different limiter in its own phase.
+Failure policy is set by the host via `fail_open`:
+
+- **fail open** (default; the API gateway, a read-facing service) — if the
+  limiter's store is unavailable the request is allowed through, and
+  `sm_rate_limiter_errors_total` is raised so the outage is visible. Taking the
+  SOC UI down because Redis blinked would be worse than briefly not
+  rate-limiting.
+- **fail closed** (`fail_open=False`; the ingestion gateway) — a limiter-store
+  outage rejects the request with `503 dependency_unavailable`. An unbounded
+  ingest flood during a Redis outage is worse than briefly refusing sensors,
+  which retry.
 
 `/healthz`, `/readyz`, `/health/deps` and `/metrics` are never limited.
 
@@ -36,7 +42,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ..config import AppSettings
 from ..context import get_correlation_id, get_request_id
-from ..errors import RateLimited
+from ..errors import DependencyUnavailable, RateLimited, SmError
 from .clientinfo import client_ip
 
 __all__ = ["RateLimitMiddleware"]
@@ -47,12 +53,20 @@ _EXEMPT_PATHS = frozenset({"/healthz", "/readyz", "/health/deps", "/metrics"})
 
 
 class RateLimitMiddleware:
-    def __init__(self, app: ASGIApp, *, settings: AppSettings, key_prefix: str = "sm") -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        settings: AppSettings,
+        key_prefix: str = "sm",
+        fail_open: bool = True,
+    ) -> None:
         self.app = app
         self._limit = settings.rate_limit_per_minute
         self._hops = settings.trusted_proxy_hops
         self._prefix = key_prefix
         self._service = settings.service_name
+        self._fail_open = fail_open
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -82,21 +96,26 @@ class RateLimitMiddleware:
         except Exception:
             if metrics is not None:
                 metrics.rate_limiter_errors.labels(self._service).inc()
-            _log.warning("rate_limiter_unavailable", client_ip=ip)
-            await self.app(scope, receive, send)
+            if self._fail_open:
+                _log.warning("rate_limiter_unavailable_fail_open", client_ip=ip)
+                await self.app(scope, receive, send)
+            else:
+                _log.warning("rate_limiter_unavailable_fail_closed", client_ip=ip)
+                await self._send_error(send, DependencyUnavailable(), retry_after=5)
             return
 
         if count > self._limit:
             if metrics is not None:
                 metrics.rate_limited.labels(self._service).inc()
             _log.info("rate_limited", client_ip=ip, count=count, limit=self._limit)
-            await self._send_429(send, retry_after=60 - int(time.time() % 60))
+            await self._send_error(
+                send, RateLimited(), retry_after=60 - int(time.time() % 60)
+            )
             return
 
         await self.app(scope, receive, send)
 
-    async def _send_429(self, send: Send, *, retry_after: int) -> None:
-        err = RateLimited()
+    async def _send_error(self, send: Send, err: SmError, *, retry_after: int) -> None:
         body = json.dumps(
             {
                 "error": {

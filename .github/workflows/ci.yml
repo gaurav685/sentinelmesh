@@ -4,7 +4,7 @@ name: CI
 #
 # This workflow is the path to the verification the development machine cannot
 # produce: GitHub runners have Docker, so the `integration` job actually applies
-# the migrations and runs the 49 integration tests against real PostgreSQL and
+# the migrations and runs the integration tests against real PostgreSQL and
 # Redis, and the `image` job actually builds `Dockerfile.app`.
 #
 # NOTE: this workflow has never been executed. It is authored, not verified.
@@ -51,7 +51,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
-                      -e "services/api-gateway[dev]"
+                      -e "services/api-gateway[dev]" \
+                      -e "services/ingestion-gateway[dev]"
           pip install ruff mypy alembic pyyaml respx
 
       - name: Ruff
@@ -62,7 +63,8 @@ jobs:
           python -m mypy --strict --python-version 3.11 \
             packages/contracts-py/src/sm_contracts \
             packages/common-py/src/sm_common \
-            services/api-gateway/src/sm_api_gateway
+            services/api-gateway/src/sm_api_gateway \
+            services/ingestion-gateway/src/sm_ingestion_gateway
 
   unit:
     name: unit and contract tests
@@ -83,7 +85,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
-                      -e "services/api-gateway[dev]"
+                      -e "services/api-gateway[dev]" \
+                      -e "services/ingestion-gateway[dev]"
           pip install alembic pyyaml respx
 
       - name: Tests (integration excluded)
@@ -152,7 +155,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
-                      -e "services/api-gateway[dev]"
+                      -e "services/api-gateway[dev]" \
+                      -e "services/ingestion-gateway[dev]"
           pip install alembic pyyaml respx
 
       - name: Apply migrations

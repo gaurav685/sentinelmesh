@@ -1,8 +1,10 @@
 # SentinelMesh application image.
 #
-# Builds the three Python distributions (contracts, common, api-gateway) into a
-# virtualenv in a builder stage, then copies only that venv into a slim runtime.
-# The runtime has no compiler, no build cache and runs as a non-root user.
+# Builds the Python distributions (contracts, common, api-gateway,
+# ingestion-gateway) into a virtualenv in a builder stage, then copies only that
+# venv into a slim runtime. One image serves every service; the compose
+# `command:` selects which `python -m ...` entrypoint runs. The runtime has no
+# compiler, no build cache and runs as a non-root user.
 #
 # Build from the repository root:
 #   docker build -f deploy/docker/Dockerfile.app -t sentinelmesh/app:dev .
@@ -32,12 +34,14 @@ WORKDIR /src
 COPY packages/contracts-py/pyproject.toml packages/contracts-py/README.md packages/contracts-py/
 COPY packages/common-py/pyproject.toml   packages/common-py/README.md   packages/common-py/
 COPY services/api-gateway/pyproject.toml services/api-gateway/README.md services/api-gateway/
+COPY services/ingestion-gateway/pyproject.toml services/ingestion-gateway/README.md services/ingestion-gateway/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
 COPY services/api-gateway/src  services/api-gateway/src
+COPY services/ingestion-gateway/src services/ingestion-gateway/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #
