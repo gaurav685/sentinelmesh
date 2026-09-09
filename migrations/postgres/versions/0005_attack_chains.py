@@ -68,6 +68,7 @@ def upgrade() -> None:
         sa.Column("score", sa.Float(), nullable=False, server_default=sa.text("0")),
         sa.Column("score_version", sa.String(length=32), nullable=False),
         sa.Column("scoring_status", sa.String(length=16), nullable=False),
+        sa.Column("ti_corroborated", sa.Boolean(), nullable=False, server_default=sa.text("false")),
         sa.Column("technique_ids", _JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("detection_count", sa.Integer(), nullable=False, server_default=sa.text("0")),
         sa.Column("notes", _JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
@@ -102,6 +103,7 @@ def upgrade() -> None:
         sa.Column("detection_ids", _JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("technique_ids", _JSONB, nullable=False, server_default=sa.text("'[]'::jsonb")),
         sa.Column("max_severity", sa.String(length=16), nullable=False),
+        sa.Column("max_detection_score", sa.Float(), nullable=False, server_default=sa.text("0")),
         sa.Column("detection_count", sa.Integer(), nullable=False, server_default=sa.text("0")),
         sa.Column("first_seen", sa.DateTime(timezone=True), nullable=False),
         sa.Column("last_seen", sa.DateTime(timezone=True), nullable=False),
@@ -116,6 +118,10 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(f"stage IN ({_STAGE})", name="ck_attack_chain_stage_stage"),
         sa.CheckConstraint(f"max_severity IN ({_SEVERITY})", name="ck_attack_chain_stage_severity"),
+        sa.CheckConstraint(
+            "max_detection_score >= 0.0 AND max_detection_score <= 1.0",
+            name="ck_attack_chain_stage_score",
+        ),
         sa.UniqueConstraint("chain_id", "stage", name="uq_attack_chain_stage_chain_stage"),
     )
     op.create_index("ix_attack_chain_stage_chain_id", "attack_chain_stage", ["chain_id"])

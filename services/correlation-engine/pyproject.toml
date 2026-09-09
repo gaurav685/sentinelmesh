@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sm-correlation-engine"
+version = "0.1.0"
+description = "SentinelMesh correlation engine (req 6): turns the detection stream into multi-stage attack chains (ATT&CK-derived kill-chain stages, temporal ordering, probabilistic confidence) and a deterministic, versioned chain threat score. Never claims certainty."
+requires-python = ">=3.11"
+dependencies = [
+    "sm-contracts",
+    "sm-common",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sm_correlation_engine"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

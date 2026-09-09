@@ -184,6 +184,7 @@ class ChainStageModel(SmBaseModel):
     detection_ids: list[UUID] = Field(default_factory=list, max_length=2000)
     technique_ids: list[str] = Field(default_factory=list, max_length=64)
     max_severity: Severity
+    max_detection_score: float = Field(ge=0.0, le=1.0)
     detection_count: int = Field(ge=0)
     first_seen: datetime
     last_seen: datetime
@@ -214,6 +215,9 @@ class AttackChainModel(TenantScoped, TimestampedModel):
     score: float = Field(ge=0.0, le=1.0, description="Deterministic chain threat score.")
     score_version: str = Field(min_length=1, max_length=32)
     scoring_status: ScoringStatus
+    ti_corroborated: bool = Field(
+        default=False, description="At least one member detection matched a threat-intel indicator."
+    )
     technique_ids: list[str] = Field(default_factory=list, max_length=128)
     detection_count: int = Field(ge=0)
     notes: list[str] = Field(
@@ -250,6 +254,7 @@ class AttackChainPayload(SmBaseModel):
     score: float = Field(ge=0.0, le=1.0)
     score_version: str = Field(min_length=1, max_length=32)
     scoring_status: ScoringStatus
+    ti_corroborated: bool = False
     technique_ids: list[str] = Field(default_factory=list, max_length=128)
     detection_count: int = Field(ge=0)
 

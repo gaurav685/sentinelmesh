@@ -62,6 +62,12 @@
       "title": "Last Seen",
       "type": "string"
     },
+    "max_detection_score": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Max Detection Score",
+      "type": "number"
+    },
     "max_severity": {
       "$ref": "#/definitions/Severity"
     },
@@ -87,6 +93,7 @@
     "stage",
     "stage_order",
     "max_severity",
+    "max_detection_score",
     "detection_count",
     "first_seen",
     "last_seen"

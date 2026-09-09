@@ -21,6 +21,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
@@ -73,6 +74,7 @@ class AttackChainRow(TimestampMixin, Base):
     score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
     score_version: Mapped[str] = mapped_column(String(32), nullable=False)
     scoring_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    ti_corroborated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     technique_ids: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     detection_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     notes: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
@@ -108,6 +110,7 @@ class AttackChainStageRow(TimestampMixin, Base):
     detection_ids: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     technique_ids: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
     max_severity: Mapped[str] = mapped_column(String(16), nullable=False)
+    max_detection_score: Mapped[float] = mapped_column(Float, nullable=False, server_default=text("0"))
     detection_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     first_seen: Mapped[datetime] = mapped_column(nullable=False)
     last_seen: Mapped[datetime] = mapped_column(nullable=False)
@@ -115,6 +118,10 @@ class AttackChainStageRow(TimestampMixin, Base):
     __table_args__ = (
         CheckConstraint(_in_values("stage", AttackStage), name="ck_attack_chain_stage_stage"),
         CheckConstraint(_in_values("max_severity", Severity), name="ck_attack_chain_stage_severity"),
+        CheckConstraint(
+            "max_detection_score >= 0.0 AND max_detection_score <= 1.0",
+            name="ck_attack_chain_stage_score",
+        ),
         UniqueConstraint("chain_id", "stage", name="uq_attack_chain_stage_chain_stage"),
         Index("ix_attack_chain_stage_chain_id", "chain_id"),
     )
