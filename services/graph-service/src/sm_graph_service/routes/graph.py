@@ -12,9 +12,16 @@ from fastapi import APIRouter, Depends, Query
 from sm_common.errors import NotFound
 from sm_common.security import InternalPrincipal
 
-from ..deps import get_principal, get_repository
+from ..deps import Services, get_principal, get_repository, get_services
+from ..intel import analyse_neighbourhood
 from ..repository import GraphRepository
-from ..schemas import EntityResponse, GraphNodeModel, NeighborsResponse, PathResponse
+from ..schemas import (
+    EntityResponse,
+    GraphIntelResponse,
+    GraphNodeModel,
+    NeighborsResponse,
+    PathResponse,
+)
 from ..version import API_PREFIX
 
 __all__ = ["router"]
@@ -46,6 +53,24 @@ async def neighbors(
 ) -> NeighborsResponse:
     view = await repo.neighbors(principal.tenant_id, label, key, depth=depth, limit=limit)
     return NeighborsResponse.of(depth, view)
+
+
+@router.get("/intel", response_model=GraphIntelResponse)
+async def intel(
+    label: str = Query(description="Subject node label."),
+    key: str = Query(description="Subject node natural key value."),
+    depth: int = Query(default=2, ge=1, description="Neighbourhood depth (clamped to the server cap)."),
+    principal: InternalPrincipal = Depends(get_principal),
+    repo: GraphRepository = Depends(get_repository),
+    services: Services = Depends(get_services),
+) -> GraphIntelResponse:
+    if await repo.entity(principal.tenant_id, label, key) is None:
+        raise NotFound(f"{label} {key!r} not found")
+    view = await repo.neighbors(principal.tenant_id, label, key, depth=depth)
+    result = analyse_neighbourhood(
+        view, label=label, key=key, z_threshold=services.settings.graph_anomaly_z
+    )
+    return GraphIntelResponse.of(result)
 
 
 @router.get("/paths", response_model=PathResponse)

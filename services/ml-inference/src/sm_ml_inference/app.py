@@ -19,8 +19,9 @@ from sm_common.fastapi import (
 from sm_common.logging import configure_logging, get_logger
 from sm_common.observability import build_metrics, configure_tracing
 from sm_ml import ModelRegistry
+from sm_ml.graph import GraphModelRegistry
 
-from .deps import ModelHost, Services
+from .deps import GraphModelHost, ModelHost, Services
 from .metrics import InferenceMetrics
 from .routes import health, infer, metrics
 from .version import SERVICE_NAME, SERVICE_VERSION
@@ -35,17 +36,19 @@ def build_services(settings: AppSettings) -> Services:
     inference_metrics = InferenceMetrics(base_metrics, SERVICE_NAME)
     registry = ModelRegistry.from_env()
     host = ModelHost(registry, inference_metrics)
-    catalog = host.catalog()
+    graph_host = GraphModelHost(GraphModelRegistry.from_env(), inference_metrics)
     _log.info(
         "model_registry_scanned",
         service=SERVICE_NAME,
-        registered=[r.name for r in catalog],
+        registered=[r.name for r in host.catalog()],
+        graph_registered=[r.name for r in graph_host.catalog()],
     )
     return Services(
         settings=settings,
         metrics=base_metrics,
         inference_metrics=inference_metrics,
         host=host,
+        graph_host=graph_host,
     )
 
 

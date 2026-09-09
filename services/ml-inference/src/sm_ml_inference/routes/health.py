@@ -30,6 +30,7 @@ async def healthz() -> HealthResponse:
 async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
     catalog = services.host.catalog()
     loaded = services.host.loaded()
+    graph_catalog = services.graph_host.catalog()
     return ReadyResponse(
         ready=True,  # models are optional; the caller degrades when one is missing
         dependencies=[
@@ -37,7 +38,12 @@ async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
                 name="models",
                 healthy=True,
                 detail=f"{len(catalog)} registered, {len(loaded)} loaded",
-            )
+            ),
+            DepStatus(
+                name="graph_models",
+                healthy=True,
+                detail=f"{len(graph_catalog)} registered + structural (builtin)",
+            ),
         ],
     )
 
