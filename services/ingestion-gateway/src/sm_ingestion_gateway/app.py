@@ -11,6 +11,11 @@ Middleware order (outermost first):
 
 There is no CORS middleware: sensors are not browsers.
 
+Event sinks: when `SM_EVENT_BUS_ENABLED=true` the accepted-event and DLQ sinks
+are Kafka producers to `telemetry.raw` / `telemetry.raw.dlq` and `/readyz`
+probes the producer; otherwise they are the logging stopgaps. In production the
+bus is mandatory — `create_app` refuses to start with it disabled.
+
 `create_app` accepts a pre-built `Services` so tests substitute in-memory sinks,
 a fake Redis and (optionally) a real database.
 """
@@ -22,6 +27,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from sm_common.bus import EventBusProducer
 from sm_common.cache import Cache
 from sm_common.config import AppSettings, load_settings
 from sm_common.db import Database
@@ -38,9 +44,10 @@ from sm_common.security import SensorAuth
 
 from .dedup import Dedup
 from .deps import Services
+from .kafka_sinks import KafkaDeadLetterSink, KafkaRawEventSink
 from .metrics import IngestionMetrics
 from .routes import health, ingest, metrics
-from .sinks import LoggingDeadLetterSink, LoggingRawEventSink
+from .sinks import DeadLetterSink, LoggingDeadLetterSink, LoggingRawEventSink, RawEventSink
 from .version import SERVICE_NAME, SERVICE_VERSION
 
 __all__ = ["build_services", "create_app"]
@@ -52,6 +59,18 @@ def build_services(settings: AppSettings) -> Services:
     db = Database.from_settings(settings)
     cache = Cache.from_settings(settings)
     base_metrics = build_metrics(SERVICE_NAME)
+
+    bus: EventBusProducer | None = None
+    raw_sink: RawEventSink
+    dlq_sink: DeadLetterSink
+    if settings.event_bus_enabled:
+        bus = EventBusProducer.from_settings(settings)
+        raw_sink = KafkaRawEventSink(bus)
+        dlq_sink = KafkaDeadLetterSink(bus)
+    else:
+        raw_sink = LoggingRawEventSink()
+        dlq_sink = LoggingDeadLetterSink()
+
     return Services(
         settings=settings,
         db=db,
@@ -59,13 +78,14 @@ def build_services(settings: AppSettings) -> Services:
         metrics=base_metrics,
         ingest_metrics=IngestionMetrics(base_metrics, SERVICE_NAME),
         sensor_auth=SensorAuth(),
-        raw_sink=LoggingRawEventSink(),
-        dlq_sink=LoggingDeadLetterSink(),
+        raw_sink=raw_sink,
+        dlq_sink=dlq_sink,
         dedup=Dedup(
             cache.client,
             ttl_seconds=settings.ingest_dedup_ttl_seconds,
             key_prefix=settings.redis_key_prefix,
         ),
+        bus=bus,
     )
 
 
@@ -76,6 +96,12 @@ def create_app(
     configure_logging(resolved_settings)
     configure_tracing(resolved_settings)
 
+    if resolved_settings.is_production and not resolved_settings.event_bus_enabled:
+        raise RuntimeError(
+            "SM_EVENT_BUS_ENABLED must be true in production: the ingestion "
+            "gateway must not drop telemetry into a logging stopgap sink"
+        )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         owns_services = services is None
@@ -83,17 +109,22 @@ def create_app(
         app.state.services = resolved_services
         app.state.rate_limit_redis = resolved_services.cache.client
         app.state.rate_limit_metrics = resolved_services.metrics
+        if owns_services and resolved_services.bus is not None:
+            await resolved_services.bus.start()
         _log.info(
             "service_start",
             service=SERVICE_NAME,
             version=SERVICE_VERSION,
             profile=resolved_settings.deployment_profile,
+            event_bus=resolved_settings.event_bus_enabled,
         )
         try:
             yield
         finally:
             if owns_services:
                 built: Services = app.state.services
+                if built.bus is not None:
+                    await built.bus.stop()
                 await built.db.dispose()
                 await built.cache.close()
             shutdown_tracing()

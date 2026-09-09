@@ -7,11 +7,10 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 2 — Telemetry Ingestion + Normalization. IN PROGRESS (Units 1 and 2
-done).** Next: Unit 3 (Kafka producer behind `RawEventSink`). Phase 1 exited
-INTEGRATION VERIFIED on local Docker (52 integration tests, full compose stack,
-image build); the CI `integration`/`image` jobs remain the independent
-confirmation and still need a GitHub remote.
+**Phase 2 — Telemetry Ingestion + Normalization. IN PROGRESS (Units 1, 2, 3
+done).** Next: Unit 4 (`normalization-engine`). Phase 1 exited INTEGRATION
+VERIFIED on local Docker; the CI `integration`/`image` jobs remain the
+independent confirmation and still need a GitHub remote.
 
 At resume on 2026-09-09 the Phase 1 integration suite was re-run to confirm the
 recorded state: `docker compose up -d postgres redis` then
@@ -66,21 +65,55 @@ so `authenticate` runs inside `Database.transaction()`.
   `(sensor_id, id)`, TTL `SM_INGEST_DEDUP_TTL_SECONDS`. A Redis outage returns
   `DedupState.unavailable` and the event is still sinked (downstream is
   idempotent on `event_id`).
-- `sinks.py`: `RawEventSink` / `DeadLetterSink` protocols with **logging
-  stopgaps** (`LoggingRawEventSink`, `LoggingDeadLetterSink`). The Kafka
-  producer (`telemetry.raw` / `telemetry.raw.dlq`) is Unit 3 and drops in
-  behind the same interfaces.
-- `/healthz`, `/readyz` (postgres + redis), `/api/v1/meta`, `/metrics`
-  (`sm_ingest_{accepted,rejected,duplicates,dedup_errors}_total`).
+- `sinks.py`: `RawEventSink` / `DeadLetterSink` protocols. Unit 2 shipped
+  logging stopgaps; Unit 3 (below) added the Kafka implementations behind the
+  same interfaces.
+- `/healthz`, `/readyz` (postgres + redis [+ kafka when the bus is on]),
+  `/api/v1/meta`, `/metrics`
+  (`sm_ingest_{accepted,rejected,duplicates,dedup_errors,sink_errors}_total`).
 
 One image (`Dockerfile.app`) now builds both services; the compose `command:`
 selects the entrypoint. `ingestion-gateway` is in the default compose profile.
 
-Verified (2026-09-09): pytest **242** non-integration (29 new — `test_ingest.py`
-15, `test_envelope.py` 4, `test_dedup.py` 2, `test_health.py` 6, plus the 11
-`SensorAuth` unit tests), **59** integration (7 new — `test_sensor_auth_pg.py`),
-`mypy --strict` clean (87 files), `ruff` clean, `gen_contracts.py --check` clean.
-NOT VERIFIED: the `ingestion-gateway` container actually starting; CI.
+Verified (2026-09-09): pytest **242** non-integration, **59** integration,
+`mypy --strict` clean, `ruff` clean, `gen_contracts.py --check` clean.
+
+### Phase 2, Unit 3 — Kafka producer behind `RawEventSink` (DONE)
+
+- `sm_common.bus.EventBusProducer` (aiokafka) — the shared producer wrapper:
+  `enable_idempotence=True` (⇒ `acks=all`), bounded `request_timeout_ms`, keyed
+  `send_and_wait`, `start()`/`stop()` for the lifespan, `ping()` (forces a
+  metadata refresh) for readiness. `from_settings` reads `SM_KAFKA_*`. ADR-004
+  updated: **aiokafka** is the chosen client. aiokafka added to `sm-common`
+  deps; `[[tool.mypy.overrides]]` for the missing stubs.
+- `sm_ingestion_gateway.kafka_sinks`: `KafkaRawEventSink` → `telemetry.raw`
+  (canonical JSON, keyed on `partition_key`), `KafkaDeadLetterSink` →
+  `telemetry.raw.dlq` (raw body verbatim, `reason` / `source_type` / `sensor_id`
+  in headers, keyed on sensor id).
+- `build_services` picks the Kafka sinks + opens the producer when
+  `SM_EVENT_BUS_ENABLED=true`, else the logging stopgaps. `create_app` refuses
+  to start in production with the bus disabled. `/readyz` gains a `kafka` probe
+  when the bus is on.
+- Pipeline failure policy: a `raw_sink` produce failure → `503`
+  `dependency_unavailable` (single and batch — batch aborts, sensor retries the
+  whole batch, consumers idempotent on `event_id`), metered
+  `sm_ingest_sink_errors_total{sink=raw}`. A `dlq_sink` failure is swallowed and
+  metered `{sink=dlq}` so a second sink failure cannot turn a client 4xx into a
+  5xx.
+- `partition_key` conformed to `event-model.md`:
+  `sha256(<tenant_id>:<primary_entity>)[:16]` (was a readable `<tid>:<entity>` —
+  an unrecorded Unit 2 divergence, now fixed).
+- compose `redpanda` given a dual listener (`INTERNAL://redpanda:9092`,
+  `EXTERNAL://localhost:19092`) + healthcheck; CI `integration` job starts
+  redpanda as a plain container (service containers can't take a start command).
+
+Verified (2026-09-09): pytest **249** non-integration (7 new — `test_kafka_sinks.py`
+4, sink-failure cases in `test_ingest.py` 3), **61** integration (2 new —
+`tests/integration/test_ingestion_bus_pg.py`: accepted event round-trips through
+`telemetry.raw`; malformed body lands on `telemetry.raw.dlq` with headers —
+against real Redpanda + Postgres + Redis). `mypy --strict` clean (90 files),
+`ruff` clean, `gen_contracts --check` clean, `docker compose --profile bus config`
+valid. NOT VERIFIED: either gateway container actually starting under compose; CI.
 
 ### Phase 1 — INTEGRATION VERIFIED on local Docker (kept for the record)
 
@@ -483,7 +516,7 @@ integration tests" elsewhere in this file are historical.
   started).
 - Any metric scraped from a running Prometheus; any span at a collector.
 
-## Completed files (Phase 2, Units 1–2)
+## Completed files (Phase 2, Units 1–3)
 
 **Created:**
 
@@ -498,6 +531,11 @@ integration tests" elsewhere in this file are historical.
   `metrics.py`, `schemas.py`, `pipeline.py`, `routes/{__init__,ingest,health,metrics}.py`;
   `tests/{conftest,test_ingest,test_envelope,test_dedup,test_health}.py`
   (Unit 2 step 2).
+- `packages/common-py/src/sm_common/bus/{__init__,producer.py}` (Unit 3 —
+  `EventBusProducer`).
+- `services/ingestion-gateway/src/sm_ingestion_gateway/kafka_sinks.py`,
+  `services/ingestion-gateway/tests/test_kafka_sinks.py`,
+  `tests/integration/test_ingestion_bus_pg.py` (Unit 3).
 
 **Modified:**
 
@@ -510,22 +548,34 @@ integration tests" elsewhere in this file are historical.
   (default `True`; ingestion passes `False`), `_send_429` generalized to
   `_send_error`.
 - `deploy/docker/Dockerfile.app` (install `ingestion-gateway`, one image for all
-  services), `deploy/docker/docker-compose.yml` (`ingestion-gateway` service,
-  default profile), `Makefile`, `pyproject.toml` (isort known-first-party),
-  `.github/workflows/ci.yml` (install + `mypy` cover the new service).
+  services), `deploy/docker/docker-compose.yml` (`ingestion-gateway` service;
+  `redpanda` dual listener + healthcheck), `Makefile`, `pyproject.toml` (isort
+  known-first-party; aiokafka mypy override), `.github/workflows/ci.yml`
+  (install + `mypy` cover the new service; `integration` job starts redpanda).
+- `packages/common-py/pyproject.toml` (aiokafka dep),
+  `packages/common-py/src/sm_common/config.py` + `.env.example`
+  (`ingest_*`, `kafka_sasl_*`, `kafka_send_timeout_ms`, `event_bus_enabled`;
+  `SM_KAFKA_BOOTSTRAP_SERVERS` default → `localhost:19092`).
+- `services/ingestion-gateway/src/sm_ingestion_gateway/{app,deps,pipeline,
+  metrics,envelope}.py`, `routes/health.py`, `README.md` (Unit 3 — bus wiring,
+  sink-failure policy, sha256 `partition_key`).
+- `docs/ARCHITECTURE_DECISIONS.md` (ADR-004 client = aiokafka; ADR-008 dual
+  listener).
 
-## Verification performed (Phase 2, Unit 2 — executed 2026-09-09)
+## Verification performed (Phase 2, Units 2–3 — executed 2026-09-09)
 
 | Check | Command | Result |
 |---|---|---|
-| Non-integration suite | `pytest packages services tests -q -m "not integration"` | **242 passed** |
-| Integration suite | `pytest tests/integration -q` with `SM_REQUIRE_INTEGRATION=1`, real Postgres 16 + Redis 7 | **59 passed** |
-| Type check | `mypy --strict --python-version 3.11` over all four src trees | **no issues in 87 files** |
+| Non-integration suite | `pytest packages services tests -q -m "not integration"` | **249 passed** |
+| Integration suite | `pytest tests/integration -q` with `SM_REQUIRE_INTEGRATION=1`, real Postgres 16 + Redis 7 + Redpanda v24.2.11 | **61 passed** |
+| Bus round-trip | `test_ingestion_bus_pg.py` — POST → consume `telemetry.raw`; malformed → consume `telemetry.raw.dlq` | **2 passed** against real Redpanda |
+| Type check | `mypy --strict --python-version 3.11` over all four src trees | **no issues in 90 files** |
 | Lint | `ruff check packages services tests migrations scripts` | **All checks passed** |
 | Contract schema | `python scripts/gen_contracts.py --check` | up to date |
+| Compose | `docker compose --profile bus config` | valid |
 
-**Not verified:** the `ingestion-gateway` container starting under compose; the
-Kafka sinks (Unit 3); anything in CI (no GitHub remote).
+**Not verified:** either gateway container actually starting under compose;
+anything in CI (no GitHub remote).
 
 ## APIs
 
@@ -546,11 +596,12 @@ rules (UTC normalization, producer format, clock-skew guard). `EventType`
 registry present. `EVENT_PAYLOAD_REGISTRY` maps: `UserEventPayload` (Phase 1);
 `NetworkFlowPayload`, `AuthEventPayload`, `DnsQueryPayload`, `ProcessExecPayload`,
 `FileAccessPayload`, `CanonicalEventPayload` (Phase 2, Unit 1). The five sensor
-payloads are now **produced** by `ingestion-gateway` (Unit 2) as concrete
-`EventEnvelope[...]` values — but only into the logging stopgap sink; nothing
-reaches a real Kafka topic until Unit 3, so they stay "STABLE target, not yet on
-the bus". `event.canonical` is DRAFT (needs `normalization-engine`, Unit 4).
-Topic catalog + semantics in `event-model.md`. Exactly-once not claimed.
+payloads are **produced onto `telemetry.raw`** by `ingestion-gateway` — Unit 3
+wired the real aiokafka producer (idempotent, `acks=all`), verified end-to-end
+against Redpanda (`test_ingestion_bus_pg.py`); malformed bodies go to
+`telemetry.raw.dlq`. First real traffic on the bus. `event.canonical` is DRAFT —
+its producer `normalization-engine` is Unit 4. Topic catalog + semantics in
+`event-model.md`. At-least-once; exactly-once not claimed.
 
 ## Schemas / migrations
 
@@ -722,40 +773,47 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 2, Unit 3 — the Kafka producer behind `RawEventSink`.**
+**PHASE 2, Unit 4 — `services/normalization-engine`.**
 
-Units 1 (`sm_contracts.telemetry`), 2 step 1 (`SensorAuth`) and 2 step 2
-(`ingestion-gateway`) are done (see the "Phase 2, Unit 2" section above and the
-verification section below). Unit 3:
+Units 1–3 are done (telemetry contracts; `SensorAuth`; `ingestion-gateway`;
+`EventBusProducer` + Kafka sinks). Unit 4:
 
-1. A `KafkaRawEventSink` (aiokafka producer, Redpanda in the `bus` compose
-   profile) that writes the accepted `EventEnvelope` to `telemetry.raw`, keyed
-   on `partition_key`, with `acks=all` and an idempotent producer. It replaces
-   `LoggingRawEventSink` behind the existing `RawEventSink` interface — the
-   gateway route code does not change.
-2. A `KafkaDeadLetterSink` writing the rejected raw body to `telemetry.raw.dlq`
-   with the reason in a header. Replaces `LoggingDeadLetterSink`.
-3. Producer failure policy: a send failure on the accepted path must fail the
-   request (`503`), not silently drop — the sensor retries. Bounded in-flight,
-   a send timeout, and a metric (`sm_ingest_sink_errors_total`).
-4. `services/ingestion-gateway` gains an optional `bus` dependency; `readyz`
-   probes the producer when it is configured. `build_services` picks the Kafka
-   sinks when `SM_KAFKA_BOOTSTRAP_SERVERS` points at a real broker, the logging
-   stopgaps otherwise (so the unit tests stay Docker-free).
-5. Integration test (needs `docker compose --profile bus up -d redpanda`): post
-   to `/api/v1/ingest/network_flow`, consume from `telemetry.raw`, assert the
-   envelope round-trips; post a malformed body, consume from `telemetry.raw.dlq`.
-6. Docs: this file; `REQUIREMENTS_TRACEABILITY.md` R1 → INTEGRATION VERIFIED once
-   the bus round-trip test passes in CI.
-
-Then **Unit 4** = `normalization-engine` (consume `telemetry.raw`, produce
-`event.canonical` on `events.canonical`, DLQ on `telemetry.raw.dlq`).
+1. A shared Kafka **consumer** wrapper in `sm_common.bus` (aiokafka
+   `AIOKafkaConsumer`): consumer group from `SM_KAFKA_CONSUMER_GROUP`, manual
+   commit after successful handling, `start()`/`stop()`, a `ping()` for
+   readiness. At-least-once; the handler must be idempotent on `event_id`.
+2. `services/normalization-engine`: consume `telemetry.raw`, validate each
+   record as its `EventEnvelope[<telemetry payload>]`, run the per-source-type
+   normalizer to a `CanonicalEventPayload` (deterministic mapping only —
+   Geo-IP / hostname / identity / TI enrichment are stubs with a clear
+   interface, real providers are later units/phases), wrap it in
+   `EventEnvelope[CanonicalEventPayload]` (new `event_id`, same `correlation_id`,
+   `raw_event_id` = the source event id, `producer = normalization-engine@...`),
+   and produce to `events.canonical`. A record that fails to parse/normalize →
+   `telemetry.raw.dlq` with a reason; poison messages do not block the partition.
+3. `/healthz`, `/readyz` (kafka consumer + producer), `/metrics`
+   (`sm_normalize_{in,out,dlq}_total{source_type}`, lag if cheap). No HTTP
+   ingest surface — it is a pure stream processor.
+4. Unit tests: one golden normalization per source type (payload in → canonical
+   out, entities/actor/target populated, lineage kept); malformed record → DLQ;
+   the consumer wrapper commit-after-handle behaviour with a fake.
+5. Integration test (`--profile bus`): produce a `telemetry.raw` record, run one
+   normalize cycle, consume `events.canonical`, assert the canonical envelope;
+   produce a poison record, assert it lands on the DLQ and the next good record
+   still processes.
+6. Docs: this file; promote `event.canonical` DRAFT → implemented in
+   `CONTRACTS.md`; `REQUIREMENTS_TRACEABILITY.md` R2; add `normalization-engine`
+   to the image / compose / CI.
 
 ### Standing debt before Phase 2 can be declared complete
 
 - The CI `integration` and `image` jobs still have not run (no GitHub remote).
-  They now also cover `SensorAuth` SQL and the `ingestion-gateway` image
-  entrypoint. Must run before Phase 2 exit.
+  They now also cover `SensorAuth` SQL, the `ingestion-gateway` image entrypoint,
+  and the `telemetry.raw` / `telemetry.raw.dlq` bus round-trip (`integration`
+  job starts a redpanda container). Must run before Phase 2 exit.
+- `telemetry.raw` / `telemetry.raw.dlq` topics are Redpanda-auto-created locally
+  and in CI. A real deployment pre-creates them with the partition counts in
+  `event-model.md` — recorded as a deploy-time task, not code.
 - The `ingestion-gateway` per-IP rate limiter is a placeholder; per-sensor
   quota (keyed on the resolved `SensorIdentity`, after auth) is the intended
   design and is deferred to a later unit.

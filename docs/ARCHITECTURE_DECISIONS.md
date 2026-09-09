@@ -153,7 +153,9 @@ This keeps `monolith` honest (it is composition, not coupling) and makes the
 **Version.** Python 3.11.5 (local); FastAPI ≥ 0.115; Pydantic ≥ 2.9; Uvicorn
 (dev) / Gunicorn+Uvicorn workers (prod); `httpx` for outbound; `asyncpg` +
 SQLAlchemy 2.0 (async) for Postgres; `neo4j` official async driver;
-`aiokafka` or `confluent-kafka` for Kafka (decided in Phase 1 after a spike);
+**`aiokafka`** (≥ 0.11) for Kafka — chosen Phase 2 Unit 3: asyncio-native (no
+librdkafka thread-pool bridge), pure-Python wheels, idempotent-producer support;
+`confluent-kafka` stays the fallback if throughput ever demands librdkafka.
 `redis` (redis-py ≥ 5, async).
 
 **Purpose.** Serves requirements 1, 2, 8, 9, 14, 18, 22, 24, 29, 32 (HTTP APIs,
@@ -195,8 +197,8 @@ for auth dependencies; never trust client-supplied identity/tenant/role.
 neo4j driver (Apache-2.0). All permissive.
 
 **Local dev implications.** `python -m venv` per service, or `uv` once installed.
-No compiler toolchain needed except for optional `confluent-kafka` (wheels
-available on Windows).
+No compiler toolchain needed — `aiokafka` (the chosen Kafka client) ships pure
+wheels.
 
 **Production implications.** Gunicorn with Uvicorn workers behind the ingress;
 `--max-requests` recycling; graceful shutdown wired to Kafka consumer close and
@@ -376,8 +378,10 @@ subject to field-level redaction rules before they leave a trust boundary.
 Apache-2.0 after 4 years) — acceptable for local dev; production choice is
 open.
 
-**Local dev.** Redpanda container in `docker-compose` (Phase 1) — requires
-Docker (external requirement).
+**Local dev.** Redpanda container in `docker-compose` `bus` profile — requires
+Docker. Dual listener: `INTERNAL://redpanda:9092` for compose-network clients,
+`EXTERNAL://localhost:19092` for host clients and integration tests. Client:
+`aiokafka` (ADR-004), idempotent producer, `acks=all`.
 
 ---
 

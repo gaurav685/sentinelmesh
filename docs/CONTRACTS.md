@@ -108,13 +108,14 @@ Implementation: `sm_contracts.events.EventEnvelope[PayloadT]`.
 
 The five `telemetry.*` payloads and `event.canonical` (`CanonicalEventPayload`)
 are **implemented** in `sm_contracts.telemetry` and registered in
-`EVENT_PAYLOAD_REGISTRY` (Phase 2, Unit 1). As of Phase 2 Unit 2 the five
-`telemetry.*` payloads are also **produced** — `ingestion-gateway` builds the
-concrete `EventEnvelope[...]` for each accepted sensor payload — but only into a
-logging stopgap sink; the Kafka producer to `telemetry.raw` arrives in Unit 3.
-They stay **STABLE target** until that ships and the sensor→topic round-trip is
-integration-tested. `event.canonical` stays STABLE target pending
-`normalization-engine`. Every other payload model is **DRAFT**.
+`EVENT_PAYLOAD_REGISTRY` (Phase 2, Unit 1). As of Phase 2 Unit 3 the five
+`telemetry.*` payloads are **produced onto `telemetry.raw`** for real —
+`ingestion-gateway` builds the concrete `EventEnvelope[...]` for each accepted
+sensor payload and an idempotent aiokafka producer writes it; the sensor→topic
+round-trip is integration-tested against Redpanda. They stay **STABLE target**
+(one consumer — `normalization-engine` — must exercise them before STABLE).
+`event.canonical` stays STABLE target pending that same engine. Every other
+payload model is **DRAFT**.
 
 ---
 
@@ -290,6 +291,7 @@ Action without `rollback_plan` cannot be `auto`.
 |---|---|---|
 | 2026-09-08 | Initial contract set authored (Phase 0). API conventions, error contract, envelope, entity list, ownership, graph/ML/AI contract skeletons. | 0 |
 | 2026-09-09 | Telemetry payload contracts implemented (Phase 2, Unit 1): `NetworkFlowPayload`, `AuthEventPayload`, `DnsQueryPayload`, `ProcessExecPayload`, `FileAccessPayload`, `CanonicalEventPayload` + `EntityRef`; all registered in `EVENT_PAYLOAD_REGISTRY` and `SCHEMA_MODELS` (34 JSON Schema files). Sensor payloads validate IPs, bound free-text fields and normalize case; the canonical payload keeps `raw_event_id` lineage and requires `actor`/`target` to appear in `entities`. Status: STABLE target. | 2 (Unit 1) |
-| 2026-09-09 | `ingestion-gateway` implemented (Phase 2, Unit 2): sensor-authenticated `POST /api/v1/ingest/{source_type}` + `/batch`. The service now **produces** the five `telemetry.*` payloads as concrete `EventEnvelope[...]` values — `tenant_id`, `source.sensor_id` and `source.type` come from the authenticated `SensorIdentity`, never the body; `occurred_at` is lifted from the payload; `partition_key = <tenant_id>:<primary entity>`. Sink is a logging stopgap (Kafka producer is Unit 3). `SensorAuth` (`sm_common.security`) added and integration-verified. Payloads stay STABLE target. | 2 (Unit 2) |
+| 2026-09-09 | `ingestion-gateway` implemented (Phase 2, Unit 2): sensor-authenticated `POST /api/v1/ingest/{source_type}` + `/batch`. The service **produces** the five `telemetry.*` payloads as concrete `EventEnvelope[...]` values — `tenant_id`, `source.sensor_id` and `source.type` come from the authenticated `SensorIdentity`, never the body; `occurred_at` is lifted from the payload. `SensorAuth` (`sm_common.security`) added and integration-verified. | 2 (Unit 2) |
+| 2026-09-09 | Event bus live (Phase 2, Unit 3): `sm_common.bus.EventBusProducer` (aiokafka, idempotent, `acks=all`) + Kafka sinks. The five `telemetry.*` payloads are now on `telemetry.raw` for real (verified against Redpanda); malformed bodies on `telemetry.raw.dlq`. `partition_key` conformed to `event-model.md` = `sha256(<tenant_id>:<primary_entity>)[:16]`. Payloads → STABLE target holds pending `normalization-engine`. `event.canonical` still DRAFT. | 2 (Unit 3) |
 | 2026-09-08 | Phase-1 auth/admin API surface **implemented** in `services/api-gateway` and its contracts promoted DRAFT → **STABLE**: API conventions, the canonical error contract, the foundation endpoint set (§1.2), and the `Tenant`/`User`/`Role`/`Permission`/`UserRole`/`RolePermission`/`Sensor`/`AuditRecord` entity contracts. Cursor pagination, CSRF header (`X-CSRF-Token`) and the session cookie names are part of the stable surface. | 1 (Unit 4) |
 | 2026-09-08 | `packages/contracts-py` implements the canonical `EventEnvelope`, the `ErrorResponse` contract (`HTTP_STATUS_BY_CODE`), Phase-1 entity DTOs (`Tenant`, `User`, `Role`, `Permission`, `RolePermission`, `UserRoleGrant`, `Sensor`, `AuditRecord`), Phase-1 API models, and shared enums. JSON Schema generated to `packages/contracts-ts/schemas/` via `scripts/gen_contracts.py`. Status of these contracts: **STABLE target** — promoted to STABLE when the Phase-1 endpoints that use them ship. `identity_link` ownership corrected to `normalization-engine` (Phase 2) — see `architecture/consistency-review.md`. | 0 (close) |

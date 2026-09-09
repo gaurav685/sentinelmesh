@@ -143,18 +143,24 @@ class FakeSensorAuth:
 class RecordingRawSink:
     def __init__(self) -> None:
         self.events: list[EventEnvelope[Any]] = []
+        self.fail = False
 
     async def put(self, envelope: EventEnvelope[Any]) -> None:
+        if self.fail:
+            raise ConnectionError("event bus down")
         self.events.append(envelope)
 
 
 class RecordingDeadLetterSink:
     def __init__(self) -> None:
         self.items: list[dict[str, Any]] = []
+        self.fail = False
 
     async def put(
         self, *, source_type: str, raw_body: bytes, reason: str, sensor_id: UUID | None
     ) -> None:
+        if self.fail:
+            raise ConnectionError("dlq down")
         self.items.append(
             {"source_type": source_type, "raw_body": raw_body, "reason": reason,
              "sensor_id": sensor_id}

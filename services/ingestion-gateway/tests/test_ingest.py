@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 import pytest
@@ -22,7 +23,7 @@ def test_valid_flow_is_accepted_and_envelope_is_server_built(
     assert env.source.type.value == "sensor"
     assert env.source.sensor_id == sensor_id
     assert env.producer.startswith("ingestion-gateway@")
-    assert env.partition_key == f"{tenant_id}:10.0.0.1"
+    assert env.partition_key == hashlib.sha256(f"{tenant_id}:10.0.0.1".encode()).hexdigest()[:16]
     assert env.payload.protocol == "tcp"
 
 
@@ -176,3 +177,29 @@ def test_batch_over_the_limit_is_422(
     body = {"source_type": "network_flow", "events": [flow() for _ in range(3)]}
     r = client.post("/api/v1/ingest/batch", json=body, headers=auth_header)
     assert r.status_code == 422
+
+
+def test_raw_sink_failure_fails_the_request_with_503(
+    client: TestClient, rig: Any, auth_header: dict[str, str], flow: Any
+) -> None:
+    rig.raw.fail = True
+    r = client.post("/api/v1/ingest/network_flow", json=flow(), headers=auth_header)
+    assert r.status_code == 503
+    assert r.json()["error"]["code"] == "dependency_unavailable"
+
+
+def test_dlq_sink_failure_does_not_mask_the_422(
+    client: TestClient, rig: Any, auth_header: dict[str, str], flow: Any
+) -> None:
+    rig.dlq.fail = True
+    r = client.post("/api/v1/ingest/network_flow", json=flow(src_ip="bad"), headers=auth_header)
+    assert r.status_code == 422  # the client error survives a second sink failure
+
+
+def test_batch_raw_sink_failure_aborts_with_503(
+    client: TestClient, rig: Any, auth_header: dict[str, str], flow: Any
+) -> None:
+    rig.raw.fail = True
+    body = {"source_type": "network_flow", "events": [flow(), flow()]}
+    r = client.post("/api/v1/ingest/batch", json=body, headers=auth_header)
+    assert r.status_code == 503

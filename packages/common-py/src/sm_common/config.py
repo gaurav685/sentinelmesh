@@ -86,10 +86,17 @@ class AppSettings(BaseSettings):
     neo4j_database: str = "neo4j"
     neo4j_query_timeout_ms: int = Field(default=10_000, ge=0)
 
-    # ---- kafka (declared now; unused until Phase 2) ---------------------
+    # ---- kafka (event bus; ADR-008) -----------------------------------
     kafka_bootstrap_servers: str = "localhost:9092"
-    kafka_security_protocol: Literal["PLAINTEXT", "SASL_SSL"] = "PLAINTEXT"
+    kafka_security_protocol: Literal["PLAINTEXT", "SASL_PLAINTEXT", "SASL_SSL"] = "PLAINTEXT"
     kafka_consumer_group: str | None = None
+    kafka_sasl_username: SecretStr | None = None
+    kafka_sasl_password: SecretStr | None = None
+    kafka_send_timeout_ms: int = Field(default=10_000, ge=1_000, le=60_000)
+    # When true a producing service opens a Kafka producer at startup, probes it
+    # in `/readyz`, and its event sinks write to the bus. When false the sinks
+    # fall back to a logging stopgap (dev / tests without a broker).
+    event_bus_enabled: bool = False
 
     # ---- redis ----------------------------------------------------------
     redis_url: str = "redis://localhost:6379/0"

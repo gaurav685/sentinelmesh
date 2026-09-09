@@ -113,6 +113,10 @@ services:
       <<: *app-env
       SM_SERVICE_NAME: ingestion-gateway
       SM_DEPLOYMENT_PROFILE: monolith
+      # Off by default so the gateway runs without the `bus` profile. Set
+      # SM_EVENT_BUS_ENABLED=true in .env (with `--profile bus`) to produce to
+      # `telemetry.raw`; the in-network address is redpanda:9092 (x-app-env).
+      SM_EVENT_BUS_ENABLED: ${SM_EVENT_BUS_ENABLED:-false}
     ports:
       - "8001:8001"
     healthcheck:
@@ -177,16 +181,26 @@ services:
   redpanda:
     profiles: ["bus"]
     image: redpandadata/redpanda:v24.2.11
+    # Two listeners: INTERNAL for compose-network clients (advertised as
+    # `redpanda:9092`), EXTERNAL for host clients / tests (advertised as
+    # `localhost:19092`). A single listener advertising `redpanda:9092` is
+    # unreachable from the host after the bootstrap metadata round-trip.
     command:
       - redpanda
       - start
       - --smp=1
       - --overprovisioned
       - --node-id=0
-      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
-      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+      - --kafka-addr=INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:19092
+      - --advertise-kafka-addr=INTERNAL://redpanda:9092,EXTERNAL://localhost:19092
     ports:
-      - "9092:9092"
+      - "19092:19092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health -X brokers=localhost:9092 | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   minio:
     profiles: ["objects"]
