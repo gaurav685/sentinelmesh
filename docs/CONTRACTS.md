@@ -269,6 +269,28 @@ reproducibility:            # seed, lib versions, git commit captured per run
 
 No metric values appear until an experiment has actually run (ADR-024).
 
+**Phase 5 Unit 2 — implemented in `packages/ml-py` (`sm_ml`):**
+
+- `sm_ml.features` — `FEATURE_SCHEMA_VERSION` (currently `"1"`), a `FeatureSchema`
+  (ordered, named, bounded float features) per `CanonicalKind`, and
+  `extract_features(canonical) -> FeatureVector` (pure, deterministic, clamped).
+- `sm_ml.preprocessing.Preprocessor` — versioned `(x - mean) / std`
+  standardisation, serialisable, numpy-free.
+- `sm_ml.models` — `AnomalyModel` protocol → `AnomalyScore` (`score`,
+  `normalized_score` ∈ [0,1], `threshold`, `is_anomaly`, `model_version`,
+  `contributing_features`). `StatisticalModel` (MAD z-score, stdlib-only, always
+  available). `IsolationForestModel` (scikit-learn, `sm-ml[serving]`, loads a
+  joblib artifact). `AutoencoderModel` (architecture fixed, `score` raises
+  `ModelNotTrained`). `ModelUnavailable` / `ModelNotTrained` are the ADR-013
+  degrade signals.
+- `sm_ml.registry.ModelRegistry` — loads trained artifacts from
+  `SM_ML_MODEL_DIR` (`<name>/<version>/{metadata.json, model.joblib|model.json}`).
+  Missing directory = empty registry; `load` of an absent model raises
+  `ModelUnavailable`.
+- `ml/models/isolation_forest/CONTRACT.md`, `ml/models/autoencoder/CONTRACT.md` —
+  the §6 fields filled in, `evaluation: METRICS: NOT VERIFIED — REQUIRES
+  DATASET/TRAINING EXECUTION`.
+
 ---
 
 ## 7. AI / agent contracts (DRAFT — Phase 6/7)

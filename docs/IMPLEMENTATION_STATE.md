@@ -7,16 +7,20 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Unit 1 DONE (contracts +
-schema).** Unit 1: `sm_contracts` detection domain (`DetectionPayload` on the
-`detections` topic + `EventType.detection_raised`, `EvidenceItem` / `EvidenceKind`,
-`detection_dedup_key` / `detection_id_for`, the `Detection` / `Anomaly` /
-`ThreatScore` / `SecurityAlert` DTOs, the `Severity` / `DetectorKind` /
-`AnomalyMethod` / `ScoringStatus` / `DetectionStatus` / `AlertStatus` /
-`ThreatSubjectType` enums), the SQLAlchemy models + Alembic migration `0003`
-(`detection`, `anomaly`, `threat_score`, `security_alert` — the `detection-engine`
-system of record). Units 2–5 (the `sm_ml` feature/model layer, `ml-inference`,
-`detection-engine`, wiring + e2e + exit report) follow.
+**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Units 1–2 DONE.**
+Unit 1 (CI-green, run
+[`34353986031`](https://github.com/gaurav685/sentinelmesh/actions/runs/34353986031)):
+`sm_contracts` detection domain + Alembic `0003` (`detection` / `anomaly` /
+`threat_score` / `security_alert` — the `detection-engine` system of record).
+Unit 2 (local verified): `packages/ml-py` (`sm_ml`) — versioned `FeatureSchema`
+per `CanonicalKind` + deterministic numpy-free extractors, `Preprocessor`
+(versioned standardisation), the `AnomalyModel` protocol + `StatisticalModel`
+(MAD z-score, stdlib-only, the always-available / ADR-013 degraded path),
+`IsolationForestModel` (sklearn, `sm-ml[serving]`), `AutoencoderModel`
+architecture spec + `ModelNotTrained` guard, `ModelRegistry` (loads artifacts
+from `SM_ML_MODEL_DIR`; missing dir = empty), and `ml/models/*/CONTRACT.md` (§6,
+`METRICS: NOT VERIFIED`). Units 3–5 (`ml-inference`, `detection-engine`, wiring +
+e2e + exit report) follow.
 
 **Phase 4 — Neo4j + Graph Intelligence Foundation. COMPLETE / CI-VERIFIED.**
 Units 1–4, all four CI jobs green on a clean runner: runs
@@ -1345,24 +1349,22 @@ integration test. Docker is still absent.
 
 **Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; final run `34350607501`).
 
-**Phase 5 Unit 1 (contracts + `0003` migration) is code-complete and locally
-verified** (359 unit tests, ruff, `mypy --strict`, `gen_contracts --check`; 6
-real-PG detection-model tests + the migration up/down/up cycle). **Commit Unit 1,
-push, confirm CI green.**
+**Phase 5 Units 1–2 done.** Unit 1 CI-green (commit `5c7da92`, run `34353986031`).
+Unit 2 (`packages/ml-py`) locally verified: 378 unit tests, ruff, `mypy --strict`
+over 8 trees, `gen_contracts --check`. **Commit Unit 2, push, confirm CI green.**
 
-**Then Phase 5, Unit 2 — `packages/ml-py` (`sm_ml`).** The feature + model layer:
-versioned `FeatureSchema` + `FEATURE_SCHEMA_VERSION` + per-`CanonicalKind`
-deterministic extractors (numpy-free); `Preprocessor` (fit/transform, versioned);
-the `AnomalyModel` protocol + a numpy/statistics `StatisticalModel` (MAD z-score /
-rolling quantile — always available, the ADR-013 degraded path), an
-`IsolationForestModel` (sklearn, `sm-ml[serving]` extra), an `AutoencoderModel`
-architecture spec + `NOT_TRAINED` guard; a `ModelRegistry` loading artifacts from
-`SM_ML_MODEL_DIR`; `ml/models/<name>/CONTRACT.md` per CONTRACTS.md §6 with
-`METRICS: NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION`.
-Unit 3 = `services/ml-inference` (ADR-013 in-process serving, typed
-`MODEL_UNAVAILABLE`). Unit 4 = `services/detection-engine` (rules + composite
-deterministic score + adaptive thresholds + evidence + alert + `detections`
-topic + degrade-on-model-failure). Unit 5 = wiring + e2e + exit report + §23 +
+**Then Phase 5, Unit 3 — `services/ml-inference`.** ADR-013 in-process model
+serving: FastAPI, internal-JWT, loads `ModelRegistry.from_env()` at startup,
+`POST /api/v1/infer/{model}` (typed request = `{feature_schema_version, kind,
+features: [float]}`, typed response = the `AnomalyScore` shape). A missing model
+→ typed `MODEL_UNAVAILABLE` (not a 500); `/readyz` degrades if a *required* model
+is absent but the service still starts (the statistical path lives in
+detection-engine, so no model is strictly required yet). Per-model latency +
+error-type metrics; a "new model version" control-topic hot-reload (documented,
+minimal). Unit 4 = `services/detection-engine` (rules + composite deterministic
+score + adaptive thresholds via a rolling window + evidence + alert +
+`detections` topic + degrade-on-model-failure + tenant isolation). Unit 5 =
+wiring + real-infra e2e + Phase 5 exit report + §23 +
 `REQUIREMENTS_TRACEABILITY` R5/R8/R20.
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
