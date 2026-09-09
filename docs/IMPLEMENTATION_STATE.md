@@ -7,8 +7,15 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 6 — Threat Intelligence + MITRE ATT&CK. IN PROGRESS — Unit 1 DONE
-(contracts + `0004` schema).** `sm_contracts.mitre` (`AttackTactic` /
+**Phase 6 — Threat Intelligence + MITRE ATT&CK. IN PROGRESS — Units 1–2 DONE.**
+Unit 2: `services/mitre-service` (req 7) — Postgres catalog store,
+`scripts/import_attack_stix.py` + `stix.py` (STIX 2.1 → tactics/techniques/matrix
+version; a labelled fixture bundle drives tests; **no ATT&CK data ships**), a
+rule-based `MappingEngine` (validates a detection's candidate `technique_ids`
+against the imported catalog — unknown → `unmapped`, never guessed; deprecated →
+`unmapped`), consumes `detections` → `technique_mapping` upserts, internal API
+`GET /api/v1/mitre/{techniques,heatmap}` + `POST /map`, `/readyz` flags an empty
+catalog. Unit 1: `sm_contracts.mitre` (`AttackTactic` /
 `AttackTechnique` / `AttackMatrixVersion` / `TechniqueMapping` / `TechniqueMatch`;
 `MappingConfidence` / `MappingSource` / `MappingSubjectType`) and
 `sm_contracts.threatintel` (`ThreatIndicator` / `ThreatActor` / `TiCampaign` /
@@ -1493,23 +1500,19 @@ integration test. Docker is still absent.
 **Phase 5 is COMPLETE and CI-VERIFIED** (Units 1–5; commits `5c7da92` / `d6b2c1a`
 / `fe63df5` / `a40c22f` / `cd6e02e`; final run `34358654888` — all four jobs).
 
-**Phase 6 Unit 1 (contracts + `0004`) is code-complete and locally verified**
-(436 unit tests, ruff, `mypy --strict`, `gen_contracts --check`; 5 real-PG intel
-model tests + the `0001→0004` migration cycle). **Commit Unit 1, push, confirm CI
-green.**
+**Phase 6 Units 1–2 done.** Unit 1 CI-green (commit `b468eca`, run `34360762175`).
+Unit 2 (`mitre-service`) locally verified: 453 unit tests, ruff, `mypy --strict`
+over 11 trees, `gen_contracts --check`; 4 real-PG catalog/mapping tests; image
+builds and imports `sm_mitre_service`. **Commit Unit 2, push, confirm CI green.**
 
-**Then Phase 6, Unit 2 — `services/mitre-service`.** Postgres catalog store;
-`scripts/import_attack_stix.py` (parses a MITRE ATT&CK STIX 2.1 bundle from a
-local path into `attack_tactic` / `attack_technique` / `attack_matrix_version` —
-**no bundle ships**; a deterministic fixture bundle drives tests). A rule-based
-`map_behavior(...)` engine (`CanonicalKind` + action + a detection's
-rule-supplied `technique_ids` → `TechniqueMatch` with `confidence` / `source` /
-`rationale` / `matrix_version`). Internal API: `GET /api/v1/mitre/techniques`,
-`/heatmap`, `POST /api/v1/mitre/map`. Consumes `detections` → writes
-`technique_mapping` rows (never claims coverage beyond the imported catalog;
-unknown technique id → typed error; catalog absent → `UNMAPPED` + `/readyz`
-warns). Unit 3 = `services/threat-intel-service` (IOC store + freshness/expiry +
-enrichment API + `ti.updates` + expiry sweep). Unit 4 = provider adapters
+**Then Phase 6, Unit 3 — `services/threat-intel-service`.** Postgres IOC store
+(`threat_indicator` / `threat_actor` / `ti_campaign` / `ti_source`), dedup on
+`indicator_dedup_key` (global vs tenant-submitted), freshness/expiry derived on
+read (`freshness_for` vs the source TTL) + a scheduled expiry sweep that marks
+`expired` and emits `ti.updates`. Enrichment API `POST /api/v1/ti/enrich` (batch
+of `{type, value}` → `EnrichmentMatch` per input) + `GET /api/v1/ti/indicators`;
+internal-JWT. Produces `TiUpdatePayload` on `ti.updates` on add/update/expire.
+Unit 4 = provider adapters
 (`ThreatIntelProvider → ProviderAdapter → ExternalProvider`; timeouts / retries /
 429 / malformed-rejection / outage → cache+STALE; `FixtureProvider` labelled
 `source_kind=FIXTURE`; all feature-flagged off). Unit 5 = `normalization-engine`

@@ -1,0 +1,64 @@
+"""Liveness, readiness, build metadata.
+
+`/readyz` probes PostgreSQL and the Kafka consumer (both required). If the ATT&CK
+catalog has not been imported the service is still *ready* — mapping returns
+`unmapped` — but readiness carries a `catalog` dependency flagged unhealthy so an
+operator sees it.
+"""
+
+from __future__ import annotations
+
+from fastapi import APIRouter, Depends, Response
+
+from sm_common.observability import DependencyCheck, evaluate_readiness, liveness, probe_check
+from sm_contracts import DepStatus, HealthResponse, MetaResponse, ReadyResponse
+
+from ..deps import Services, get_services
+from ..version import API_PREFIX, SERVICE_NAME, SERVICE_VERSION
+
+__all__ = ["router"]
+
+router = APIRouter(tags=["health"])
+
+
+def _checks(services: Services) -> list[DependencyCheck]:
+    return [
+        probe_check("postgres", services.db, required=True),
+        probe_check("kafka_consumer", services.consumer, required=True),
+    ]
+
+
+@router.get("/healthz", response_model=HealthResponse)
+async def healthz() -> HealthResponse:
+    return liveness(SERVICE_NAME, SERVICE_VERSION)
+
+
+@router.get("/readyz", response_model=ReadyResponse)
+async def readyz(response: Response, services: Services = Depends(get_services)) -> ReadyResponse:
+    result = await evaluate_readiness(_checks(services))
+    for dep in result.dependencies:
+        services.metrics.dependency_up.labels(SERVICE_NAME, dep.name).set(1 if dep.healthy else 0)
+
+    count = 0
+    try:
+        count = await services.catalog.technique_count()
+    except Exception:
+        count = 0
+    services.mitre_metrics.catalog_techniques.labels(SERVICE_NAME).set(count)
+    result.dependencies.append(
+        DepStatus(name="attack_catalog", healthy=count > 0, detail=f"{count} techniques imported")
+    )
+
+    if not result.ready:
+        response.status_code = 503
+    return result
+
+
+@router.get(f"{API_PREFIX}/meta", response_model=MetaResponse)
+async def meta(services: Services = Depends(get_services)) -> MetaResponse:
+    return MetaResponse(
+        api_version=API_PREFIX.rsplit("/", 1)[-1],
+        service=SERVICE_NAME,
+        build=SERVICE_VERSION,
+        environment=services.settings.env.value,
+    )
