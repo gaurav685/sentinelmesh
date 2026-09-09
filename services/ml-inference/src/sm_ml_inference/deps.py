@@ -17,13 +17,27 @@ from sm_common.errors import Unauthenticated
 from sm_common.observability import Metrics
 from sm_common.security import InternalPrincipal, verify_internal_token
 from sm_ml import AnomalyModel, ModelRegistry
+from sm_ml.graph import GraphModelRegistry, GraphModelUnavailable, StructuralGraphAnomaly
+from sm_ml.graph.models.base import GraphAnomalyModel
+from sm_ml.graph.registry import GraphModelRef
 from sm_ml.models import ModelUnavailable
 from sm_ml.registry import ModelRef
 
 from .metrics import InferenceMetrics
 from .version import SERVICE_NAME
 
-__all__ = ["ModelHost", "Services", "get_host", "get_principal", "get_services"]
+__all__ = [
+    "GraphModelHost",
+    "ModelHost",
+    "Services",
+    "get_graph_host",
+    "get_host",
+    "get_principal",
+    "get_services",
+]
+
+# Names that resolve to the always-available structural detector (no artifact).
+_STRUCTURAL_NAMES = frozenset({"structural", "structural_zscore", "graph_anomaly"})
 
 
 class ModelHost:
@@ -59,12 +73,54 @@ class ModelHost:
         self._cache.clear()
 
 
+class GraphModelHost:
+    """Serves the Phase-8 graph models. The structural detector is always
+    available (fixed code, no artifact); a GNN name goes through the registry and
+    raises `GraphModelUnavailable` when its artifact or `torch` is missing — the
+    caller degrades to the structural path."""
+
+    def __init__(self, registry: GraphModelRegistry, metrics: InferenceMetrics) -> None:
+        self._registry = registry
+        self._metrics = metrics
+        self._cache: dict[str, GraphAnomalyModel] = {}
+
+    @property
+    def metrics(self) -> InferenceMetrics:
+        return self._metrics
+
+    def catalog(self) -> list[GraphModelRef]:
+        return self._registry.available()
+
+    def loaded(self) -> list[str]:
+        return sorted(self._cache)
+
+    def get(self, name: str) -> GraphAnomalyModel:
+        cached = self._cache.get(name)
+        if cached is not None:
+            return cached
+        if name in _STRUCTURAL_NAMES and not any(r.name == name for r in self._registry.available()):
+            model: GraphAnomalyModel = StructuralGraphAnomaly()
+        else:
+            try:
+                model = self._registry.load(name)
+            except GraphModelUnavailable:
+                self._metrics.load(f"graph:{name}", "unavailable")
+                raise
+        self._metrics.load(f"graph:{name}", "ok")
+        self._cache[name] = model
+        return model
+
+    def reload(self) -> None:
+        self._cache.clear()
+
+
 @dataclass
 class Services:
     settings: AppSettings
     metrics: Metrics
     inference_metrics: InferenceMetrics
     host: ModelHost
+    graph_host: GraphModelHost
 
 
 def get_services(request: Request) -> Services:
@@ -74,6 +130,10 @@ def get_services(request: Request) -> Services:
 
 def get_host(services: Services = Depends(get_services)) -> ModelHost:
     return services.host
+
+
+def get_graph_host(services: Services = Depends(get_services)) -> GraphModelHost:
+    return services.graph_host
 
 
 def get_principal(

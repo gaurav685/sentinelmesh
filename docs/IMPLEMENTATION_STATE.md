@@ -548,6 +548,70 @@ Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
 
+## Phase 8 exit report
+
+**State: COMPLETE — full local gauntlet green (ruff, `mypy --strict` over 14 src
+trees, unit tests + `gen_contracts --check`, real-infra integration against
+PostgreSQL 16 + Redis 7 + Neo4j 5, `Dockerfile.app` build). CI run pending — this
+section takes the run id once all four jobs are green on a clean runner.**
+
+**No accuracy / AUC / precision / recall / F1 number is produced or stored
+anywhere. No dataset and no trained GNN weights ship (ADR-024). Every graph-model
+contract carries `METRICS: NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION`;
+the training pipeline's headline metric is the same string and `benchmark_verified`
+is `false` for a fixture run. The `structural` graph detectors and the whole
+`sm_ml.temporal` engine are standard-library and deterministic — the same input
+always yields the same output.**
+
+### Delivered (Units 1–4)
+
+| Area | State |
+|---|---|
+| `sm_ml.graph` (Unit 1) | `GraphSample` (deterministic, numpy-free — node features are a pure function of the edge set + a temporal window; edges sorted so output is arrival-order-independent; a malformed sample raises `ValueError`). Versioned `GraphFeatureSchema` (`GRAPH_FEATURE_SCHEMA_VERSION = "1"`). Model interface `NodeAnomalyResult` / `SubgraphVerdict` / `ClusterResult` (each carries `model_version` + explicit `confidence`). Always-available: `StructuralGraphAnomaly` (MAD z-score + stdev floor so a lone outlier in a uniform crowd is still caught), `SuspiciousSubgraphHeuristic`, `ConnectedComponentClusterer` / `LabelPropagationClusterer`. GNN boundary: `GnnNodeAnomalyModel` + `GRAPHSAGE_SPEC` / `GAT_SPEC` (`sm-ml[gnn]` optional, not in CI; torch absent → `GraphModelUnavailable`, no weights → `GraphModelNotTrained`). `GraphModelRegistry`. `ml/models/{graphsage,gat,graph_anomaly}/CONTRACT.md`. |
+| `sm_ml.temporal` (Unit 2) | `TemporalEvent`; `EventTimeline` (bisect-ordered, `event_id` de-dup, out-of-order sorted, clock-skew clamped + counted, `gaps()` for missing data — order-independent); `TemporalGraphState.at(t)` (a pure fold → historical graph state → `GraphSample`); `build_progression` (furthest kill-chain stage over time, never regresses); `replay` + `ReplayCursor` (deterministic windowed re-emission); `stitch_sessions` (union-find over shared-entity + temporal proximity). Config `SM_TEMPORAL_MAX_CLOCK_SKEW_SECONDS` / `SM_TEMPORAL_SESSION_LINK_SECONDS`. |
+| `services/ml-training` (Unit 3) | The reproducible `dataset → preprocessing → graph construction → feature generation → training → validation → checkpoint → model version → inference → evaluation` pipeline (offline CLI `sm-ml-train`). `TrainingConfig.config_hash()` (byte-identical artifacts) + `model_version()`. `synthetic_fixture_dataset` (labelled toy graph — a plumbing check); `load_dataset` for a real JSON-lines benchmark with an id + sha256. `structural` trains fully offline (calibrates the z-threshold against the labelled train split); `graphsage` / `gat` → `PipelineSkipped` without torch, no artifact written. `ModelMetadata` records seed / versions / dataset id + sha256 / git commit / `EvaluationReport` (`headline_metrics: NOT VERIFIED`). `write_artifact` writes the `GraphModelRegistry` layout. Config `SM_ML_SEED` / `SM_GRAPH_ANOMALY_Z` / `SM_ML_GRAPH_MODEL_DIR`. |
+| Serving + intel (Unit 4) | `ml-inference`: `GraphModelHost` + `POST /api/v1/infer/graph/{model}` (structural always available as a builtin; a GNN name → 503 `MODEL_UNAVAILABLE` when its artifact or torch is missing; a malformed graph → 422, never a 500) + `GET /api/v1/graph/models`; `/readyz` reports the graph catalog. `graph-service`: `GET /api/v1/graph/intel?label=&key=&depth=` runs `StructuralGraphAnomaly` + `LabelPropagationClusterer` + `SuspiciousSubgraphHeuristic` over a bounded, tenant-scoped neighbourhood (`sm-ml` added as a dependency). CI: `ml-training` in the static mypy trees + all three install blocks (not the image). |
+
+### Integration verification
+
+- `tests/integration/test_graph_intel_neo4j.py` (real Neo4j) — a fan-out hub written via `GraphWriter`, read back via `GraphRepository.neighbors`, is flagged by `analyse_neighbourhood` and the neighbourhood forms one cluster.
+- `test_graph_pipeline_e2e.py` / `test_chain_pipeline_e2e_pg.py` (carried from earlier phases) still green — the graph the intel layer reads is the one the earlier pipeline writes.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Do not fabricate metrics (§3).** No accuracy / AUC / F1 / precision / recall / latency / throughput number appears in `sm_ml.graph`, `sm_ml.temporal`, `ml-training`, the graph-model contracts, the serving endpoints, or the docs. `ml-training`'s `EvaluationReport.headline_metrics` is the literal `NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION` and `benchmark_verified` is `false` for a fixture run; `val_metrics` are present but every path that surfaces them labels them a *plumbing check, not a performance claim*.
+- **Determinism.** `GraphSample` sorts nodes and edges, so its feature matrix and any model output are independent of arrival order. `StructuralGraphAnomaly` / the clusterers / the temporal engine use no clock and no RNG. `ml-training` seeds `random` (and `torch` when present) from `TrainingConfig.seed`; `config_hash()` excludes only `output_dir`, so two runs with the same config + dataset write byte-identical `model.json`. Tests assert each of these.
+- **Model-load failure is safe and observable (the phase's FAILURE section).** A GNN whose artifact or `torch` is missing raises a typed `GraphModel*` error; `ml-inference` maps it to HTTP 503 `MODEL_UNAVAILABLE` with a `model` detail (never a 500), a metric fires, and `graph-service`'s intel path never calls a GNN at all — it runs the stdlib structural models, which cannot be unavailable. `ml-training` writes nothing on `PipelineSkipped`. No unrelated service is affected: the graph models are optional everywhere they are used.
+- **Out-of-order / duplicate / clock-skew / missing (temporal).** `EventTimeline` handles all four explicitly and counts the corrections (`skew_corrected`, `duplicates_dropped`); `gaps()` surfaces missing data rather than hiding it. `replay` is read-only and rejects an inverted window.
+- **Never claim certainty.** `SubgraphVerdict.score` is bounded `[0,1]` and documented as a likelihood; `NodeScore.normalized_score` is validated in `[0,1]`; `confidence` on every result defaults to `0.0` until an evaluation run calibrates it.
+- **No ATT&CK-coverage claim.** The temporal `build_progression` reuses `sm_contracts.stage_for_technique`, which returns `AttackStage.unknown` for anything outside SentinelMesh's own rule techniques — carried over unchanged from Phase 7.
+- **Tenant isolation.** `graph-service`'s intel endpoint takes the tenant from the verified JWT and reads through `GraphRepository`, which scopes every Cypher traversal to that tenant (Phase 4 guarantee). `ml-inference`'s graph endpoint scores whatever graph the caller submits — it holds no tenant data.
+- **Bounded resources.** The intel neighbourhood read is depth-clamped and row-capped by the repository; `GraphInferRequest` caps nodes at 20 000 and edges at 100 000; `LabelPropagationClusterer` has a fixed iteration cap.
+
+### Deferred (deliberately)
+
+- **A trained GNN.** The GraphSAGE/GAT boundary, the training pipeline, the registry, and the serving endpoint are all real; the weights are not. Needs a real graph dataset + GPU (external, ADR-024).
+- **A streaming graph-intelligence job.** `graph-service`'s intel endpoint is pull-only. A consumer that scores the graph on `graph.events` and emits findings is a later phase.
+- **A predictive forecast.** `{predicted_action, probability, horizon, confidence}` and a trained sequence model. The temporal progression track + GNN embeddings are the foundation (R15).
+- **`temporal-stitcher` as a service** and a `graph-service` `GET /timeline/{entity}` endpoint — wired when Phase 9's UI needs them.
+- **`torch` in CI** — deliberately excluded; the structural path is what CI verifies.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| GraphSAGE / GAT | ✅ `GnnNodeAnomalyModel` + specs + registry + serving boundary (weights external) |
+| graph anomaly detection | ✅ `StructuralGraphAnomaly` (always) + GNN reconstruction-error path |
+| suspicious subgraph classification | ✅ `SuspiciousSubgraphHeuristic` + `graph-service` intel endpoint |
+| threat-cluster discovery | ✅ `ConnectedComponentClusterer` / `LabelPropagationClusterer` |
+| temporal analysis / historical replay / cross-session stitching | ✅ `sm_ml.temporal` (`EventTimeline` / `TemporalGraphState.at(t)` / `replay` / `stitch_sessions`) |
+| predictive attacker modeling foundation | ✅ `ProgressionTrack` + `TemporalGraphState` + GNN embeddings; no forecast yet |
+| reproducible pipeline with seeds / config / metadata / schema / versioning / artifacts | ✅ `services/ml-training` end to end on a fixture |
+| do not fabricate metrics | ✅ `NOT VERIFIED` everywhere; fixture metrics labelled a plumbing check |
+| model-load failure → fail safely + observable error + degraded behaviour + no crash of unrelated services | ✅ `MODEL_UNAVAILABLE` 503 / `PipelineSkipped` / structural fallback; unit + integration |
+| tests: graph preprocessing / feature generation / deterministic inference / model loading / malformed features / temporal ordering / replay / cross-session stitching | ✅ `test_graph_construct` / `test_graph_models` / `test_temporal` / `test_pipeline` / `test_infer_graph` / `test_intel` / `test_graph_intel_neo4j` |
+| **CI green on a clean runner** | ⏳ run pending — updated here when green |
+
 ## Phase 7 exit report
 
 **State: COMPLETE / CI-VERIFIED (all four jobs, run
@@ -1748,25 +1812,18 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Units 1–3 DONE.** Unit 1 (`sm_ml.graph`)
+**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Units 1–4 DONE.** Unit 1 (`sm_ml.graph`)
 CI-green (run `34408045416`); Unit 2 (`sm_ml.temporal`) CI-green (run
-`34408494057`). Unit 3 (`services/ml-training` — the reproducible pipeline, offline
-CLI, seeds + config-hash + artifact/metadata + `structural` z-threshold
-calibration; `graphsage`/`gat` → `PipelineSkipped` without torch, no fabricated
-model or metric): local gauntlet green — ruff, `mypy --strict` over 14 src trees
-(267 files), 556 unit tests + `gen_contracts --check`; `python -m sm_ml_training
---fixture` runs all ten stages and writes a `NOT VERIFIED` artifact. CI wired
-(`ml-training` in the static mypy trees + all three install blocks; not the image).
-**Commit Unit 3, push, confirm CI green.**
-
-**Then Unit 4 — serving + failure behaviour + close:** `ml-inference` serves the
-graph models (`POST /api/v1/infer/graph/{model}` — structural always, GNN when an
-artifact + torch exist; missing / unloadable → 503 `MODEL_UNAVAILABLE`,
-structural fallback documented). A `graph-intel` scoring capability (periodic over
-the Neo4j graph, folded into `correlation-engine` or a small job) emits findings.
-Failure tests: model can't load → fail safe, observable error, no crash of
-unrelated services. Phase 8 exit report + §23 + `REQUIREMENTS_TRACEABILITY` (GNN /
-temporal / predictive) + `CONTRACTS.md`.
+`34408494057`); Unit 3 (`services/ml-training`) CI-green (run `34409131977`).
+Unit 4 (serving + intel + close): `ml-inference` `POST /api/v1/infer/graph/{model}`
+(structural builtin; GNN → 503 `MODEL_UNAVAILABLE`; malformed graph → 422),
+`graph-service` `GET /api/v1/graph/intel`, `sm-ml` added to `graph-service`.
+Local gauntlet green — ruff, `mypy --strict` over 14 src trees (268 files), 568
+unit tests + `gen_contracts --check`, real-Neo4j `test_graph_intel_neo4j.py`,
+`Dockerfile.app` build + entrypoint import. Phase 8 exit report + §23 + R11 / R12
+→ IMPLEMENTED (library, no benchmark verified), R15 → FOUNDATION IMPLEMENTED +
+`CONTRACTS.md` "Phase 8 closed". **Commit Unit 4, push, confirm CI green → closes
+Phase 8.**
 
 **Then Unit 3 — `services/ml-training`:** the reproducible pipeline
 `dataset → preprocessing → graph construction → feature generation → training →
