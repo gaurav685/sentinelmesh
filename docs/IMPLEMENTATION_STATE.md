@@ -190,6 +190,57 @@ Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
 
+## Phase 2 exit report
+
+**State: IMPLEMENTED / INTEGRATION VERIFIED (local + compose + live) / §23
+REVIEWED. CI-VERIFIED pending a GitHub remote.**
+
+### Delivered (Units 1–4 + review)
+
+| Area | State |
+|---|---|
+| `sm_contracts.telemetry` | the 5 sensor payloads + `CanonicalEventPayload` / `EntityRef`; IP-validated, free-text bounded, case-normalized, cross-field rules, lineage. Registered in `EVENT_PAYLOAD_REGISTRY` + `SCHEMA_MODELS`. `make_partition_key` (shared derivation). STABLE target. |
+| `sm_common.bus` | `EventBusProducer` (aiokafka, idempotent, `acks=all`), `EventBusConsumer` (manual commit after side effect), `dlq_payload` (event-model.md §5 shape). |
+| `sm_common.security.sensor_auth` | `SensorAuth` / `SensorIdentity` — `<sensor_id>.<secret>`, Argon2id, `dummy_verify` for unknown, one generic `Unauthenticated`, throttled `last_seen_at`. |
+| `services/ingestion-gateway` | `POST /api/v1/ingest/{source_type}` + `/batch`, per-sensor auth, envelope built server-side (tenant from identity only), fail-closed rate limiter, `X-Sensor-Event-Id` dedup, Kafka `RawEventSink` / `DeadLetterSink` (logging stopgap when the bus is off), health/metrics. |
+| `services/normalization-engine` | consumes `telemetry.raw`, deterministic per-source mapping → `CanonicalEventPayload`, produces `events.canonical` with a deterministic `event_id`; poison → `telemetry.raw.dlq`; `enrich/` is a stub protocol (no providers). Pure stream processor + health/metrics. |
+| `deploy/docker` | one `Dockerfile.app` builds all four services; compose `ingestion-gateway` (default) + `normalization-engine` (`bus` profile) + `redpanda` (dual listener). **Compose stack run: 6 containers healthy; live end-to-end passed.** |
+| `.github/workflows/ci.yml` | `static` / `unit` / `integration` (+ runner-hosted redpanda) / `image` (now builds all four services, asserts each imports, + prod-config guards). **Never run — no GitHub remote.** |
+
+### Pre-output engineering review (Constitution §23)
+
+Three defects in code that had only run locally, all fixed with a regression
+test — see "Pre-output engineering review (Constitution §23) — Phase 2" below:
+deterministic canonical `event_id` (idempotency under redelivery); the dedup
+mark freed on a 4xx (corrected retry not dropped); empty DNS answer rejected at
+the contract boundary. Commit `862eb9e`. Six-role sign-off recorded there.
+
+### Not verified (the whole list)
+
+- **CI: no job has run.** Needs a GitHub remote + `gh auth login`, then
+  `bash scripts/push_and_watch.sh`. The `image` job's four assertions were run
+  by hand locally against `sentinelmesh/app:dev` and pass; the `integration`
+  job's tests were run by hand and pass; but neither ran on a clean runner.
+- Enrichment: Geo-IP, hostname resolution, identity stitching (`identity_link`),
+  threat-intel tagging — protocol only, zero providers. Later units/phases.
+- `events.canonical` has no consumer yet (Phase 3 `graph` / `detection`).
+- Topic pre-creation with real partition counts (event-model.md) — a deploy-time
+  task, auto-created locally / in CI.
+- Per-sensor rate quota (currently per-IP).
+- Any metric scraped from a real Prometheus; any span at a collector.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| Every requirement (R1, R2) has a service + code + tests | ✅ |
+| Full pipeline works end to end | ✅ live through the compose stack |
+| Contracts registered + schema-generated | ✅ |
+| `mypy --strict` + `ruff` clean | ✅ (106 files) |
+| Unit + integration suites green | ✅ 268 + 63 |
+| §23 review done | ✅ 3 defects fixed |
+| **CI green on a clean runner** | ❌ **blocked — no GitHub remote** |
+
 ## Phase 1 exit report
 
 ### Delivered (Units 1–6 + review)
@@ -642,9 +693,11 @@ integration tests" elsewhere in this file are historical.
 | **Compose stack** | `docker compose --profile bus up -d --build` | all 6 containers **healthy** (postgres, redis, redpanda, app, ingestion-gateway, normalization-engine); `migrate` applied `0001 -> 0002` and exited 0 |
 | Service readiness (in-container) | `curl :8000/:8001/:8002 /healthz + /readyz` | all `200` / `{"ready":true}`; ingestion-gateway probes `kafka` healthy (`event_bus=True`), normalization-engine probes `kafka_producer` + `kafka_consumer` healthy (`consumer_group=normalization`) |
 | **Live end-to-end** | seed a `sensor` row → `POST :8001/api/v1/ingest/network_flow` → consume `events.canonical` | `202` accepted; the canonical event arrived within ~1s: `event.canonical`, `producer=normalization-engine@0.1.0`, `tenant_id` from the sensor (not the body), `payload.kind=network_flow`, `payload.raw_event_id` = the ingest `event_id`, actor/target = src/dst ip |
+| Image job (by hand) | the four `image`-job assertions against `sentinelmesh/app:dev` | uid `10001`; all four service packages + `sm_common.bus` + `aiokafka` import; prod CORS wildcard → exit 1; `ingestion-gateway` prod + `SM_EVENT_BUS_ENABLED=false` → `RuntimeError`, exit 1 |
 
-**Not verified:** anything in CI (no GitHub remote); a real OIDC round-trip; a
-scraped Prometheus / collected span.
+**Not verified:** the CI jobs on a clean runner (no GitHub remote — the
+`image`/`integration` steps were run by hand); a real OIDC round-trip; a scraped
+Prometheus / collected span.
 
 ### Pre-output engineering review (Constitution §23) — Phase 2
 
@@ -653,9 +706,9 @@ defects, all fixed with a regression test:
 
 | # | Defect | Fix | Commit |
 |---|---|---|---|
-| 1 | **`normalization-engine` broke `event_id` idempotency.** It stamped a fresh UUIDv7 on the canonical event every time it processed a raw record. Consumption is at-least-once — a rebalance or crash before the offset commits redelivers the batch — so a redelivered raw record produced a *second* canonical event with a *different* `event_id`, which downstream `event_id` dedup (event-model.md §4) cannot suppress → double detection / double graph write. | `canonical_event_id(raw_event_id) = uuid5(fixed-ns, "canonical:"+raw)` — deterministic, so a redelivery produces the identical `event_id`. `test_redelivery_produces_the_same_canonical_event_id`. | �23 |
-| 2 | **`ingestion-gateway` dropped a corrected retry.** The dedup key was set (`SET NX`) *before* payload validation. A sensor that sent a malformed body with an `X-Sensor-Event-Id`, got `422`, fixed the body and retried with the same id → the retry was suppressed as a duplicate (`200`) and the corrected event was never sinked. | `Dedup.forget()` deletes the key on every 4xx path; only an *accepted* event keeps its mark. `test_corrected_retry_after_a_422_is_not_suppressed_as_duplicate`. | �23 |
-| 3 | **An empty-string DNS answer DLQ'd the whole event.** `DnsQueryPayload.answers` bounded length but not emptiness; `EntityRef(value="")` then failed `min_length` in the mapper, so `normalize_failed` → DLQ instead of a processed event. | `_bounded_answers` rejects an empty answer at the contract boundary (a clear `422` at ingest, not a silent DLQ downstream). Extra assertion in `test_dns_normalizes_type_and_rcode_and_bounds_answers`. | �23 |
+| 1 | **`normalization-engine` broke `event_id` idempotency.** It stamped a fresh UUIDv7 on the canonical event every time it processed a raw record. Consumption is at-least-once — a rebalance or crash before the offset commits redelivers the batch — so a redelivered raw record produced a *second* canonical event with a *different* `event_id`, which downstream `event_id` dedup (event-model.md §4) cannot suppress → double detection / double graph write. | `canonical_event_id(raw_event_id) = uuid5(fixed-ns, "canonical:"+raw)` — deterministic, so a redelivery produces the identical `event_id`. `test_redelivery_produces_the_same_canonical_event_id`. | �23 |
+| 2 | **`ingestion-gateway` dropped a corrected retry.** The dedup key was set (`SET NX`) *before* payload validation. A sensor that sent a malformed body with an `X-Sensor-Event-Id`, got `422`, fixed the body and retried with the same id → the retry was suppressed as a duplicate (`200`) and the corrected event was never sinked. | `Dedup.forget()` deletes the key on every 4xx path; only an *accepted* event keeps its mark. `test_corrected_retry_after_a_422_is_not_suppressed_as_duplicate`. | �23 |
+| 3 | **An empty-string DNS answer DLQ'd the whole event.** `DnsQueryPayload.answers` bounded length but not emptiness; `EntityRef(value="")` then failed `min_length` in the mapper, so `normalize_failed` → DLQ instead of a processed event. | `_bounded_answers` rejects an empty answer at the contract boundary (a clear `422` at ingest, not a silent DLQ downstream). Extra assertion in `test_dns_normalizes_type_and_rcode_and_bounds_answers`. | �23 |
 
 Six-role sign-off (Phase-2 surface): **Principal Engineer** — `ingestion-gateway`
 and `normalization-engine` own no other service's data; the bus is the only
