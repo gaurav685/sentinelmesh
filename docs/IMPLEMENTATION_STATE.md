@@ -1748,13 +1748,25 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Units 1–2 DONE.** Unit 1
-(`sm_ml.graph`) CI-green (run `34408045416`). Unit 2 (`sm_ml.temporal`: event
-timeline / temporal graph state / progression track / deterministic replay /
-cross-session stitching — all stdlib, deterministic, handling out-of-order /
-duplicate / clock-skew / missing): local gauntlet green — ruff, `mypy --strict`,
-549 unit tests + `gen_contracts --check`. No new integration / image / CI wiring.
-**Commit Unit 2, push, confirm CI green.**
+**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Units 1–3 DONE.** Unit 1 (`sm_ml.graph`)
+CI-green (run `34408045416`); Unit 2 (`sm_ml.temporal`) CI-green (run
+`34408494057`). Unit 3 (`services/ml-training` — the reproducible pipeline, offline
+CLI, seeds + config-hash + artifact/metadata + `structural` z-threshold
+calibration; `graphsage`/`gat` → `PipelineSkipped` without torch, no fabricated
+model or metric): local gauntlet green — ruff, `mypy --strict` over 14 src trees
+(267 files), 556 unit tests + `gen_contracts --check`; `python -m sm_ml_training
+--fixture` runs all ten stages and writes a `NOT VERIFIED` artifact. CI wired
+(`ml-training` in the static mypy trees + all three install blocks; not the image).
+**Commit Unit 3, push, confirm CI green.**
+
+**Then Unit 4 — serving + failure behaviour + close:** `ml-inference` serves the
+graph models (`POST /api/v1/infer/graph/{model}` — structural always, GNN when an
+artifact + torch exist; missing / unloadable → 503 `MODEL_UNAVAILABLE`,
+structural fallback documented). A `graph-intel` scoring capability (periodic over
+the Neo4j graph, folded into `correlation-engine` or a small job) emits findings.
+Failure tests: model can't load → fail safe, observable error, no crash of
+unrelated services. Phase 8 exit report + §23 + `REQUIREMENTS_TRACEABILITY` (GNN /
+temporal / predictive) + `CONTRACTS.md`.
 
 **Then Unit 3 — `services/ml-training`:** the reproducible pipeline
 `dataset → preprocessing → graph construction → feature generation → training →
