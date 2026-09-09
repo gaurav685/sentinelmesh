@@ -1,7 +1,7 @@
 # SentinelMesh application image.
 #
 # Builds the Python distributions (contracts, common, api-gateway,
-# ingestion-gateway, normalization-engine, stream-processor, graph-service, ml-py, ml-inference) into a virtualenv in a builder stage, then copies only that
+# ingestion-gateway, normalization-engine, stream-processor, graph-service, ml-py, ml-inference, detection-engine) into a virtualenv in a builder stage, then copies only that
 # venv into a slim runtime. One image serves every service; the compose
 # `command:` selects which `python -m ...` entrypoint runs. The runtime has no
 # compiler, no build cache and runs as a non-root user.
@@ -40,6 +40,7 @@ COPY services/stream-processor/pyproject.toml services/stream-processor/README.m
 COPY packages/ml-py/pyproject.toml packages/ml-py/README.md packages/ml-py/
 COPY services/graph-service/pyproject.toml services/graph-service/README.md services/graph-service/
 COPY services/ml-inference/pyproject.toml services/ml-inference/README.md services/ml-inference/
+COPY services/detection-engine/pyproject.toml services/detection-engine/README.md services/detection-engine/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
@@ -50,8 +51,9 @@ COPY services/stream-processor/src services/stream-processor/src
 COPY packages/ml-py/src packages/ml-py/src
 COPY services/graph-service/src services/graph-service/src
 COPY services/ml-inference/src services/ml-inference/src
+COPY services/detection-engine/src services/detection-engine/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #

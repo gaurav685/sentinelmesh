@@ -31,6 +31,7 @@ PROFILED = {
     "neo4j": "graph",
     "graph-service": "graph",
     "ml-inference": "detect",
+    "detection-engine": "detect",
     "redpanda": "bus",
     "minio": "objects",
 }

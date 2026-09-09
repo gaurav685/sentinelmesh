@@ -159,6 +159,20 @@ class AppSettings(BaseSettings):
     # count only when running behind a known ingress.
     trusted_proxy_hops: int = Field(default=0, ge=0, le=10)
 
+    # ---- detection engine (Phase 5) ------------------------------
+    ml_inference_url: str = "http://localhost:8005"
+    ml_inference_timeout_s: float = Field(default=2.0, gt=0.0, le=30.0)
+    # Adaptive anomaly thresholds: a per-(tenant, canonical-kind) rolling window
+    # of feature vectors, refit on every event once it has `min_samples`.
+    detection_window_size: int = Field(default=512, ge=32, le=8192)
+    detection_min_samples: int = Field(default=30, ge=10, le=2000)
+    detection_anomaly_z: float = Field(default=3.5, ge=1.0, le=10.0)
+    # Composite score >= this raises a detection; >= alert_threshold raises an alert.
+    detection_score_threshold: float = Field(default=0.6, ge=0.0, le=1.0)
+    detection_alert_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
+    # Sliding window for the stateful rule detectors (failed-login burst, etc.).
+    detection_rule_window_s: int = Field(default=300, ge=30, le=3600)
+
     # ---- ingestion gateway (Phase 2) ------------------------------
     # A sensor may send `X-Sensor-Event-Id` for at-most-once delivery of a single
     # event; the id is remembered this long in Redis.
@@ -188,6 +202,10 @@ class AppSettings(BaseSettings):
             raise ValueError("SM_PG_POOL_MAX must be >= SM_PG_POOL_MIN")
         if self.session_absolute_seconds < self.session_idle_seconds:
             raise ValueError("SM_SESSION_ABSOLUTE_SECONDS must be >= SM_SESSION_IDLE_SECONDS")
+        if self.detection_alert_threshold < self.detection_score_threshold:
+            raise ValueError("SM_DETECTION_ALERT_THRESHOLD must be >= SM_DETECTION_SCORE_THRESHOLD")
+        if self.detection_min_samples > self.detection_window_size:
+            raise ValueError("SM_DETECTION_MIN_SAMPLES must be <= SM_DETECTION_WINDOW_SIZE")
         return self
 
     @model_validator(mode="after")

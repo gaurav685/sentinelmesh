@@ -14,7 +14,7 @@
 #   --profile obs    prometheus, grafana
 #   --profile graph  neo4j, graph-service   (Phase 4+; graph-service also needs --profile bus)
 #   --profile bus    redpanda         (Phase 2+)
-#   --profile detect ml-inference, detection-engine   (Phase 5+; also needs --profile bus)
+#   --profile detect ml-inference, detection-engine   (Phase 5+; detection-engine also needs --profile bus)
 #   --profile objects minio           (Phase 5+)
 
 name: sentinelmesh
@@ -267,6 +267,39 @@ services:
       timeout: 3s
       retries: 3
       start_period: 20s
+
+  # telemetry -> features -> anomaly -> evidence -> detection -> alert (reqs 5, 8).
+  # Needs the bus, Postgres and (optionally) ml-inference:
+  #   --profile bus --profile detect
+  detection-engine:
+    profiles: ["detect"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_detection_engine"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: detection-engine
+      SM_DEPLOYMENT_PROFILE: monolith
+      SM_EVENT_BUS_ENABLED: "true"
+      SM_KAFKA_CONSUMER_GROUP: detection
+      SM_ML_INFERENCE_URL: http://ml-inference:8005
+    ports:
+      - "8006:8006"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8006/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   keycloak:
     profiles: ["oidc"]
