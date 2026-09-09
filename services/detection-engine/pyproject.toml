@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "sm-detection-engine"
 version = "0.1.0"
-description = "SentinelMesh detection engine (reqs 5, 8): telemetry -> features -> anomaly score -> evidence -> detection -> alert. System of record for detection / anomaly / threat_score / security_alert. Degrades to the statistical detector when ml-inference is unavailable (ADR-013). No detection capability is overclaimed; every detection is grounded in evidence."
+description = "SentinelMesh detection engine (req 5): telemetry -> features -> anomaly score -> evidence -> detection -> alert. System of record for detection / anomaly / security_alert (threat_score moved to correlation-engine in Phase 7). Degrades to the statistical detector when ml-inference is unavailable (ADR-013). No detection capability is overclaimed; every detection is grounded in evidence."
 requires-python = ">=3.11"
 dependencies = [
     "sm-contracts",

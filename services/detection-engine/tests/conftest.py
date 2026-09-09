@@ -102,7 +102,6 @@ class FakeProducer:
 class FakeRepo:
     anomalies: list[dict[str, Any]] = field(default_factory=list)
     detections: list[dict[str, Any]] = field(default_factory=list)
-    threat_scores: list[dict[str, Any]] = field(default_factory=list)
     alerts: list[dict[str, Any]] = field(default_factory=list)
     fail_on: str | None = None
 
@@ -115,9 +114,6 @@ class FakeRepo:
         if self.fail_on == "detection":
             raise RuntimeError("db down")
         self.detections.append(kw)
-
-    async def upsert_threat_score(self, **kw: Any) -> None:
-        self.threat_scores.append(kw)
 
     async def ensure_alert(self, **kw: Any) -> bool:
         self.alerts.append(kw)

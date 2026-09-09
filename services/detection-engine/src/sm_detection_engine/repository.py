@@ -1,8 +1,9 @@
 """Persistence for the detection domain (Postgres, `detection-engine`-owned).
 
 Every write is tenant-scoped by the row's own `tenant_id`, which comes from the
-canonical event — never a request field. Detections and threat scores upsert on a
-deterministic key so an at-least-once reprocess updates rather than duplicates.
+canonical event — never a request field. A detection upserts on a deterministic
+id so an at-least-once reprocess updates rather than duplicates. `threat_score`
+is written by `correlation-engine` (Phase 7), not here.
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from uuid import UUID
 
 from sqlalchemy.dialects.postgresql import insert
 
-from sm_common.db import Anomaly, Database, Detection, SecurityAlert, ThreatScore
+from sm_common.db import Anomaly, Database, Detection, SecurityAlert
 from sm_common.ids import uuid7
 
 __all__ = ["DetectionRepository"]
@@ -89,36 +90,6 @@ class DetectionRepository:
                 "last_seen": stmt.excluded.last_seen,
             },
             where=Detection.status == "new",
-        )
-        async with self._db.transaction() as s:
-            await s.execute(stmt)
-
-    async def upsert_threat_score(
-        self,
-        *,
-        tenant_id: UUID,
-        subject_type: str,
-        subject_id: str,
-        score: float,
-        components: dict[str, float],
-        weights_version: str,
-        scoring_status: str,
-        computed_at: datetime,
-    ) -> None:
-        stmt = insert(ThreatScore).values(
-            id=uuid7(), tenant_id=tenant_id, subject_type=subject_type, subject_id=subject_id,
-            score=score, components=components, weights_version=weights_version,
-            scoring_status=scoring_status, computed_at=computed_at,
-        )
-        stmt = stmt.on_conflict_do_update(
-            constraint="uq_threat_score_subject",
-            set_={
-                "score": stmt.excluded.score,
-                "components": stmt.excluded.components,
-                "weights_version": stmt.excluded.weights_version,
-                "scoring_status": stmt.excluded.scoring_status,
-                "computed_at": stmt.excluded.computed_at,
-            },
         )
         async with self._db.transaction() as s:
             await s.execute(stmt)

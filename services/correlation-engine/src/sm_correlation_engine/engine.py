@@ -24,6 +24,7 @@ from sm_common.clock import utcnow
 from sm_common.context import get_correlation_id
 from sm_common.ids import new_correlation_id, uuid7
 from sm_contracts import (
+    AttackChainModel,
     AttackChainPayload,
     DetectionPayload,
     EventEnvelope,
@@ -32,9 +33,10 @@ from sm_contracts import (
 )
 
 from .chains import ChainRepository
+from .graph import chain_graph_commands
 from .metrics import CorrelationMetrics
 from .staging import resolve_subject, stage_detection
-from .topics import CHAINS_TOPIC
+from .topics import CHAINS_TOPIC, GRAPH_COMMANDS_TOPIC
 from .version import PRODUCER
 
 __all__ = ["CorrelationHandler"]
@@ -76,6 +78,20 @@ class CorrelationHandler:
             _log.debug("chain_unchanged", chain_id=str(update.chain.id))
 
         await self._emit(envelope, update.payload)
+        await self._project_to_graph(envelope, update.chain)
+
+    async def _project_to_graph(
+        self, source: EventEnvelope[DetectionPayload], chain: AttackChainModel
+    ) -> None:
+        for env in chain_graph_commands(source, chain):
+            try:
+                await self._producer.send(
+                    GRAPH_COMMANDS_TOPIC, key=env.partition_key,
+                    value=env.model_dump_json().encode("utf-8"),
+                )
+            except Exception as exc:
+                raise TransientError(f"produce to {GRAPH_COMMANDS_TOPIC} failed: {exc!r}") from exc
+            self._m.graph_command(env.payload.op.value)
 
     async def _emit(
         self, source: EventEnvelope[DetectionPayload], payload: AttackChainPayload

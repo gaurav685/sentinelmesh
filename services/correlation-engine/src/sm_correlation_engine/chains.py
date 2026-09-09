@@ -18,9 +18,11 @@ from datetime import datetime
 from itertools import pairwise
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sm_common.clock import utcnow
-from sm_common.db import AttackChainRow, AttackChainStageRow, Database
+from sm_common.db import AttackChainRow, AttackChainStageRow, Database, ThreatScore
 from sm_common.ids import uuid7
 from sm_contracts import (
     STAGE_ORDER,
@@ -166,6 +168,14 @@ class ChainRepository:
             await s.flush()
             await s.refresh(chain_row)
 
+            # correlation-engine is the sole writer of `threat_score` (Phase 7):
+            # an entity's score is its most-recently-updated chain's score. A
+            # max-across-active-chains / time-decay model is deferred.
+            await self._upsert_threat_score(
+                s, tenant_id=tid, subject_type=subject_type, subject_id=subject_id,
+                score=agg.score, now=now,
+            )
+
             model = _to_model(chain_row, stages)
 
         payload = AttackChainPayload(
@@ -179,6 +189,27 @@ class ChainRepository:
             detection_count=model.detection_count,
         )
         return ChainUpdate(chain=model, payload=payload, created=created, new_detection=new_detection)
+
+    @staticmethod
+    async def _upsert_threat_score(
+        s: AsyncSession, *, tenant_id: uuid.UUID, subject_type: ThreatSubjectType, subject_id: str,
+        score: ChainScore, now: datetime,
+    ) -> None:
+        stmt = insert(ThreatScore).values(
+            id=uuid7(), tenant_id=tenant_id, subject_type=subject_type.value, subject_id=subject_id,
+            score=score.score, components=score.components, weights_version=score.version,
+            scoring_status=score.scoring_status.value, computed_at=now,
+        )
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_threat_score_subject",
+            set_={
+                "score": stmt.excluded.score, "components": stmt.excluded.components,
+                "weights_version": stmt.excluded.weights_version,
+                "scoring_status": stmt.excluded.scoring_status,
+                "computed_at": stmt.excluded.computed_at,
+            },
+        )
+        await s.execute(stmt)
 
     # ---- reads ----------------------------------------------------
     async def get_chain(self, tenant_id: str | uuid.UUID, chain_id: str | uuid.UUID) -> AttackChainModel | None:

@@ -33,6 +33,10 @@ class CorrelationMetrics:
             "sm_correlation_chain_status", "1 for the current status of the last-updated chain",
             ("service", "status"), registry=reg,
         )
+        self.graph_commands = Counter(
+            "sm_correlation_graph_commands_total", "graph.commands emitted for attack-chain projection",
+            ("service", "op"), registry=reg,
+        )
 
     def detection(self, stage: str) -> None:
         self.detections.labels(self._s, stage).inc()
@@ -46,3 +50,6 @@ class CorrelationMetrics:
             self.new_detections.labels(self._s, stage).inc()
         for candidate in ("forming", "active", "dormant"):
             self.chain_status.labels(self._s, candidate).set(1 if candidate == status else 0)
+
+    def graph_command(self, op: str) -> None:
+        self.graph_commands.labels(self._s, op).inc()

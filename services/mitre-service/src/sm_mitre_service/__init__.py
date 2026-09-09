@@ -8,7 +8,8 @@ never guessed. `AttackMatrixVersion` records exactly what an import produced, an
 no coverage is claimed beyond it. LLM-assisted mapping is allowed via the `/map`
 API (`MappingSource.llm`) but is never authoritative alone (ADR-014).
 
-Consumes `detections` (group `mitre-mapping`); writes `technique_mapping`; serves
+Consumes `detections` and `attack_chains` (group `mitre-mapping`) — a chain's
+mapping subject is `attack_chain`; writes `technique_mapping`; serves
 `GET /api/v1/mitre/{techniques,heatmap}` and `POST /api/v1/mitre/map`.
 """
 

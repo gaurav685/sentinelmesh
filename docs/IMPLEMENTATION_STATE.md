@@ -7,8 +7,18 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 7 — Attack Chain Reconstruction + Threat Scoring. IN PROGRESS — Units 1–2 DONE
-(Unit 1 CI-green run `34370745672`; Unit 2 local gauntlet green, CI pending).**
+**Phase 7 — Attack Chain Reconstruction + Threat Scoring. COMPLETE — full local
+gauntlet green; CI run pending.** Units 1–3.
+Unit 3: `correlation-engine` also emits `graph.commands` (`graph.py` — `:AttackChain`
+node + `INVOLVES` → subject + `MAPPED_TO` → `:AttackTechnique`, deterministic
+`command_id` per chain). `mitre-service` now consumes `attack_chains` too (one
+group, dispatch on `event_type`; a chain's mapping subject is `attack_chain`).
+`detection-engine` stops writing `threat_score`; `correlation-engine` is the sole
+writer. Topic registry updated. Real-infra e2e (`test_chain_pipeline_e2e_pg.py`):
+auth burst → detection → chain + one `threat_score` row (`weights_version = "v1"`)
++ a `:AttackChain` node in real Neo4j with `INVOLVES` → `:Identity` and
+`MAPPED_TO` → `:AttackTechnique`. Phase 7 exit report + §23 below;
+`REQUIREMENTS_TRACEABILITY` R6 → IMPLEMENTED, R8 updated.
 Unit 2: `services/correlation-engine` (port 8009, module `sm_correlation_engine`,
 consumer group `correlation`). Consumes `detections`; `staging.py` places each
 detection on the furthest kill-chain `AttackStage` its techniques imply (no
@@ -41,10 +51,6 @@ window_start)` unique, stage unique per chain, CASCADE). `DetectionPayload` gain
 optional `subject_type` / `subject_id` (populated by `detection-engine`, consumed
 by the correlator). Config: `SM_CHAIN_WINDOW_SECONDS`, `SM_CHAIN_DORMANT_SECONDS`,
 `SM_CHAIN_SCORE_ALERT_THRESHOLD`, `SM_CORRELATION_ENGINE_URL`.
-Units 2–3 (`correlation-engine` service — staging + chain repo + versioned
-scoring + engine + read API; then graph projection + `mitre-service` `attack_chains`
-consumer + `detection-engine` `threat_score` handoff + integration + exit report)
-follow.
 
 **Phase 6 — Threat Intelligence + MITRE ATT&CK. COMPLETE / CI-VERIFIED**
 (all four jobs, run
@@ -526,6 +532,72 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 7 exit report
+
+**State: COMPLETE — full local gauntlet green (ruff, `mypy --strict` over 13 src
+trees, unit tests + `gen_contracts --check`, real-infra integration against
+PostgreSQL 16 + Redis 7 + Neo4j 5, `Dockerfile.app` build + entrypoint import).
+CI run pending — this section is updated with the run id once all four jobs are
+green on a clean runner.**
+
+**A chain is a *correlation*, never a verdict. `confidence` is bounded at 0.95 —
+the platform never claims certainty about an attack. Stage assignment is a
+deterministic lookup; a technique with no known mapping is `AttackStage.unknown`,
+not a guess. `TECHNIQUE_STAGE` covers only the techniques SentinelMesh's own
+rules emit — not a claim of ATT&CK coverage. The chain threat score is a fixed,
+documented, versioned weighting (`CHAIN_SCORE_VERSION = "v1"`) — no validated
+scoring performance is claimed anywhere.**
+
+### Delivered (Units 1–3)
+
+| Area | State |
+|---|---|
+| `sm_contracts.chains` | `AttackStage` (14 ATT&CK-tactic kill-chain stages + `unknown` as a first-class value), `STAGE_ORDER`, `TACTIC_STAGE` (stable ATT&CK tactic ids) / `TECHNIQUE_STAGE` (SentinelMesh's own rule techniques only), `stage_for_tactic` / `stage_for_technique` / `stages_for_techniques`; `ChainStatus` (forming / active / dormant — never auto-`confirmed`); `ChainStageModel` / `AttackChainModel` / `AttackChainPayload` (on `attack_chains`, `EventType.attack_chain_updated`); `chain_dedup_key` / `chain_window_start` (fixed tumbling window → deterministic under redelivery + out-of-order) / `chain_id_for`; `CONFIDENCE_CEILING = 0.95`. **STABLE.** |
+| `migrations/postgres/0005` + `chain_models` | `attack_chain` / `attack_chain_stage` — CHECK constraints from the contract enums, deterministic id + `(tenant, subject_type, subject_id, window_start)` unique, one stage row per `(chain, stage)`, `attack_chain_stage` `ON DELETE CASCADE`; `max_detection_score` per stage, `ti_corroborated` per chain. |
+| `services/correlation-engine` (port 8009) | Consumes `detections` (group `correlation`). `staging.py` places each detection on the furthest non-`unknown` kill-chain stage its techniques imply (`rule.ti.*` → TI-corroborated, no technique). `chains.py` `ChainRepository.correlate` upserts the deterministic-id chain + its `attack_chain_stage` rows (detection ids as a set → idempotent redelivery; `min`/`max` timestamps → out-of-order safe; `ti_corroborated` monotonic), recomputes `progression` / probabilistic `confidence` (≤ 0.95; discounted when stages ran backwards in time) / `ChainStatus`, runs `scoring.py` `score_chain` (`CHAIN_SCORE_VERSION` weighting over severity + anomaly + threat-intel + progression + confidence; optional asset-criticality / identity-risk renormalise the weighting), and writes `threat_score` for the entity subject. `engine.py` emits `AttackChainPayload` on `attack_chains` **and** `graph.py` `graph.commands` (`:AttackChain` node, `INVOLVES` → subject, `MAPPED_TO` → `:AttackTechnique`). Read API `GET /api/v1/chains[/{chain_id}]` (internal-JWT, tenant from token). Poison → `detections.dlq`; DB / produce failure → retried. |
+| `services/mitre-service` | Now consumes `attack_chains` as well as `detections` (one group, one consumer, dispatch on `event_type`). A chain's mapping subject is `attack_chain`; its rationale names the chain and its detection count. |
+| `services/detection-engine` | No longer writes `threat_score` — `correlation-engine` is the sole writer (it sees the whole chain). `DetectionPayload` now carries `subject_type` / `subject_id`, populated in `_emit`. |
+| Wiring | `correlation-engine` in `Dockerfile.app` (COPY + `pip install`), `docker-compose.yml` (`detect` profile, port 8009, group `correlation`), CI (installs in all three jobs, 13th `mypy` tree, image entrypoint-import). `test_deploy_local_config` PROFILED. Topic registry: `correlation` + `mitre-mapping` on `detections`; `correlation-engine` producer + `mitre-mapping` consumer on `attack_chains`; `correlation-engine` producer on `graph.commands`. Config `SM_CHAIN_WINDOW_SECONDS` / `SM_CHAIN_DORMANT_SECONDS` / `SM_CHAIN_SCORE_ALERT_THRESHOLD` / `SM_CORRELATION_ENGINE_URL`; `.env.example` updated. |
+
+### Integration verification
+
+- `test_chain_models_pg.py` — the `0005` CHECK / uniqueness / cascade constraints.
+- `test_chain_correlation_pg.py` (real PostgreSQL) — kill-chain ordering, duplicate-detection idempotency, out-of-order flagging + confidence discount, incomplete `forming` chain, dormancy, tumbling-window separation, tenant isolation, TI monotonicity + score lift, degraded-member scoring.
+- `test_chain_pipeline_e2e_pg.py` (real PostgreSQL + real Neo4j) — an auth-failure burst → `detection-engine` → `detections` → `correlation-engine` → one `attack_chain` with a `credential_access` stage, exactly one `threat_score` row (weights version `"v1"`, proving `detection-engine` no longer writes it), and `graph.commands` that, applied via `GraphWriter`, create the `:AttackChain` node with `INVOLVES` → `:Identity` and `MAPPED_TO` → `:AttackTechnique {T1110}`.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Never claim certainty when evidence is probabilistic (§3).** `confidence` is bounded by `CONFIDENCE_CEILING = 0.95` in the contract, the scorer, and the DB CHECK. `ChainStatus` has no `confirmed` value — confirmation is a human action on the alert/investigation layer, and the correlator never asserts it. The chain title/notes state facts (stage list, detection counts, "out_of_order_observed") — never a conclusion.
+- **Deterministic, versioned scoring (req 8).** `score_chain` is a pure function of `(max_severity, max_detection_score, ti_corroborated, progression, confidence, degraded, asset?, identity?)` — fixed weights, no clock, no RNG, `CHAIN_SCORE_VERSION` stamped on every `threat_score` row and `AttackChainPayload`. `chain_progression` and `chain_confidence` are likewise pure. Asset-criticality and identity-risk are accepted as inputs and renormalise the weighting when supplied; no registry feeds them in this phase, and their absence is not a fabrication — the components dict simply omits them.
+- **No fabricated ATT&CK coverage.** `stage_for_technique` returns `AttackStage.unknown` for anything outside the small, auditable `TECHNIQUE_STAGE` map (the techniques `detection-engine`'s own rules emit). A chain that is mostly `unknown` stages is flagged (`mostly_unmapped_techniques`) and its score degrades. `mitre-service` still validates a chain's technique ids against the imported catalog — off-catalog ids are `unmapped`, never guessed.
+- **Out-of-order / duplicate / missing (the phase's "handle" list).** Duplicate detection → set-valued `detection_ids`, a redelivery is a no-op (`new_detection == False`), aggregates unchanged, same score. Out-of-order → `first_seen`/`last_seen` widened by `min`/`max`; a stage transition that runs backwards in kill-chain order over time is counted and discounts `confidence` and adds an `out_of_order_observed` note. A missing intermediate stage → `progression` still reflects the furthest stage reached; `distinct_stage_count` is honest about the gap. Clock skew is bounded upstream by the envelope's `_time_sanity` validator (±5m); the tumbling window is wide (24h default) relative to skew.
+- **Idempotency.** `chain_id_for(chain_dedup_key(...), chain_window_start(...))` is `uuid5` — the same detection always lands in the same chain row; `graph_command_id(chain_id, op, label, disc)` is deterministic so `graph-writer` dedups a re-emitted projection.
+- **Tenant isolation.** Every `attack_chain` / `attack_chain_stage` / `threat_score` row carries the detection's `tenant_id` (from the event, never a field). The FK is `RESTRICT`. `chain_dedup_key` embeds the tenant. `get_chain` / `list_chains` filter by `tenant_id`; the read API takes the tenant from the JWT. Integration test: two tenants with the same subject get separate chains, and a cross-tenant `get_chain` returns `None`.
+- **Degrade, never drop.** `correlation-engine` emits `attack_chains` and `graph.commands` on every processed detection; a produce failure is a `TransientError` (retry), never a silent drop. A DB failure is likewise retried. An unparseable / wrong-type record → `PoisonError` → `detections.dlq`. `mitre-service` keeps its existing "catalog absent → everything `unmapped`" degraded path for chains too.
+- **Handoff safety.** `detection-engine` dropping its `threat_score` write and `correlation-engine` picking it up ship in one commit; the `uq_threat_score_subject` upsert means the last writer wins cleanly. A detection that raises no chain-relevant technique still forms a chain (stage `unknown`) and still produces a `threat_score` — the entity is never left unscored.
+
+### Deferred (deliberately)
+
+- **A max-across-active-chains / time-decay entity score.** Today `threat_score` is the most-recently-updated chain's score for that subject. A subject with several concurrent chains, or a chain that has gone dormant, is not yet reconciled into a single decaying entity score.
+- **`HAS_STAGE` graph edges / stage nodes.** Stages live in Postgres; the graph carries the chain node, `INVOLVES`, and `MAPPED_TO` only.
+- **Asset-criticality & identity-risk inputs.** The scorer's signature is ready; no registry service produces these values yet.
+- **Cross-window chain merge.** An APT that spans two 24h windows is two chains. A "stitch adjacent chains for the same subject" pass is Phase 8 territory (cross-session stitching).
+- **`attack_chains` consumers beyond `mitre-service` / graph.** `ai-analyst`, `memory`, `reporting` are later phases.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| attack-stage model / chain model / evidence links / temporal ordering / confidence / technique mapping | ✅ `sm_contracts.chains` + `attack_chain` / `attack_chain_stage` |
+| lateral movement / credential escalation / exfiltration-path representation | ✅ ATT&CK-tactic stages incl. `lateral_movement` / `privilege_escalation` / `credential_access` / `exfiltration`; kill-chain ordering + `progression` |
+| incomplete chains / conflicting evidence / out-of-order / duplicate detections | ✅ `forming` status, `conflicting_severity` / `out_of_order_observed` notes, `min`/`max` timestamps, set-valued stage membership — integration-verified |
+| never claim certainty | ✅ `CONFIDENCE_CEILING = 0.95` (contract + scorer + DB CHECK); no auto-`confirmed` |
+| deterministic, documented, versioned scoring | ✅ `score_chain` (`CHAIN_SCORE_VERSION`); pure `chain_progression` / `chain_confidence` |
+| scoring factors where architecture supports them | ✅ severity / anomaly / threat-intel / progression / confidence wired; asset-criticality / identity-risk accepted + renormalised, no registry yet |
+| do not fabricate validated performance | ✅ no accuracy / F1 / precision / recall number anywhere |
+| tests: construction / ordering / duplicate / incomplete / scoring / boundaries / determinism / tenant isolation | ✅ `test_staging` / `test_scoring` / `test_engine` / `test_graph` / `test_chain_correlation_pg` / `test_chain_pipeline_e2e_pg` |
+| **CI green on a clean runner** | ⏳ run pending — updated here when green |
 
 ## Phase 6 exit report
 
@@ -1650,26 +1722,34 @@ R7 / R9 → IMPLEMENTED + `CONTRACTS.md` "Phase 6 closed" written.
 
 **Phase 6 is CLOSED — CI-VERIFIED, run `34366970151` (all four jobs).**
 
-**Phase 7 — Attack Chain Reconstruction + Threat Scoring. Units 1–2 DONE.**
-Unit 1 CI-green (run `34370745672`; commit `daaf20e`). Unit 2 (`correlation-engine`
-service): local gauntlet green — ruff, `mypy --strict` over 13 src trees (242
-files), 518 unit tests + `gen_contracts --check`, 26 targeted real-PG integration
-tests (chain correlation + models + migrations + detection pipeline + mitre),
-`Dockerfile.app` build. **Commit Unit 2, push, confirm CI green.**
+**Phase 7 — Attack Chain Reconstruction + Threat Scoring. Units 1–3 DONE.**
+Unit 1 CI-green (run `34370745672`; commit `daaf20e`); Unit 2 CI-green (run
+`34373057354`; commit `8c3a177`). Unit 3 (graph projection + mitre `attack_chains`
+consumer + `threat_score` handoff + close): local gauntlet green — ruff,
+`mypy --strict` over 13 src trees (243 files), 523 unit tests +
+`gen_contracts --check`, real-PG + real-Neo4j chain integration (`test_chain_*`,
+`test_chain_pipeline_e2e_pg.py`), `Dockerfile.app` build. Phase 7 exit report +
+§23 + `REQUIREMENTS_TRACEABILITY` R6/R8 + `CONTRACTS.md` written. **Commit Unit 3,
+push, confirm CI green → closes Phase 7.**
 
-**Then Unit 3 — graph projection + mitre wiring + threat_score handoff + close.**
-`correlation-engine` emits
-`graph.commands` for `:AttackChain` / `INVOLVES` / `HAS_STAGE` / `MAPPED_TO`;
-`mitre-service` also consumes `attack_chains` → `technique_mapping`
-(`subject_type=attack_chain`); `detection-engine` stops writing `threat_score`
-and `correlation-engine` becomes its sole writer (an entity's score = its top
-active chain's score). Real-infra integration test of the full chain
-(`events.canonical → detection-engine → detections → correlation-engine →
-attack_chains` + graph projection against real Neo4j). Phase 7 exit report + §23
-+ `REQUIREMENTS_TRACEABILITY` R6 / R8 + `CONTRACTS.md`.
-
-Exit next action after Phase 7: **PHASE 8 — ML/GNN + TEMPORAL ANALYSIS**
-(user pastes the prompt; do not start speculatively).
+**Then, immediately (do not wait for a paste — the Phase 8/9/10 prompts are
+already given, see the memory file): PHASE 8 — GNN + TEMPORAL INTELLIGENCE.**
+ML intelligence layer (GraphSAGE / GAT / graph anomaly detection / suspicious
+subgraph classification / threat-cluster discovery / temporal analysis /
+historical replay / cross-session stitching / predictive-attacker-modeling
+foundation). Reproducible pipeline `dataset → preprocessing → graph construction
+→ feature generation → training → validation → checkpoint → model version →
+inference → evaluation` with defined seeds / config / model metadata / feature +
+output schema / versioning / artifact handling. Temporal engine: event timeline,
+temporal graph state, attack progression, replay, cross-session correlation;
+handle out-of-order / missing / clock-skew / duplicate events. Model-load failure
+→ fail safely + observable error + documented degraded behaviour, don't crash
+unrelated services. **Do not fabricate metrics** — no dataset / trained weights
+ship (ADR-024), so evaluation numbers are `NOT VERIFIED — REQUIRES
+DATASET/TRAINING EXECUTION`.
+After Phase 8: **PHASE 9 — ENTERPRISE SOC DASHBOARD**, then **PHASE 10 — AI
+SECURITY ANALYST + MULTI-AGENT DEFENSE**, then Phase 11 (Threat Hunting + NL
+querying — prompt not yet given).
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
 (user pastes the prompt; do not start speculatively).
