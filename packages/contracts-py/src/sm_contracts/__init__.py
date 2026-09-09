@@ -62,6 +62,7 @@ from .events import (
     SourceType,
     UserEventAction,
     UserEventPayload,
+    make_partition_key,
 )
 from .telemetry import (
     TELEMETRY_PAYLOADS,
@@ -96,6 +97,7 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "HTTP_STATUS_BY_CODE",
     # events
     "EventEnvelope",
+    "make_partition_key",
     "EventType",
     "SourceType",
     "EventSource",

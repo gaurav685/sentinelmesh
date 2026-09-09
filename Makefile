@@ -23,7 +23,7 @@ help:
 	@echo "run              run api-gateway on the host"
 
 setup:
-	$(PY) -m pip install -e "packages/contracts-py[dev]" -e "packages/common-py[dev]" -e "services/api-gateway[dev]" -e "services/ingestion-gateway[dev]"
+	$(PY) -m pip install -e "packages/contracts-py[dev]" -e "packages/common-py[dev]" -e "services/api-gateway[dev]" -e "services/ingestion-gateway[dev]" -e "services/normalization-engine[dev]"
 
 lint:
 	$(PY) -m ruff check packages services tests migrations scripts
@@ -36,7 +36,8 @@ typecheck:
 		packages/contracts-py/src/sm_contracts \
 		packages/common-py/src/sm_common \
 		services/api-gateway/src/sm_api_gateway \
-		services/ingestion-gateway/src/sm_ingestion_gateway
+		services/ingestion-gateway/src/sm_ingestion_gateway \
+		services/normalization-engine/src/sm_normalization_engine
 
 test:
 	$(PY) -m pytest packages services tests -q

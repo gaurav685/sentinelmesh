@@ -7,15 +7,15 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 2 — Telemetry Ingestion + Normalization. IN PROGRESS (Units 1, 2, 3
-done).** Next: Unit 4 (`normalization-engine`). Phase 1 exited INTEGRATION
-VERIFIED on local Docker; the CI `integration`/`image` jobs remain the
-independent confirmation and still need a GitHub remote.
+**Phase 2 — Telemetry Ingestion + Normalization. Units 1–4 IMPLEMENTED +
+LOCALLY / INTEGRATION VERIFIED against real infrastructure.** The full pipeline
+runs: sensor → `ingestion-gateway` → `telemetry.raw` → `normalization-engine` →
+`events.canonical` (poison → `telemetry.raw.dlq`). **Phase 2 exit is blocked on
+CI** — the `integration` / `image` jobs have never run (no GitHub remote); they
+must, per the standing rule, before Phase 2 is declared complete. Next after
+that: the Phase 3 prompt (graph / detection).
 
-At resume on 2026-09-09 the Phase 1 integration suite was re-run to confirm the
-recorded state: `docker compose up -d postgres redis` then
-`pytest tests/integration -q -m integration` with `SM_REQUIRE_INTEGRATION=1` —
-**52 passed** against PostgreSQL 16 + Redis 7.
+Phase 1 exited INTEGRATION VERIFIED on local Docker.
 
 ### Phase 2, Unit 1 — telemetry payload contracts (DONE)
 
@@ -114,6 +114,50 @@ Verified (2026-09-09): pytest **249** non-integration (7 new — `test_kafka_sin
 against real Redpanda + Postgres + Redis). `mypy --strict` clean (90 files),
 `ruff` clean, `gen_contracts --check` clean, `docker compose --profile bus config`
 valid. NOT VERIFIED: either gateway container actually starting under compose; CI.
+
+### Phase 2, Unit 4 — normalization-engine (DONE)
+
+- `sm_common.bus.EventBusConsumer` (aiokafka): the shared consumer wrapper.
+  `enable_auto_commit=False`; `run_once()` handles a poll batch then commits;
+  `run()` loops until `stop()`. `from_settings` reads `SM_KAFKA_CONSUMER_GROUP`.
+  Plus `dlq_payload(...)` — the canonical DLQ record shape (event-model.md §5):
+  original + `{error_type, error_detail, consumer_group, attempts, failed_at}`.
+  (Distinct from the ingestion gateway's DLQ, which keeps the raw bytes verbatim
+  + headers — a producer-side reject, not a consumer failure.)
+- `services/normalization-engine` — a stream processor, HTTP only for health /
+  metrics. Lifespan owns the producer, the consumer, and one background task
+  running `consumer.run(engine.handle)`.
+- `normalize/mappers.py`: one deterministic mapper per `telemetry.*` payload →
+  `CanonicalEventPayload` (normalized verb, `actor`/`target` entity refs, full
+  entity list incl. DNS answers as ip/domain, flat `attributes`). Lineage
+  (`raw_event_id`, `raw_event_type`) and event time come from the source
+  envelope. `enrich/` is a stub `Enricher` protocol + runner (empty provider
+  list → `enrichment = {}`); a provider that raises is recorded partial, never
+  fails the event.
+- `engine.py` handler contract with the consumer: a **poison** record
+  (unparseable / unknown `event_type` / invalid envelope / mapper bug) → DLQ,
+  return (offset commits, partition keeps moving); a **produce** failure →
+  retry×3 backoff, then raise (offset not committed, batch redelivered; the
+  idempotent producer prevents partition dupes). Metrics
+  `sm_normalize_{in,out,dlq,produce_errors}_total`.
+- The canonical envelope: new `event_id`, `event_type=event.canonical`,
+  `producer=normalization-engine@…`, `tenant_id`/`source`/`correlation_id`/
+  `trace_id` copied from the source, `partition_key =
+  sha256(<tenant_id>:<actor|target|first entity>)[:16]`,
+  `metadata.raw_event_id` set.
+- `partition_key` derivation extracted to `sm_contracts.make_partition_key` —
+  the ingestion gateway now calls it too (was a private copy).
+- `normalization-engine` added to `Dockerfile.app` (one image), compose (`bus`
+  profile, `SM_EVENT_BUS_ENABLED=true`), Makefile, CI, isort config.
+
+Verified (2026-09-09): pytest **266** non-integration (17 new —
+`test_normalize.py` 6, `test_engine.py` 7, `test_health.py` 4), **63**
+integration (2 new — `tests/integration/test_normalization_bus.py`: a
+`telemetry.raw` network-flow record becomes an `events.canonical` envelope with
+lineage; a poison record lands on `telemetry.raw.dlq` (wrapped) and the next
+good record still processes — real Redpanda). `mypy --strict` clean (106 files),
+`ruff` clean, `gen_contracts --check` clean, `compose --profile bus config`
+valid. NOT VERIFIED: the container starting under compose; CI.
 
 ### Phase 1 — INTEGRATION VERIFIED on local Docker (kept for the record)
 
@@ -516,7 +560,7 @@ integration tests" elsewhere in this file are historical.
   started).
 - Any metric scraped from a running Prometheus; any span at a collector.
 
-## Completed files (Phase 2, Units 1–3)
+## Completed files (Phase 2, Units 1–4)
 
 **Created:**
 
@@ -536,6 +580,15 @@ integration tests" elsewhere in this file are historical.
 - `services/ingestion-gateway/src/sm_ingestion_gateway/kafka_sinks.py`,
   `services/ingestion-gateway/tests/test_kafka_sinks.py`,
   `tests/integration/test_ingestion_bus_pg.py` (Unit 3).
+- `packages/common-py/src/sm_common/bus/consumer.py` (`EventBusConsumer`,
+  `dlq_payload`) (Unit 4).
+- `services/normalization-engine/` — `pyproject.toml`, `README.md`, and
+  `src/sm_normalization_engine/`: `__init__.py`, `__main__.py`, `version.py`,
+  `app.py`, `deps.py`, `topics.py`, `engine.py`, `metrics.py`,
+  `normalize/{__init__,mappers}.py`, `enrich/{__init__,base}.py`,
+  `routes/{__init__,health,metrics}.py`;
+  `tests/{conftest,test_normalize,test_engine,test_health}.py`;
+  `tests/integration/test_normalization_bus.py` (Unit 4).
 
 **Modified:**
 
@@ -561,20 +614,27 @@ integration tests" elsewhere in this file are historical.
   sink-failure policy, sha256 `partition_key`).
 - `docs/ARCHITECTURE_DECISIONS.md` (ADR-004 client = aiokafka; ADR-008 dual
   listener).
+- Unit 4: `packages/contracts-py/src/sm_contracts/{__init__,events}.py`
+  (`make_partition_key`), `sm_common/bus/__init__.py`,
+  `services/ingestion-gateway/src/sm_ingestion_gateway/envelope.py` (use the
+  shared key), `Dockerfile.app` / `docker-compose.yml` (`normalization-engine`),
+  `Makefile`, `.github/workflows/ci.yml`, `pyproject.toml`,
+  `docs/{CONTRACTS,REQUIREMENTS_TRACEABILITY,architecture/event-model}.md`.
 
-## Verification performed (Phase 2, Units 2–3 — executed 2026-09-09)
+## Verification performed (Phase 2, Units 2–4 — executed 2026-09-09)
 
 | Check | Command | Result |
 |---|---|---|
-| Non-integration suite | `pytest packages services tests -q -m "not integration"` | **249 passed** |
-| Integration suite | `pytest tests/integration -q` with `SM_REQUIRE_INTEGRATION=1`, real Postgres 16 + Redis 7 + Redpanda v24.2.11 | **61 passed** |
-| Bus round-trip | `test_ingestion_bus_pg.py` — POST → consume `telemetry.raw`; malformed → consume `telemetry.raw.dlq` | **2 passed** against real Redpanda |
-| Type check | `mypy --strict --python-version 3.11` over all four src trees | **no issues in 90 files** |
+| Non-integration suite | `pytest packages services tests -q -m "not integration"` | **266 passed** |
+| Integration suite | `pytest tests/integration -q` with `SM_REQUIRE_INTEGRATION=1`, real Postgres 16 + Redis 7 + Redpanda v24.2.11 | **63 passed** |
+| Ingest → bus | `test_ingestion_bus_pg.py` — POST → `telemetry.raw`; malformed → `telemetry.raw.dlq` | **2 passed** against real Redpanda |
+| Bus → canonical | `test_normalization_bus.py` — `telemetry.raw` → `events.canonical` with lineage; poison → `telemetry.raw.dlq` (wrapped), next good still processes | **2 passed** against real Redpanda |
+| Type check | `mypy --strict --python-version 3.11` over all five src trees | **no issues in 106 files** |
 | Lint | `ruff check packages services tests migrations scripts` | **All checks passed** |
 | Contract schema | `python scripts/gen_contracts.py --check` | up to date |
 | Compose | `docker compose --profile bus config` | valid |
 
-**Not verified:** either gateway container actually starting under compose;
+**Not verified:** any service container actually starting under compose;
 anything in CI (no GitHub remote).
 
 ## APIs
@@ -598,10 +658,14 @@ registry present. `EVENT_PAYLOAD_REGISTRY` maps: `UserEventPayload` (Phase 1);
 `FileAccessPayload`, `CanonicalEventPayload` (Phase 2, Unit 1). The five sensor
 payloads are **produced onto `telemetry.raw`** by `ingestion-gateway` — Unit 3
 wired the real aiokafka producer (idempotent, `acks=all`), verified end-to-end
-against Redpanda (`test_ingestion_bus_pg.py`); malformed bodies go to
-`telemetry.raw.dlq`. First real traffic on the bus. `event.canonical` is DRAFT —
-its producer `normalization-engine` is Unit 4. Topic catalog + semantics in
-`event-model.md`. At-least-once; exactly-once not claimed.
+against Redpanda; malformed bodies go to `telemetry.raw.dlq`.
+`normalization-engine` (Unit 4) **consumes `telemetry.raw` and produces
+`events.canonical`** — `CanonicalEventPayload` envelopes with `raw_event_id`
+lineage — verified end-to-end against Redpanda (`test_normalization_bus.py`).
+Poison records → `telemetry.raw.dlq` (wrapped per event-model.md §5). Consumer
+commits offsets only after the side effect. `make_partition_key` (shared) is the
+single `partition_key` derivation. Topic catalog + semantics in `event-model.md`.
+At-least-once; exactly-once not claimed.
 
 ## Schemas / migrations
 
@@ -773,47 +837,36 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 2, Unit 4 — `services/normalization-engine`.**
+**PHASE 2 EXIT — run CI, then declare Phase 2 complete.** Units 1–4 are
+implemented and verified against real infrastructure locally. What remains is the
+independent CI confirmation (the standing rule since Phase 1):
 
-Units 1–3 are done (telemetry contracts; `SensorAuth`; `ingestion-gateway`;
-`EventBusProducer` + Kafka sinks). Unit 4:
+1. Add a GitHub remote and push `main` (**blocked** — the user has said not to
+   touch GitHub yet). The workflow's `static` / `unit` / `integration` / `image`
+   jobs cover: ruff + `mypy --strict` over five src trees; the 266 non-
+   integration tests + `gen_contracts --check`; the 63 integration tests against
+   service-container Postgres/Redis + a runner-hosted Redpanda (SensorAuth SQL,
+   both bus round-trips); the `Dockerfile.app` build (now all four services) +
+   the non-root / prod-guard assertions.
+2. On green: mark R1 and R2 **INTEGRATION VERIFIED** (CI), update the Phase 2
+   exit report here, and move to the **Phase 3 prompt** (graph / detection —
+   consumes `events.canonical`).
+3. If a job goes red: fix first-run defects (Constitution §23 pre-output review
+   already done for Phase 1; do the equivalent scan for Phase 2 code that has
+   only ever run locally), each with a regression test.
 
-1. A shared Kafka **consumer** wrapper in `sm_common.bus` (aiokafka
-   `AIOKafkaConsumer`): consumer group from `SM_KAFKA_CONSUMER_GROUP`, manual
-   commit after successful handling, `start()`/`stop()`, a `ping()` for
-   readiness. At-least-once; the handler must be idempotent on `event_id`.
-2. `services/normalization-engine`: consume `telemetry.raw`, validate each
-   record as its `EventEnvelope[<telemetry payload>]`, run the per-source-type
-   normalizer to a `CanonicalEventPayload` (deterministic mapping only —
-   Geo-IP / hostname / identity / TI enrichment are stubs with a clear
-   interface, real providers are later units/phases), wrap it in
-   `EventEnvelope[CanonicalEventPayload]` (new `event_id`, same `correlation_id`,
-   `raw_event_id` = the source event id, `producer = normalization-engine@...`),
-   and produce to `events.canonical`. A record that fails to parse/normalize →
-   `telemetry.raw.dlq` with a reason; poison messages do not block the partition.
-3. `/healthz`, `/readyz` (kafka consumer + producer), `/metrics`
-   (`sm_normalize_{in,out,dlq}_total{source_type}`, lag if cheap). No HTTP
-   ingest surface — it is a pure stream processor.
-4. Unit tests: one golden normalization per source type (payload in → canonical
-   out, entities/actor/target populated, lineage kept); malformed record → DLQ;
-   the consumer wrapper commit-after-handle behaviour with a fake.
-5. Integration test (`--profile bus`): produce a `telemetry.raw` record, run one
-   normalize cycle, consume `events.canonical`, assert the canonical envelope;
-   produce a poison record, assert it lands on the DLQ and the next good record
-   still processes.
-6. Docs: this file; promote `event.canonical` DRAFT → implemented in
-   `CONTRACTS.md`; `REQUIREMENTS_TRACEABILITY.md` R2; add `normalization-engine`
-   to the image / compose / CI.
+Until the remote exists, the actionable local work of Phase 2 is done. Next
+inbound: the Phase 3 prompt.
 
 ### Standing debt before Phase 2 can be declared complete
 
 - The CI `integration` and `image` jobs still have not run (no GitHub remote).
-  They now also cover `SensorAuth` SQL, the `ingestion-gateway` image entrypoint,
-  and the `telemetry.raw` / `telemetry.raw.dlq` bus round-trip (`integration`
-  job starts a redpanda container). Must run before Phase 2 exit.
-- `telemetry.raw` / `telemetry.raw.dlq` topics are Redpanda-auto-created locally
-  and in CI. A real deployment pre-creates them with the partition counts in
-  `event-model.md` — recorded as a deploy-time task, not code.
+  They now cover `SensorAuth` SQL, both bus round-trips (ingest→raw,
+  raw→canonical), and the `Dockerfile.app` build of all four services
+  (`integration` job starts a redpanda container). Must run before Phase 2 exit.
+- `telemetry.raw` / `events.canonical` / `*.dlq` topics are Redpanda-auto-created
+  locally and in CI. A real deployment pre-creates them with the partition
+  counts in `event-model.md` — a deploy-time task, not code.
 - The `ingestion-gateway` per-IP rate limiter is a placeholder; per-sensor
   quota (keyed on the resolved `SensorIdentity`, after auth) is the intended
   design and is deferred to a later unit.

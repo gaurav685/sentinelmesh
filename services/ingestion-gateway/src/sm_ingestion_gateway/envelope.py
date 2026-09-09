@@ -24,14 +24,20 @@ open generic, so `model_dump()` in the sink keeps every payload field.
 
 from __future__ import annotations
 
-import hashlib
 from typing import Any, cast
 
 from sm_common.clock import utcnow
 from sm_common.context import get_correlation_id
 from sm_common.ids import new_correlation_id, uuid7
 from sm_common.security import SensorIdentity
-from sm_contracts import EventEnvelope, EventSource, EventType, SmBaseModel, SourceType
+from sm_contracts import (
+    EventEnvelope,
+    EventSource,
+    EventType,
+    SmBaseModel,
+    SourceType,
+    make_partition_key,
+)
 from sm_contracts.telemetry import (
     AuthEventPayload,
     DnsQueryPayload,
@@ -66,8 +72,7 @@ _PARTITION_FIELD: dict[EventType, str] = {
 def _partition_key(tenant_id: str, event_type: EventType, payload: SmBaseModel) -> str:
     field = _PARTITION_FIELD.get(event_type)
     entity = getattr(payload, field, None) if field else None
-    primary = str(entity) if entity is not None else "unknown"
-    return hashlib.sha256(f"{tenant_id}:{primary}".encode()).hexdigest()[:16]
+    return make_partition_key(tenant_id, str(entity) if entity is not None else "unknown")
 
 
 def build_envelope(

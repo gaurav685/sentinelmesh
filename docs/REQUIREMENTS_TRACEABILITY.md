@@ -66,7 +66,11 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-4 (outbound TI via service); tenant preserved on every output event.
 - **Test:** unit (normalizers per source type, enrichment skip paths), integration (raw→canonical), contract (canonical schema).
 - **Verification method:** integration test; golden-file normalization tests using dataset samples.
-- **Phase:** P2. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P2. **Status:** IMPLEMENTED (Phase 2, Unit 4), INTEGRATION VERIFIED on local infrastructure; CI confirmation pending.
+  - `services/normalization-engine` — a stream processor consuming `telemetry.raw`, producing `events.canonical` (`event.canonical` v1). Deterministic per-source mapping (`normalize/mappers.py`) → `CanonicalEventPayload` with `actor`/`target`/`entities` and `raw_event_id`/`raw_event_type` lineage; `occurred_at`, `correlation_id`, `source` carried from the raw event.
+  - `enrich/` is a stubbed `Enricher` protocol + runner — **Geo-IP, hostname resolution, identity stitching (`identity_link`), threat-intel tagging are NOT implemented** (no provider yet, so `enrichment = {}`); each is a later unit/phase. The `asset` / `identity_link` reads and the Redis geoip/TI cache are likewise not built.
+  - Delivery: `sm_common.bus.EventBusConsumer`, manual commit after the side effect; poison → `telemetry.raw.dlq` wrapped per event-model.md §5; produce failure → retry then uncommitted redelivery.
+  - **INTEGRATION VERIFIED** against real Redpanda — `tests/integration/test_normalization_bus.py`: a `telemetry.raw` record becomes an `events.canonical` envelope with lineage; a poison record is dead-lettered and the next good record still processes. Unit: `test_normalize.py` (6 golden mappings), `test_engine.py` (7).
 
 ### R3 — Graph Construction Engine
 - **Purpose:** build a dynamic attack graph — multi-hop relationships, real-time evolution, attack-path optimization.

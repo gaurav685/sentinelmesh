@@ -11,6 +11,7 @@ must be idempotent on it. Ordering holds only within a partition
 
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -29,10 +30,19 @@ __all__ = [
     "SourceType",
     "UserEventAction",
     "UserEventPayload",
+    "make_partition_key",
 ]
 
 _PRODUCER_RE = re.compile(r"^[a-z][a-z0-9-]{1,40}@\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
 _MAX_CLOCK_SKEW = timedelta(minutes=5)
+
+
+def make_partition_key(tenant_id: str | UUID, primary_entity: str) -> str:
+    """The canonical `partition_key` derivation (event-model.md §2):
+    `sha256(tenant_id + ':' + primary_entity)[:16]`. Every producer uses this so
+    events for one entity land on one partition and stay ordered."""
+    primary = primary_entity or "unknown"
+    return hashlib.sha256(f"{tenant_id}:{primary}".encode()).hexdigest()[:16]
 
 
 class SourceType(StrEnum):

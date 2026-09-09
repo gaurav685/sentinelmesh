@@ -52,7 +52,8 @@ jobs:
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
                       -e "services/api-gateway[dev]" \
-                      -e "services/ingestion-gateway[dev]"
+                      -e "services/ingestion-gateway[dev]" \
+                      -e "services/normalization-engine[dev]"
           pip install ruff mypy alembic pyyaml respx
 
       - name: Ruff
@@ -64,7 +65,8 @@ jobs:
             packages/contracts-py/src/sm_contracts \
             packages/common-py/src/sm_common \
             services/api-gateway/src/sm_api_gateway \
-            services/ingestion-gateway/src/sm_ingestion_gateway
+            services/ingestion-gateway/src/sm_ingestion_gateway \
+            services/normalization-engine/src/sm_normalization_engine
 
   unit:
     name: unit and contract tests
@@ -86,7 +88,8 @@ jobs:
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
                       -e "services/api-gateway[dev]" \
-                      -e "services/ingestion-gateway[dev]"
+                      -e "services/ingestion-gateway[dev]" \
+                      -e "services/normalization-engine[dev]"
           pip install alembic pyyaml respx
 
       - name: Tests (integration excluded)
@@ -157,7 +160,8 @@ jobs:
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
                       -e "services/api-gateway[dev]" \
-                      -e "services/ingestion-gateway[dev]"
+                      -e "services/ingestion-gateway[dev]" \
+                      -e "services/normalization-engine[dev]"
           pip install alembic pyyaml respx
 
       # Redpanda cannot be a `services:` container — the image needs a start
