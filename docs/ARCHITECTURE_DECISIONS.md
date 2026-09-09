@@ -31,7 +31,7 @@ container, cluster, model, or benchmark has been built, deployed, or measured.
 | ADR-007 | Graph store: Neo4j 5 (+ Graph Data Science) | ACCEPTED |
 | ADR-008 | Durable event bus: Apache Kafka (Redpanda locally) | ACCEPTED |
 | ADR-009 | Redis role: cache + ephemeral state + WebSocket fan-out only | ACCEPTED |
-| ADR-010 | Stream processing: Apache Flink; PyFlink vs JVM unresolved | ACCEPTED (with open question) |
+| ADR-010 | Stream processing: engine-independent contracts; plain-Python for stateless jobs, cluster engine (Flink/Bytewax) deferred per job | ACCEPTED (Phase 3 revision) |
 | ADR-011 | Operational attack graph vs. persistent knowledge graph vs. threat memory | ACCEPTED |
 | ADR-012 | ML stack: PyTorch 2 + PyTorch Geometric + scikit-learn + PyOD; MLflow registry | ACCEPTED |
 | ADR-013 | Model serving: in-process in `ml-inference` for MVP | ACCEPTED |
@@ -137,7 +137,8 @@ them under a **deployment profile**:
   deployable with independent scaling.
 
 Stateful / specialized runtimes are **always separate**: `stream-processor`
-(Flink), `ml-inference`, `ml-training`, `ai-analyst-service`,
+(plain-Python `EventBusConsumer` today for stateless jobs; a cluster engine
+per-job later — ADR-010), `ml-inference`, `ml-training`, `ai-analyst-service`,
 `agent-orchestrator`, `deception-service`, `simulation-service`,
 `federation-service`.
 
@@ -413,7 +414,7 @@ and **open with alarm** for read APIs (Phase 1 confirms), WebSocket updates paus
 
 ---
 
-## ADR-010 — Stream processing: Apache Flink (open question: PyFlink vs JVM)
+## ADR-010 — Stream processing: engine-independent contracts; plain-Python now, cluster engine deferred
 
 **Version.** Apache Flink 1.18+ (needs JDK 11+, absent locally — ADR-001).
 
@@ -433,22 +434,28 @@ directly — `graph-service` and `detection-engine` own those writes.
 large keyed state with checkpointing, exactly-once *within a job* (source→sink
 still at-least-once across the system).
 
-**Open question (unresolved decision U-001).** **PyFlink vs. JVM (Java/Scala)
-jobs.** PyFlink keeps language cohesion but lags on features and has UDF
-serialization overhead; JVM jobs are first-class but add a second language +
-build toolchain. Deferred to a Phase-2 spike with a representative job.
+**Phase-3 revision (resolves U-001 and U-002).** The stream-processing
+*contracts* (input/output topics, semantics — `event-model.md §7`) stay
+engine-independent. The *engine* is chosen per job, not up front:
 
-**Fallback (unresolved decision U-002).** If Flink's operational cost is
-unjustified at MVP scale, **Bytewax** (Python, Rust core) or **Kafka Streams**
-(JVM, no separate cluster) are candidates. The stream-processing *contracts*
-(input topics, output topics, semantics) are defined engine-independently in
-`docs/architecture/event-model.md` so the engine can change without a contract
-break.
+- **Stateless / low-state jobs run as plain-Python** `sm_common.bus.EventBusConsumer`
+  + `RecordProcessor` — no separate cluster, no JVM, runs locally and in CI.
+  `normalization-engine` and `stream-processor`'s `graph-update-emitter` are
+  built this way (Phase 2 / 3) and CI-verified against Redpanda.
+- **Stateful jobs** (feature windows, attack-chain sessionization,
+  temporal/identity stitching) are **deferred to their consuming phase.** When
+  the first one is built, its real state / event-time / throughput needs pick
+  the engine from: **Bytewax** (Python, Rust core, no JVM, keyed windows, runs
+  in a plain container — the current front-runner at MVP scale), **Flink**
+  (heaviest; true event-time + checkpointed state + exactly-once *within a job*;
+  needs JDK 11+ and a cluster — **`NOT VERIFIED — REQUIRES EXTERNAL
+  INFRASTRUCTURE`**, no JDK locally, ADR-001), or **Kafka Streams** (JVM, no
+  separate cluster).
+- So **U-001 (PyFlink vs JVM) is moot** unless a job specifically needs Flink;
+  **U-002 is resolved**: no cluster-class engine is adopted now; the
+  plain-Python path covers everything Phases 2–3 need.
 
-**Licensing.** Apache-2.0.
-
-**Local / production.** Flink requires JDK 11+ and (for anything realistic) a
-container or cluster — `NOT VERIFIED — REQUIRES EXTERNAL INFRASTRUCTURE`.
+**Licensing.** Apache-2.0 (Flink, Kafka Streams); Bytewax Apache-2.0.
 
 ---
 
@@ -820,10 +827,10 @@ redistribution or commercial claim.
 
 | ID | Question | Blocking? | Target phase |
 |----|----------|-----------|--------------|
-| U-001 | PyFlink vs JVM Flink jobs | No | Phase 2 spike |
-| U-002 | Flink vs Bytewax vs Kafka Streams if Flink ops cost too high | No | Phase 2 |
+| U-001 | PyFlink vs JVM Flink jobs | No | **RESOLVED Phase 3** — moot; plain-Python for stateless jobs, Flink only if a stateful job needs it (ADR-010) |
+| U-002 | Flink vs Bytewax vs Kafka Streams | No | **RESOLVED Phase 3** — no cluster engine adopted now; stateful jobs pick per-job at their consuming phase, Bytewax the front-runner (ADR-010) |
 | U-003 | Neo4j database-per-tenant threshold (Enterprise licensing) | No (dev) / Yes (prod) | before production |
-| U-004 | JSON+JSON-Schema vs schema-registry + Avro/Protobuf for events | No | Phase 3 (volume-driven) |
+| U-004 | JSON+JSON-Schema vs schema-registry + Avro/Protobuf for events | No | Phase 3 (volume-driven) — **still JSON**; the envelope + `EVENT_TYPE_VERSION` policy is designed to survive the switch when volume justifies it |
 | U-005 | Postgres RLS mandatory vs. repository-layer-only tenant scoping | No | Phase 1 |
 | U-006 | Ingestion hot path stays Python vs. moves to Go | No | Phase 1 load test |
 | U-007 | Cytoscape.js vs Sigma.js at 100k+ graph elements | No | Phase 4 (UI) |

@@ -86,7 +86,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** internal; tenant property on every node/edge; no cross-tenant relationship (graph invariant).
 - **Test:** unit (command→Cypher, idempotency), integration (Neo4j container), invariant tests (no cross-tenant edge).
 - **Verification method:** integration tests against Neo4j container; invariant assertions.
-- **Phase:** P3. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P3/P4. **Status:** PARTIAL. The **command producer half is IMPLEMENTED** (Phase 3): `sm_contracts.GraphCommandPayload` + `stream-processor`'s `graph-update-emitter` maps every `events.canonical` event to node/edge `MERGE` commands on `graph.commands`, deterministic `command_id`, INTEGRATION VERIFIED against Redpanda (`test_stream_processor_bus.py`). The **graph writer** (`graph-writer` / Neo4j, command→Cypher, invariants) is **Phase 4** — `graph.commands` currently has no consumer.
 
 ### R4 — Dynamic Graph Update System
 - **Purpose:** streaming graph updates, temporal synchronization, real-time attack-state updates.
@@ -348,7 +348,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Purpose:** Kafka pipelines, Flink orchestration, fault-tolerant streaming; distinct roles for Kafka / Redis / Flink; DLQ, consumer groups, partitioning, ordering, replay, backpressure.
 - **Subsystem:** Platform / Stream.
 - **Service:** `stream-processor` (Flink) + Kafka infra + Redis.
-- **Module/File:** `services/stream-processor/`, `deploy/docker` (Redpanda), `packages/common-py/kafka/`.
+- **Module/File:** `packages/common-py/src/sm_common/bus/` (`producer`, `consumer`, `processor`, `admin`), `sm_contracts.topics`, `services/stream-processor/`, `scripts/{provision_topics,replay}.py`, `deploy/docker` (Redpanda).
 - **Database:** Flink state + S3 checkpoints; Kafka topics.
 - **API:** N/A.
 - **Event:** the entire topic taxonomy (`event-model.md §3`); at-least-once; **exactly-once NOT claimed**.
@@ -358,7 +358,16 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-3; SASL_SSL + ACLs in prod; per-key tenant isolation in state.
 - **Test:** DLQ tests, consumer-lag/backpressure tests, checkpoint-restore tests, ordering tests, replay tests.
 - **Verification method:** integration tests with Redpanda; Flink job tests (mini-cluster) — **EXTERNALLY DEPENDENT** (needs JDK 11+/Flink).
-- **Phase:** P2 (Kafka), P3–P4 (Flink jobs). **Status:** ARCHITECTURE DEFINED. Kafka-vs-Redis-vs-Flink roles: **RESOLVED** (ADR-008/009/010).
+- **Phase:** P2 (Kafka), P3 (backbone). **Status:** **IMPLEMENTED + INTEGRATION VERIFIED** for the Kafka transport; stateful (Flink-class) jobs deferred per-job (ADR-010).
+  - **Topic strategy / partitioning / ordering / versioned types:** `sm_contracts.topics` — the 12-topic catalog, `partition_key = sha256(tenant:entity)[:16]`, per-partition ordering only, `EVENT_TYPE_VERSION` + the `.v2` suffix policy. `test_topics.py`.
+  - **Producer / consumer / consumer groups:** `sm_common.bus` — idempotent producer (`acks=all`), manual-commit-after-side-effect consumer with fetch-position rewind on failure, one group per logical consumer.
+  - **Retries / DLQ / poison messages:** `RecordProcessor` — `PoisonError` → DLQ now, `TransientError` → exp backoff ×N → DLQ, wrapped `dlq_payload` to `<topic>.dlq` (event-model.md §5).
+  - **Idempotency / duplicates:** deterministic downstream ids (`canonical_event_id`, `graph_command_id`); at-least-once, exactly-once **not claimed**.
+  - **Replay:** `EventBusConsumer.seek_by_timestamp` + `scripts/replay.py` (dry-run default, `*-replay` group enforced).
+  - **Graceful shutdown / backpressure / consumer lag:** `request_stop()` drains the in-flight batch; `SM_KAFKA_MAX_POLL_RECORDS` bound; `sm_consumer_lag` gauge.
+  - **Topic provisioning:** `ensure_topics` / `scripts/provision_topics.py` (create + grow); compose `topics-init`, CI step.
+  - **Observability:** `docs/architecture/observability.md` — metric catalog + DLQ-depth / lag alerts.
+  - **All INTEGRATION VERIFIED** against real Redpanda: `tests/integration/test_bus_kafka.py` (9), `test_normalization_bus.py` (2), `test_stream_processor_bus.py` (2).
 
 ### R21 — Threat Memory System
 - **Purpose:** behavioral pattern persistence, campaign-evolution tracking, cross-incident intelligence retention; storage/retrieval/retention/tenant isolation.
