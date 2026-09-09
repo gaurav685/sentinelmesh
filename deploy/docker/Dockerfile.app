@@ -1,7 +1,7 @@
 # SentinelMesh application image.
 #
 # Builds the Python distributions (contracts, common, api-gateway,
-# ingestion-gateway, normalization-engine, stream-processor) into a virtualenv in a builder stage, then copies only that
+# ingestion-gateway, normalization-engine, stream-processor, graph-service) into a virtualenv in a builder stage, then copies only that
 # venv into a slim runtime. One image serves every service; the compose
 # `command:` selects which `python -m ...` entrypoint runs. The runtime has no
 # compiler, no build cache and runs as a non-root user.
@@ -37,6 +37,7 @@ COPY services/api-gateway/pyproject.toml services/api-gateway/README.md services
 COPY services/ingestion-gateway/pyproject.toml services/ingestion-gateway/README.md services/ingestion-gateway/
 COPY services/normalization-engine/pyproject.toml services/normalization-engine/README.md services/normalization-engine/
 COPY services/stream-processor/pyproject.toml services/stream-processor/README.md services/stream-processor/
+COPY services/graph-service/pyproject.toml services/graph-service/README.md services/graph-service/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
@@ -44,8 +45,9 @@ COPY services/api-gateway/src  services/api-gateway/src
 COPY services/ingestion-gateway/src services/ingestion-gateway/src
 COPY services/normalization-engine/src services/normalization-engine/src
 COPY services/stream-processor/src services/stream-processor/src
+COPY services/graph-service/src services/graph-service/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./services/stream-processor \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./services/stream-processor ./services/graph-service \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #

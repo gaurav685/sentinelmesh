@@ -7,16 +7,16 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Unit 1 DONE
-and CI-green on a clean runner (run
-[`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544),
-all four jobs; the `integration` job ran the schema against a real
-`neo4j:5-community` service).** Unit 1 lays the
-Neo4j foundation: the async driver wrapper, the label/relationship allowlist
-(the Cypher-injection guard), the versioned `.cypher` schema migration + runner,
-the production config guard, and the compose/CI wiring for a Neo4j service.
-Units 2–4 (the `graph.commands` consumer `graph-service`, the graph-query API,
-the full integration-test set + exit report) follow.
+**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Units 1–2 DONE.**
+Unit 1 (CI-green, run
+[`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544)):
+the Neo4j async driver wrapper, the label/relationship allowlist (Cypher-injection
+guard), the versioned `.cypher` schema migration + runner, the production config
+guard, and the compose/CI wiring for a Neo4j service. Unit 2 (local + integration
+verified, CI pending): `services/graph-service` — the only write path into Neo4j;
+consumes `graph.commands`, applies each as a parameterized idempotent MERGE,
+emits `graph.events`. Units 3–4 (the graph-query API, the full integration set +
+exit report) follow.
 
 **Phase 3 — Kafka + Stream Processing. COMPLETE / CI-VERIFIED.** Units 1–4:
 Unit 1 topic registry; Unit 2 bus hardening + topic provisioning; Unit 3
@@ -30,6 +30,56 @@ Flink **not** implemented — no JDK 11+ locally (ADR-001), no stateful job's
 consuming phase has arrived.
 
 ---
+
+### Phase 4, Unit 2 — graph-service (the Neo4j write path) (DONE — local + integration verified)
+
+- `services/graph-service` (port 8004, module `sm_graph_service`, consumer group
+  `graph-writer`). Mirrors the `stream-processor` shape: a Kafka consumer with a
+  health/metrics HTTP surface, no ingest. The lifespan owns the Neo4j driver, the
+  producer, the consumer, and one `EventBusConsumer.run(RecordProcessor)` task.
+- `GraphWriter.apply(GraphCommandPayload) -> MutationResult`:
+  - **Parameterized Cypher only.** The single thing interpolated is a node label
+    / relationship type, and only after `normalize_label` + membership check
+    against `sm_contracts.GRAPH_NODE_LABELS` / `GRAPH_REL_TYPES`. Off-list → the
+    engine raises `PoisonError` → `graph.commands.dlq`.
+  - **Idempotent by `command_id`** — a read of the `_GraphCommand` ledger
+    short-circuits a redelivery to `DUPLICATE` (no mutation). The ledger row is
+    written *after* the (idempotent) MERGE, so a crash between the two just
+    re-runs the MERGE on retry.
+  - **Node key** must be exactly `{<key prop for label>: value}`; MERGE is keyed
+    on the synthetic `graph_node_uid(tenant_id, value)` (`"<tenant>:<value>"`).
+  - **Out-of-order safe** — every node/rel carries `_watermark` (newest
+    `observed_at` applied). An older command widens `first_seen` / `last_seen`
+    but does not overwrite props → `STALE`.
+  - **Tenant invariants by construction** — `tenant_id` written everywhere; node
+    uid embeds the tenant, so an edge can only join same-tenant nodes.
+  - **Missing endpoint nodes** for a `MERGE_EDGE` are created thin.
+  - **`MERGE (s)-[r:REL]->(e)`** on endpoints only → repeated commands update the
+    one edge, never duplicate it.
+  - `PRUNE` → `PoisonError` (the retention job is later).
+- `GraphEngine.handle`: parse the `graph.command` envelope (bad → `PoisonError`),
+  apply, `GraphUnavailableError` → `TransientError` (retry, never drop), then
+  produce one `graph.events` record (`event_id == command_id`); a failed produce
+  → `TransientError`.
+- Contracts: `EventType.graph_event` (`"graph.event"` → topic `graph.events`),
+  `GraphEventPayload` (`command_id, op, outcome ∈ APPLIED|DUPLICATE|STALE,
+  tenant_id, observed_at, raw_event_id, label, nodes_written,
+  relationships_written`), `GraphMutationOutcome`. Registered; 2 new JSON Schemas
+  (38 total). `gen_contracts.py --check` clean.
+- Metric `sm_graph_commands_applied_total{service,op,outcome}` (retry/DLQ/lag are
+  the shared bus metrics).
+- Wiring: `graph-service` added to `Dockerfile.app` (COPY + `pip install`),
+  `docker-compose.yml` (`graph` profile, `depends_on` neo4j healthy, port 8004),
+  CI (`static`/`unit`/`integration` installs, `mypy` 7th tree, `image` import
+  check). `pyproject.toml` `known-first-party` += `sm_graph_service`.
+- Tests: `services/graph-service/tests` — `test_writer.py` (10, fake graph:
+  allowlist rejection, key validation, prune, duplicate short-circuit,
+  parameterization, stale, edge), `test_engine.py` (6: envelope parsing, error
+  mapping, one `graph.events` per command), `test_health.py` (4).
+  `tests/integration/test_graph_service_neo4j.py` (6, real Neo4j via the `graph`
+  fixture): tenant-scoped node creation, `command_id` no-op, out-of-order keeps
+  the newer value, edge creation + both endpoints, no duplicate relationship,
+  cross-tenant isolation (two nodes, zero cross-tenant edges). **CI pending.**
 
 **Phase 2 — Telemetry Ingestion + Normalization. COMPLETE / CI-VERIFIED.**
 Units 1–4 implemented; §23 review done; full compose stack + live end-to-end
@@ -1154,25 +1204,22 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Phase 4, Unit 1 is DONE and CI-green** (commit `5c17a33`, run `34346140544` —
-all four jobs; `integration` ran the schema against a real `neo4j:5-community`
-service).
+**Phase 4, Units 1–2 are DONE.** Unit 1 CI-green (commit `5c17a33`, run
+`34346140544`). Unit 2 (`services/graph-service`) is local + integration verified
+(333 unit tests, ruff, `mypy --strict` over 7 trees, 86 integration tests incl. 6
+new against real Neo4j; image builds and imports `sm_graph_service`). **Commit
+Unit 2, then push and confirm CI green.**
 
-**Next: Phase 4, Unit 2 — `services/graph-service`.** Consume `graph.commands`
-(group `graph-writer`) via `RecordProcessor`. For each `GraphCommandPayload`:
-validate `label` against `GRAPH_NODE_LABELS` / `GRAPH_REL_TYPES`
-(`sm_contracts.graph`) — non-allowlisted → DLQ (`PoisonError`); build a
-**parameterized** MERGE (never interpolate) keyed on `graph_node_uid(tenant_id,
-key)`; idempotent by `command_id` via the `_GraphCommand` ledger constraint;
-enforce the data-model invariants (non-null `tenant_id`; no cross-tenant edge —
-both endpoints' `tenant_id` must match the command's); last-write-wins on
-`observed_at` for out-of-order events; Neo4j unavailable → `GraphUnavailableError`
-→ `TransientError` (retry). Produce `graph.events`. Health probe
-`probe_check("neo4j", graph.ping)`; `/metrics`; no HTTP ingest. Then Unit 3
-(graph-query API: `neighbors`, `attack_path`, `entity` — parameterized,
-tenant-scoped, depth default 4 / hard cap 8, row-capped) and Unit 4 (full
-integration set + docs + exit report + Dockerfile/compose/CI/Makefile wiring for
-`graph-service`).
+**Then Phase 4, Unit 3 — the graph-query API.** A `GraphRepository` in
+`sm_graph_service` (or `sm_common.graph`): `entity(tenant_id, label, key)`,
+`neighbors(tenant_id, label, key, depth)`, `attack_path(tenant_id, src, dst,
+max_depth)`. **Parameterized only**; every query tenant-scoped (filter on
+`tenant_id` / the `uid` prefix), depth-bounded (default 4, hard cap 8 per
+`data-model.md`), row-capped, and under `SM_NEO4J_QUERY_TIMEOUT_MS`. Exposed on
+an internal HTTP surface on `graph-service` (`/api/v1/graph/...`), service-JWT
+guarded, `_`-prefixed internal props (`_watermark`) stripped from responses.
+Then Unit 4 (full integration set + Phase 4 exit report + `REQUIREMENTS_TRACEABILITY`
+R3/R4/R10/R12 promotion + Makefile `run` target if wanted).
 
 Exit next action after Phase 4: **PHASE 5 — DETECTION + ANOMALY DETECTION**
 (user pastes the prompt; do not start speculatively).

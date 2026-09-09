@@ -61,8 +61,9 @@ class EventType(StrEnum):
     telemetry_file_access = "telemetry.file_access"
     # normalized (Phase 2)
     event_canonical = "event.canonical"
-    # graph / detection (Phase 3)
+    # graph / detection (Phase 3-4)
     graph_command = "graph.command"
+    graph_event = "graph.event"
     detection_raised = "detection.raised"
     attack_chain_updated = "attack_chain.updated"
     ti_indicator_updated = "ti.indicator_updated"

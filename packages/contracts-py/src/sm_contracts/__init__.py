@@ -71,6 +71,8 @@ from .graph import (
     GRAPH_REL_TYPES,
     GraphCommandPayload,
     GraphEndpoint,
+    GraphEventPayload,
+    GraphMutationOutcome,
     GraphOp,
     graph_command_id,
     graph_node_uid,
@@ -147,9 +149,11 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "topic_for_event_type",
     "dlq_topic",
     "replay_group",
-    # graph commands (Phase 3) + graph model allowlist (Phase 4)
+    # graph commands (Phase 3) + graph model allowlist + graph events (Phase 4)
     "GraphCommandPayload",
     "GraphEndpoint",
+    "GraphEventPayload",
+    "GraphMutationOutcome",
     "GraphOp",
     "GRAPH_PAYLOADS",
     "graph_command_id",

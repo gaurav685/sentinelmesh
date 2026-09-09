@@ -12,7 +12,7 @@
 #   (default)        postgres, redis, migrate, app, ingestion-gateway
 #   --profile oidc   keycloak
 #   --profile obs    prometheus, grafana
-#   --profile graph  neo4j            (Phase 4+)
+#   --profile graph  neo4j, graph-service   (Phase 4+; graph-service also needs --profile bus)
 #   --profile bus    redpanda         (Phase 2+)
 #   --profile objects minio           (Phase 5+)
 
@@ -212,6 +212,35 @@ services:
         condition: service_healthy
       topics-init:
         condition: service_completed_successfully
+
+  # The only write path into Neo4j. Consumes graph.commands, emits graph.events.
+  # Needs BOTH the bus and the graph store — run with `--profile bus --profile graph`.
+  graph-service:
+    profiles: ["graph"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_graph_service"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: graph-service
+      SM_DEPLOYMENT_PROFILE: monolith
+      SM_EVENT_BUS_ENABLED: "true"
+      SM_KAFKA_CONSUMER_GROUP: graph-writer
+    ports:
+      - "8004:8004"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8004/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      neo4j:
+        condition: service_healthy
 
   keycloak:
     profiles: ["oidc"]

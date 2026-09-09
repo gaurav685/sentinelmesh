@@ -80,7 +80,10 @@ reducing) with awareness that `partition_key` distribution changes.
   - `normalization-engine`: the canonical `event_id` is `uuid5` of the raw
     `event_id`, so a redelivered raw record re-emits the same canonical
     `event_id` and every downstream `event_id` check below suppresses it.
-  - `graph-writer`: `command_id` uniqueness + MERGE semantics in Cypher.
+  - `graph-writer` (`services/graph-service`, **IMPLEMENTED** Phase 4): a
+    `_GraphCommand {command_id}` ledger (UNIQUE constraint) + MERGE semantics in
+    parameterized Cypher; out-of-order commands resolved by a `_watermark` on
+    each node/relationship. Emits `graph.events` (`GraphEventPayload`).
   - `detection`: `(tenant_id, event_id, detector_version)` unique row.
   - `api-projection`: upsert by natural key; projections are rebuildable.
   - `memory`: dedup by `event_id` set.

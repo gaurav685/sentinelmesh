@@ -29,6 +29,7 @@ PROFILED = {
     "prometheus": "obs",
     "grafana": "obs",
     "neo4j": "graph",
+    "graph-service": "graph",
     "redpanda": "bus",
     "minio": "objects",
 }
