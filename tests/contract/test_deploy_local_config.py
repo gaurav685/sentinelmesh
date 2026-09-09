@@ -30,6 +30,7 @@ PROFILED = {
     "grafana": "obs",
     "neo4j": "graph",
     "graph-service": "graph",
+    "ml-inference": "detect",
     "redpanda": "bus",
     "minio": "objects",
 }

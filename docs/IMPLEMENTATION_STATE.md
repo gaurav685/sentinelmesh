@@ -7,9 +7,12 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Units 1–2 DONE.**
-Unit 1 (CI-green, run
-[`34353986031`](https://github.com/gaurav685/sentinelmesh/actions/runs/34353986031)):
+**Phase 5 — Detection + Anomaly Detection. IN PROGRESS — Units 1–3 DONE.**
+Unit 1 CI-green (run
+[`34353986031`](https://github.com/gaurav685/sentinelmesh/actions/runs/34353986031));
+Unit 2 (`packages/ml-py`) CI-green (run
+[`34355234014`](https://github.com/gaurav685/sentinelmesh/actions/runs/34355234014));
+Unit 3 (`services/ml-inference`) local-verified. Unit 1:
 `sm_contracts` detection domain + Alembic `0003` (`detection` / `anomaly` /
 `threat_score` / `security_alert` — the `detection-engine` system of record).
 Unit 2 (local verified): `packages/ml-py` (`sm_ml`) — versioned `FeatureSchema`
@@ -19,8 +22,13 @@ per `CanonicalKind` + deterministic numpy-free extractors, `Preprocessor`
 `IsolationForestModel` (sklearn, `sm-ml[serving]`), `AutoencoderModel`
 architecture spec + `ModelNotTrained` guard, `ModelRegistry` (loads artifacts
 from `SM_ML_MODEL_DIR`; missing dir = empty), and `ml/models/*/CONTRACT.md` (§6,
-`METRICS: NOT VERIFIED`). Units 3–5 (`ml-inference`, `detection-engine`, wiring +
-e2e + exit report) follow.
+`METRICS: NOT VERIFIED`). Unit 3: `services/ml-inference` (ADR-013) — `ModelHost`
+over the registry (lazy load + cache + `reload()`), internal-JWT `POST
+/api/v1/infer/{model}` + `GET /api/v1/models`, a missing / unloadable / serving-
+deps-absent model → HTTP 503 `dependency_unavailable` with `MODEL_UNAVAILABLE`
+(never a 500, never a fabricated score), per-model latency + error + load
+metrics, `/readyz` always ready (models optional). Units 4–5
+(`detection-engine`, wiring + e2e + exit report) follow.
 
 **Phase 4 — Neo4j + Graph Intelligence Foundation. COMPLETE / CI-VERIFIED.**
 Units 1–4, all four CI jobs green on a clean runner: runs
@@ -1349,22 +1357,28 @@ integration test. Docker is still absent.
 
 **Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; final run `34350607501`).
 
-**Phase 5 Units 1–2 done.** Unit 1 CI-green (commit `5c7da92`, run `34353986031`).
-Unit 2 (`packages/ml-py`) locally verified: 378 unit tests, ruff, `mypy --strict`
-over 8 trees, `gen_contracts --check`. **Commit Unit 2, push, confirm CI green.**
+**Phase 5 Units 1–3 done.** Units 1–2 CI-green (commits `5c7da92` / `d6b2c1a`,
+runs `34353986031` / `34355234014`). Unit 3 (`services/ml-inference`) locally
+verified: 389 unit tests, ruff, `mypy --strict` over 9 trees, `gen_contracts
+--check`; image builds and imports `sm_ml_inference` + `sm_ml`. **Commit Unit 3,
+push, confirm CI green.**
 
-**Then Phase 5, Unit 3 — `services/ml-inference`.** ADR-013 in-process model
-serving: FastAPI, internal-JWT, loads `ModelRegistry.from_env()` at startup,
-`POST /api/v1/infer/{model}` (typed request = `{feature_schema_version, kind,
-features: [float]}`, typed response = the `AnomalyScore` shape). A missing model
-→ typed `MODEL_UNAVAILABLE` (not a 500); `/readyz` degrades if a *required* model
-is absent but the service still starts (the statistical path lives in
-detection-engine, so no model is strictly required yet). Per-model latency +
-error-type metrics; a "new model version" control-topic hot-reload (documented,
-minimal). Unit 4 = `services/detection-engine` (rules + composite deterministic
-score + adaptive thresholds via a rolling window + evidence + alert +
-`detections` topic + degrade-on-model-failure + tenant isolation). Unit 5 =
-wiring + real-infra e2e + Phase 5 exit report + §23 +
+**Then Phase 5, Unit 4 — `services/detection-engine`.** Consume `events.canonical`
+via `RecordProcessor`. Per event: `extract_features` → score against a
+per-`(tenant, kind)` `StatisticalModel` fitted from a rolling window (adaptive
+thresholds; the window lives in Redis or an in-process bounded deque, decide at
+build) → persist an `anomaly` row; call `ml-inference` `POST /infer/{model}` for
+the trained contribution, a 503 / `MODEL_UNAVAILABLE` → `scoring_status =
+DEGRADED` + skip that contribution (ADR-013). Rule detectors (real, not
+overclaimed): abnormal auth (failed-login burst / off-hours service-account
+auth), credential reuse across hosts, lateral-movement indicator (auth then
+outbound flow), suspicious process (high-entropy cmdline / unsigned from temp),
+suspicious DNS (long high-entropy qname / NXDOMAIN burst / TXT), anomalous
+network (rare port / large egress). Deterministic composite `threat_score`
+(documented, versioned weights). Assemble `EvidenceItem`s for every claim. Write
+`detection` / `threat_score`; on threshold cross write `security_alert`; emit
+`DetectionPayload` on `detections`. Tenant isolation, malformed-data → DLQ,
+metrics. Unit 5 = wiring + real-infra e2e + Phase 5 exit report + §23 +
 `REQUIREMENTS_TRACEABILITY` R5/R8/R20.
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**

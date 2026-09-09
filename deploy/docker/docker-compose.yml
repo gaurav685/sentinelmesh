@@ -14,6 +14,7 @@
 #   --profile obs    prometheus, grafana
 #   --profile graph  neo4j, graph-service   (Phase 4+; graph-service also needs --profile bus)
 #   --profile bus    redpanda         (Phase 2+)
+#   --profile detect ml-inference, detection-engine   (Phase 5+; also needs --profile bus)
 #   --profile objects minio           (Phase 5+)
 
 name: sentinelmesh
@@ -241,6 +242,31 @@ services:
     depends_on:
       neo4j:
         condition: service_healthy
+
+  # Model serving (ADR-013). No trained artifacts ship in the repo, so every
+  # infer call returns MODEL_UNAVAILABLE until ml-training produces one.
+  ml-inference:
+    profiles: ["detect"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_ml_inference"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: ml-inference
+      SM_DEPLOYMENT_PROFILE: monolith
+      SM_ML_MODEL_DIR: /app/ml/artifacts
+    ports:
+      - "8005:8005"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8005/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
 
   keycloak:
     profiles: ["oidc"]
