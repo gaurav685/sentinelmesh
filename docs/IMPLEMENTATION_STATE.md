@@ -1096,7 +1096,7 @@ integration test. Docker is still absent.
 ## Exact next action
 
 **Await the Phase 4 prompt** (Neo4j + graph engine — the first `graph.commands`
-consumer). Phase 3 Units 1–4 are done; the last commit's CI is the final gate.
+consumer). Phase 3 Units 1–4 are done; all commits CI-green (last run 34342866073).
 Nothing to build until the Phase 4 prompt arrives; do not start speculatively.
 
 Phase 4 will add `services/graph-writer` (or `graph-service`) consuming
