@@ -14,7 +14,7 @@
 #   --profile obs    prometheus, grafana
 #   --profile graph  neo4j, graph-service   (Phase 4+; graph-service also needs --profile bus)
 #   --profile bus    redpanda         (Phase 2+)
-#   --profile detect ml-inference, detection-engine, mitre-service   (Phase 5-6; detection/mitre also need --profile bus)
+#   --profile detect ml-inference, detection-engine, mitre-service, threat-intel-service   (Phase 5-6; detection/mitre also need --profile bus)
 #   --profile objects minio           (Phase 5+)
 
 name: sentinelmesh
@@ -322,6 +322,35 @@ services:
       - "8008:8008"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8008/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # IOC store + enrichment (req 9). Provider adapters are feature-flagged off.
+  threat-intel-service:
+    profiles: ["detect"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_ti_service"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: threat-intel-service
+      SM_DEPLOYMENT_PROFILE: monolith
+      SM_EVENT_BUS_ENABLED: "true"
+    ports:
+      - "8007:8007"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8007/healthz', timeout=2).status == 200 else 1)"]
       interval: 15s
       timeout: 3s
       retries: 3
