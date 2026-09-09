@@ -7,12 +7,13 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Units 1–3 DONE**
-(Units 1–2 CI-green: run
+**Phase 4 — Neo4j + Graph Intelligence Foundation. Units 1–4 IMPLEMENTED;
+Units 1–3 CI-green** (runs
 [`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544)
-/ [`34348143536`](https://github.com/gaurav685/sentinelmesh/actions/runs/34348143536).
-Unit 3 — the graph-query API — local + integration verified, CI pending). Unit 4
-(Phase 4 exit report + traceability promotion) remains.
+/ [`34348143536`](https://github.com/gaurav685/sentinelmesh/actions/runs/34348143536)
+/ [`34349655012`](https://github.com/gaurav685/sentinelmesh/actions/runs/34349655012)).
+**Unit 4 = the real-infra end-to-end run + the Phase 4 exit report + the §23
+review (below); awaiting final CI green, then Phase 5.**
 Unit 1 (run `34346140544`):
 the Neo4j async driver wrapper, the label/relationship allowlist (Cypher-injection
 guard), the versioned `.cypher` schema migration + runner, the production config
@@ -115,7 +116,7 @@ consuming phase has arrived.
   `test_graph_api.py` (8 — 401 matrix, tenant-from-token, 404, 422, view shape).
   `tests/integration/test_graph_service_neo4j.py` +4 (real Neo4j: public-props
   only, bounded neighbourhood at depth 1 vs 2, shortest path length 2,
-  cross-tenant reads return nothing). CI pending.
+  cross-tenant reads return nothing). CI-green (run `34349655012`).
 
 **Phase 2 — Telemetry Ingestion + Normalization. COMPLETE / CI-VERIFIED.**
 Units 1–4 implemented; §23 review done; full compose stack + live end-to-end
@@ -395,6 +396,95 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 4 exit report
+
+**State: IMPLEMENTED / INTEGRATION VERIFIED against real Neo4j 5 Community +
+real Redpanda. Units 1–3 CI-green; Unit 4 = this report + the end-to-end run +
+the §23 review. GDS pathfinding/centrality and the operational-graph pruning job
+are deferred to their consuming phase.**
+
+### Delivered (Units 1–4)
+
+| Area | State |
+|---|---|
+| `sm_common.graph` | `Graph` async Neo4j driver wrapper (connectivity probe, per-query timeout, `GraphUnavailableError`, parameter-only `run_read` / `run_write`); `apply_pending` migration runner + `split_statements`. |
+| `sm_contracts.graph` | the label / relationship **allowlist** (`GRAPH_NODE_KEY` 13 labels, `GRAPH_NODE_LABELS`, `GRAPH_REL_TYPES` 15 types), `normalize_label`, `graph_node_uid`; `GraphEventPayload` + `GraphMutationOutcome` + `EventType.graph_event`. `GraphCommandPayload` promoted **STABLE**. Contract test pins the allowlist to `data-model.md`. |
+| `migrations/neo4j/0001_schema.cypher` | per-tenant `uid` UNIQUE constraint per label + `_GraphCommand` / `_GraphMigration` ledgers + tenant-key range indexes + temporal indexes + `Host`/`Domain`/`Identity` full-text. Runner `scripts/graph_migrate.py` (`--status`); `make migrate` applies it; CI `integration` runs it against a real `neo4j:5-community` service. |
+| `services/graph-service` | **the only write path into Neo4j.** Consumes `graph.commands` (group `graph-writer`) via `RecordProcessor`; `GraphWriter.apply` — parameterized MERGE (label allowlist-checked, off-list → DLQ), idempotent by `command_id` (`_GraphCommand` ledger), out-of-order safe (`_watermark`), tenant invariants by construction (synthetic `uid`), missing endpoint nodes created thin, no duplicate relationships, `PRUNE` not-yet-implemented → DLQ. `GraphEngine.handle` maps Neo4j outage → `TransientError` and emits `graph.events`. |
+| `services/graph-service` query API | `GraphRepository` (`entity` / `neighbors` / `attack_path`) + `GET /api/v1/graph/{entity,neighbors,paths}`. Parameterized only; **tenant scope from the verified internal JWT, never a request field**; depth clamped to `SM_NEO4J_TRAVERSAL_MAX_DEPTH`, row-capped `SM_NEO4J_QUERY_MAX_ROWS`, `_`/`uid` props stripped. `deps.get_principal` is the mesh's first `verify_internal_token` verifier. |
+| `AppSettings` | `SM_NEO4J_PASSWORD` production fail-fast guard; `SM_NEO4J_QUERY_MAX_ROWS`, `SM_NEO4J_TRAVERSAL_MAX_DEPTH`. |
+| `deploy/docker` | `neo4j` healthcheck (`graph` profile); `graph-service` service (`graph` profile, `depends_on` neo4j healthy, port 8004); one image builds all 6 services. CI: 7th mypy tree, install + import checks, Neo4j service + schema step. |
+
+### End-to-end verification (Unit 4)
+
+`tests/integration/test_graph_pipeline_e2e.py` — real Redpanda + real Neo4j:
+a canonical `auth` event on `events.canonical` → `stream-processor` engine →
+`graph.commands` → `graph-service` engine → Neo4j. The graph then has
+`(:Identity {identity_id:'e2e-alice'})-[:AUTHENTICATED_TO]->(:Host {host_id:'e2e-web01'})`;
+`GraphRepository.entity` / `neighbors` / `attack_path` return it; `graph.events`
+carries `outcome: APPLIED`. 349 unit tests, ruff, `mypy --strict` over 7 src
+trees, 91 integration tests all pass.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Cypher injection.** The only interpolation anywhere is a node label / rel
+  type, always after `normalize_label` + a membership check against a frozen
+  `frozenset` whose members are compile-time string literals, and it is
+  back-tick-quoted. The query-API depth is `max(1, min(int(d), cap))`. Every
+  other value is a bound parameter. `test_graph_model.py` fails the build if the
+  allowlist drifts from `data-model.md`; `test_repository.py` / `test_writer.py`
+  assert the caller's key value never appears in the query text.
+- **Tenant isolation.** Node identity is `uid = "<tenant>:<key>"` (UNIQUE), so a
+  MERGE_EDGE cannot join two tenants; every read filters
+  `all(x IN nodes(p) WHERE x.tenant_id = $tenant)` and the tenant comes from the
+  JWT. `test_graph_service_neo4j.py::test_queries_never_cross_tenants` and
+  `::test_relationships_never_cross_tenants` prove it against real Neo4j.
+- **Idempotency vs. atomicity.** The ledger row is written *after* the
+  (idempotent) MERGE, so a crash between them re-runs the MERGE — never a
+  command marked done but not applied. Cost: a redelivered STALE/DUPLICATE
+  re-runs one idempotent MERGE. Accepted and documented.
+- **Auto-commit, single statement.** `graph-writer` applies one command as one
+  statement, so auto-commit is correct; a multi-statement transaction would buy
+  nothing here. The migration runner is the same.
+- **`_watermark` is an internal prop.** Stripped from every query response;
+  never part of a key. Node/edge `first_seen` still widens on an out-of-order
+  event so temporal-range queries stay correct.
+- **Community-edition limits.** No composite `NODE KEY`, no read-only role, one
+  database. The synthetic `uid` covers uniqueness; the read/write split is
+  enforced in code (writes only via `graph-service`); `graph` property `'op'`/`'kg'`
+  is written but the operational/knowledge split by database waits for Enterprise
+  (U-003). Documented in ADR-007 and `data-model.md`.
+
+### Deferred (deliberately)
+
+- **GDS** (pathfinding at scale, centrality, community detection) — Phase 5+/
+  graph-ML, its consuming phase.
+- **Operational-graph pruning job** (retention-window sweep, promote-to-knowledge
+  on confirmed chains) — needs the retention config + a scheduler; `PRUNE`
+  commands are dead-lettered with a clear message until then.
+- **`:Detection` / `:AttackChain` / MITRE nodes** — produced by `detection-engine`
+  (Phase 5+); the labels are already on the allowlist.
+- **Enterprise features** (multi-database op/kg split, native read-only role,
+  clustering) — open licensing question (ADR-007), does not block development.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| Neo4j integration (driver, config, health) | ✅ `sm_common.graph`, `probe_check("neo4j", …)` |
+| Graph repository + node/relationship models | ✅ `GraphWriter` + `GraphRepository`; models = `data-model.md` (locked) |
+| Constraints + indexes | ✅ `migrations/neo4j/0001_schema.cypher`, runner, CI applies it |
+| Graph update consumer (normalized event → command → mutation) | ✅ `stream-processor` → `graph.commands` → `graph-service` → Neo4j, e2e verified |
+| Duplicates / out-of-order / missing nodes / tx failure / Neo4j down / retry | ✅ ledger / `_watermark` / thin-create / `TransientError`; integration tests |
+| Never blindly create duplicate relationships | ✅ MERGE on endpoints only; `test_repeated_edge_commands_never_duplicate_the_relationship` |
+| All Cypher parameterized; no untrusted interpolation | ✅ allowlist + bound params only; §23 above; contract + unit tests |
+| Controlled graph query interfaces | ✅ `GraphRepository` + 3 internal endpoints; no raw-Cypher path |
+| Temporal graph representation | ✅ `observed_at` / `first_seen` / `last_seen` on every node+edge; range indexes; `attack_path` |
+| Attack-path traversal | ✅ `GraphRepository.attack_path` (`shortestPath`, depth-bounded), real-Neo4j test |
+| Tenant isolation | ✅ synthetic `uid` + path filter + JWT tenant; real-Neo4j cross-tenant tests |
+| Real Neo4j integration tests | ✅ 20 (`test_graph_schema_neo4j` 6, `test_graph_service_neo4j` 10, `test_graph_pipeline_e2e` 1, + query cases) |
+| **CI green on a clean runner** | ✅ Units 1–3 (runs `34346140544` / `34348143536` / `34349655012`); Unit 4 pending this commit |
 
 ## Phase 3 exit report
 
@@ -1240,18 +1330,13 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Phase 4, Units 1–3 are DONE.** Units 1–2 CI-green (commits `5c17a33` /
-`a19c61b`, runs `34346140544` / `34348143536`). Unit 3 (the graph-query API) is
-local + integration verified (349 unit tests, ruff, `mypy --strict` over 7 trees,
-90 integration tests incl. 10 against real Neo4j). **Commit Unit 3, then push and
-confirm CI green.**
-
-**Then Phase 4, Unit 4 — close the phase.** Full end-to-end verification of the
-graph pipeline against the compose stack (`events.canonical → stream-processor →
-graph.commands → graph-service → Neo4j`, then a query round-trip); the Phase 4
-exit report (below, following the Phase 2/3 format); promote
-`REQUIREMENTS_TRACEABILITY` R3 / R4 (and note R10 / R12 / R18 partials); a §23
-pre-output review.
+**Phase 4 is IMPLEMENTED (all 4 units).** Units 1–3 CI-green (commits `5c17a33` /
+`a19c61b` / `6b46a8e`). Unit 4 (this commit) adds the real-infra end-to-end test
+(`test_graph_pipeline_e2e.py` — canonical event → stream-processor → graph.commands
+→ graph-service → Neo4j → query round-trip, all real), the Phase 4 exit report,
+and the §23 review. Verified locally: 349 unit, ruff, `mypy --strict` ×7 trees,
+91 integration (real PostgreSQL + Redis + Redpanda + Neo4j). **Commit, push,
+confirm CI green — that closes Phase 4.**
 
 Exit next action after Phase 4: **PHASE 5 — DETECTION + ANOMALY DETECTION**
 (user pastes the prompt; do not start speculatively).
