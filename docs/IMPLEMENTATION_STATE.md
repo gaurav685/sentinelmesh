@@ -7,12 +7,12 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Units 1–2 DONE
-and CI-green** (Unit 1 run
-[`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544),
-Unit 2 run
-[`34348143536`](https://github.com/gaurav685/sentinelmesh/actions/runs/34348143536)
-— all four jobs, `integration` against real PostgreSQL + Redis + Redpanda + Neo4j).
+**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Units 1–3 DONE**
+(Units 1–2 CI-green: run
+[`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544)
+/ [`34348143536`](https://github.com/gaurav685/sentinelmesh/actions/runs/34348143536).
+Unit 3 — the graph-query API — local + integration verified, CI pending). Unit 4
+(Phase 4 exit report + traceability promotion) remains.
 Unit 1 (run `34346140544`):
 the Neo4j async driver wrapper, the label/relationship allowlist (Cypher-injection
 guard), the versioned `.cypher` schema migration + runner, the production config
@@ -85,6 +85,37 @@ consuming phase has arrived.
   the newer value, edge creation + both endpoints, no duplicate relationship,
   cross-tenant isolation (two nodes, zero cross-tenant edges). CI-green (run
   `34348143536`).
+
+### Phase 4, Unit 3 — the graph-query API (DONE — local + integration verified)
+
+- `sm_graph_service.repository.GraphRepository` — read-only, tenant-scoped,
+  bounded queries:
+  - `entity(tenant_id, label, key)` — one node's public props, or `None`.
+  - `neighbors(tenant_id, label, key, depth=1, limit=None)` — a bounded
+    neighbourhood as `{nodes, edges, truncated}`. Two parameterized reads (nodes,
+    relationships), each `LIMIT $cap`.
+  - `attack_path(tenant_id, src, dst, max_depth=4)` — `shortestPath` between two
+    keyed nodes, projected to primitive node/edge dicts.
+  - **Parameterized only.** The only interpolated values are an allowlisted node
+    label (`ValidationFailed` → 422 otherwise) and an integer traversal depth
+    clamped to `[1, SM_NEO4J_TRAVERSAL_MAX_DEPTH]` (default cap 8). Every path is
+    `WHERE all(x IN nodes(p) WHERE x.tenant_id = $tenant)`. Row cap
+    `SM_NEO4J_QUERY_MAX_ROWS` (default 1000). `_`-prefixed props + `uid` stripped.
+- `routes/graph.py` — `GET /api/v1/graph/{entity,neighbors,paths}` on
+  `graph-service`. `deps.get_principal` verifies the internal service JWT
+  (`verify_internal_token`, audience `graph-service`) — **the tenant scope is the
+  token's `tenant_id`, never a query field**. Bad / missing / wrong-audience /
+  wrong-key token → 401. Missing entity → 404.
+- Config: `SM_NEO4J_QUERY_MAX_ROWS` (1000), `SM_NEO4J_TRAVERSAL_MAX_DEPTH` (8).
+  `.env.example` updated.
+- Response models (`EntityResponse` / `NeighborsResponse` / `PathResponse`) are
+  DRAFT and service-local (`schemas.py`) until the read surface settles.
+- Tests: `test_repository.py` (9 — label rejection, depth clamp up + floor, row
+  cap + `truncated`, param-not-in-cypher, `_public` stripping, path projection),
+  `test_graph_api.py` (8 — 401 matrix, tenant-from-token, 404, 422, view shape).
+  `tests/integration/test_graph_service_neo4j.py` +4 (real Neo4j: public-props
+  only, bounded neighbourhood at depth 1 vs 2, shortest path length 2,
+  cross-tenant reads return nothing). CI pending.
 
 **Phase 2 — Telemetry Ingestion + Normalization. COMPLETE / CI-VERIFIED.**
 Units 1–4 implemented; §23 review done; full compose stack + live end-to-end
@@ -1209,19 +1240,18 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Phase 4, Units 1–2 are DONE and CI-green** (Unit 1 commit `5c17a33` / run
-`34346140544`; Unit 2 commit `a19c61b` / run `34348143536` — all four jobs).
+**Phase 4, Units 1–3 are DONE.** Units 1–2 CI-green (commits `5c17a33` /
+`a19c61b`, runs `34346140544` / `34348143536`). Unit 3 (the graph-query API) is
+local + integration verified (349 unit tests, ruff, `mypy --strict` over 7 trees,
+90 integration tests incl. 10 against real Neo4j). **Commit Unit 3, then push and
+confirm CI green.**
 
-**Then Phase 4, Unit 3 — the graph-query API.** A `GraphRepository` in
-`sm_graph_service` (or `sm_common.graph`): `entity(tenant_id, label, key)`,
-`neighbors(tenant_id, label, key, depth)`, `attack_path(tenant_id, src, dst,
-max_depth)`. **Parameterized only**; every query tenant-scoped (filter on
-`tenant_id` / the `uid` prefix), depth-bounded (default 4, hard cap 8 per
-`data-model.md`), row-capped, and under `SM_NEO4J_QUERY_TIMEOUT_MS`. Exposed on
-an internal HTTP surface on `graph-service` (`/api/v1/graph/...`), service-JWT
-guarded, `_`-prefixed internal props (`_watermark`) stripped from responses.
-Then Unit 4 (full integration set + Phase 4 exit report + `REQUIREMENTS_TRACEABILITY`
-R3/R4/R10/R12 promotion + Makefile `run` target if wanted).
+**Then Phase 4, Unit 4 — close the phase.** Full end-to-end verification of the
+graph pipeline against the compose stack (`events.canonical → stream-processor →
+graph.commands → graph-service → Neo4j`, then a query round-trip); the Phase 4
+exit report (below, following the Phase 2/3 format); promote
+`REQUIREMENTS_TRACEABILITY` R3 / R4 (and note R10 / R12 / R18 partials); a §23
+pre-output review.
 
 Exit next action after Phase 4: **PHASE 5 — DETECTION + ANOMALY DETECTION**
 (user pastes the prompt; do not start speculatively).

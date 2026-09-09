@@ -1,0 +1,96 @@
+from __future__ import annotations
+
+import uuid
+from typing import Any
+
+from .conftest import internal_token
+
+TENANT = uuid.uuid4()
+
+
+def _auth(tenant: Any = TENANT, **kw: Any) -> dict[str, str]:
+    return {"Authorization": f"Bearer {internal_token(tenant, **kw)}"}
+
+
+def test_query_requires_a_bearer_token(app_client: Any) -> None:
+    r = app_client.get("/api/v1/graph/entity", params={"label": ":Host", "key": "web01"})
+    assert r.status_code == 401
+
+
+def test_query_rejects_a_token_for_another_audience(app_client: Any) -> None:
+    r = app_client.get(
+        "/api/v1/graph/entity",
+        params={"label": ":Host", "key": "web01"},
+        headers=_auth(audience="api-gateway"),
+    )
+    assert r.status_code == 401
+
+
+def test_query_rejects_a_token_signed_with_the_wrong_key(app_client: Any) -> None:
+    r = app_client.get(
+        "/api/v1/graph/entity",
+        params={"label": ":Host", "key": "web01"},
+        headers=_auth(key="not-the-key"),
+    )
+    assert r.status_code == 401
+
+
+def test_entity_uses_the_tenant_from_the_token_not_the_query(app_client: Any) -> None:
+    app_client.fake_graph.read_plan = [
+        [{"id": "n1", "labels": ["Host"], "props": {"host_id": "web01", "uid": "z"}}]
+    ]
+    r = app_client.get(
+        "/api/v1/graph/entity",
+        params={"label": ":Host", "key": "web01", "tenant_id": str(uuid.uuid4())},
+        headers=_auth(),
+    )
+    assert r.status_code == 200
+    assert r.json()["entity"]["properties"] == {"host_id": "web01"}
+    # the query ran against the token's tenant, ignoring the bogus query param
+    _cypher, params = app_client.fake_graph.reads[0]
+    assert params["tenant"] == str(TENANT)
+
+
+def test_entity_404_when_missing(app_client: Any) -> None:
+    r = app_client.get(
+        "/api/v1/graph/entity", params={"label": ":Host", "key": "ghost"}, headers=_auth()
+    )
+    assert r.status_code == 404
+
+
+def test_bad_label_is_a_422(app_client: Any) -> None:
+    r = app_client.get(
+        "/api/v1/graph/entity", params={"label": ":Wormhole", "key": "x"}, headers=_auth()
+    )
+    assert r.status_code == 422
+
+
+def test_neighbors_returns_the_view_shape(app_client: Any) -> None:
+    app_client.fake_graph.read_plan = [
+        [{"id": "a", "labels": ["Host"], "props": {"host_id": "web01"}}],
+        [{"src": "a", "dst": "b", "type": "CONNECTED_TO", "props": {"port": 443}}],
+    ]
+    r = app_client.get(
+        "/api/v1/graph/neighbors",
+        params={"label": ":Host", "key": "web01", "depth": 2},
+        headers=_auth(),
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["depth"] == 2
+    assert body["nodes"][0]["labels"] == ["Host"]
+    assert body["edges"][0]["type"] == "CONNECTED_TO"
+    assert body["truncated"] is False
+
+
+def test_paths_reports_not_found(app_client: Any) -> None:
+    r = app_client.get(
+        "/api/v1/graph/paths",
+        params={
+            "src_label": ":Host", "src_key": "a",
+            "dst_label": ":Host", "dst_key": "b",
+        },
+        headers=_auth(),
+    )
+    assert r.status_code == 200
+    assert r.json()["found"] is False

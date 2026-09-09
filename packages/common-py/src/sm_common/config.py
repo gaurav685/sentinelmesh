@@ -85,6 +85,10 @@ class AppSettings(BaseSettings):
     neo4j_password: SecretStr = SecretStr("")
     neo4j_database: str = "neo4j"
     neo4j_query_timeout_ms: int = Field(default=10_000, ge=0)
+    # Read-query safety (graph-service query API, ADR-007): every traversal is
+    # depth-bounded and row-capped so one call cannot walk the whole graph.
+    neo4j_query_max_rows: int = Field(default=1_000, ge=1, le=100_000)
+    neo4j_traversal_max_depth: int = Field(default=8, ge=1, le=15)
 
     # ---- kafka (event bus; ADR-008) -----------------------------------
     kafka_bootstrap_servers: str = "localhost:9092"

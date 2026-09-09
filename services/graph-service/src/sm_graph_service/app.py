@@ -32,6 +32,8 @@ from sm_common.observability import build_metrics, configure_tracing, shutdown_t
 from .deps import Services
 from .engine import GraphEngine
 from .metrics import GraphMetrics
+from .repository import GraphRepository
+from .routes import graph as graph_routes
 from .routes import health, metrics
 from .topics import COMMANDS_TOPIC
 from .version import DEFAULT_CONSUMER_GROUP, SERVICE_NAME, SERVICE_VERSION
@@ -46,6 +48,11 @@ def build_services(settings: AppSettings) -> Services:
     base_metrics = build_metrics(SERVICE_NAME)
     graph_metrics = GraphMetrics(base_metrics, SERVICE_NAME)
     graph = Graph.from_settings(settings)
+    repository = GraphRepository(
+        graph,
+        max_rows=settings.neo4j_query_max_rows,
+        max_depth=settings.neo4j_traversal_max_depth,
+    )
     producer = EventBusProducer.from_settings(settings, metrics=base_metrics)
     group = settings.kafka_consumer_group or DEFAULT_CONSUMER_GROUP
     consumer = EventBusConsumer.from_settings(
@@ -62,7 +69,7 @@ def build_services(settings: AppSettings) -> Services:
     )
     return Services(
         settings=settings, metrics=base_metrics, graph_metrics=graph_metrics,
-        graph=graph, producer=producer, consumer=consumer,
+        graph=graph, repository=repository, producer=producer, consumer=consumer,
         engine=engine, processor=processor,
     )
 
@@ -123,4 +130,5 @@ def create_app(
     install_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(metrics.router)
+    app.include_router(graph_routes.router)
     return app
