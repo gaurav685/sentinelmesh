@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "What one import run actually produced. Coverage claims read from here.",
+  "properties": {
+    "imported_at": {
+      "format": "date-time",
+      "title": "Imported At",
+      "type": "string"
+    },
+    "source": {
+      "description": "e.g. 'mitre/enterprise'.",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+    },
+    "stix_bundle_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Stix Bundle Sha256",
+      "type": "string"
+    },
+    "subtechnique_count": {
+      "minimum": 0,
+      "title": "Subtechnique Count",
+      "type": "integer"
+    },
+    "tactic_count": {
+      "minimum": 0,
+      "title": "Tactic Count",
+      "type": "integer"
+    },
+    "technique_count": {
+      "minimum": 0,
+      "title": "Technique Count",
+      "type": "integer"
+    },
+    "version": {
+      "description": "e.g. '14.1'.",
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "source",
+    "imported_at",
+    "tactic_count",
+    "technique_count",
+    "subtechnique_count",
+    "stix_bundle_sha256"
+  ],
+  "title": "AttackMatrixVersion",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

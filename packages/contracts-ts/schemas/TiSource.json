@@ -1,0 +1,96 @@
+{
+  "$defs": {
+    "TiSourceKind": {
+      "enum": [
+        "feed",
+        "api",
+        "manual",
+        "fixture"
+      ],
+      "title": "TiSourceKind",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "enabled": {
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "indicator_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Indicator Count",
+      "type": "integer"
+    },
+    "kind": {
+      "$ref": "#/definitions/TiSourceKind"
+    },
+    "last_poll_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Poll At"
+    },
+    "last_poll_status": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Poll Status"
+    },
+    "name": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "ttl_seconds": {
+      "description": "Fresh window; freshness derives from it.",
+      "minimum": 60,
+      "title": "Ttl Seconds",
+      "type": "integer"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "id",
+    "name",
+    "kind",
+    "enabled",
+    "ttl_seconds"
+  ],
+  "title": "TiSource",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

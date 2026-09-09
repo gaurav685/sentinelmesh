@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "EvidenceItem": {
+      "additionalProperties": false,
+      "description": "One grounded fact behind a detection. `provenance` is `<service>:<id>` so a\nreader can chase every claim back to its source.",
+      "properties": {
+        "detail": {
+          "additionalProperties": true,
+          "title": "Detail",
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/definitions/EvidenceKind"
+        },
+        "provenance": {
+          "description": "'<service>:<id>'.",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Provenance",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Id / key of the evidence subject.",
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Ref",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "summary",
+        "provenance"
+      ],
+      "title": "EvidenceItem",
+      "type": "object"
+    },
+    "EvidenceKind": {
+      "description": "What a single piece of detection evidence is.",
+      "enum": [
+        "event",
+        "feature",
+        "rule_match",
+        "anomaly_score",
+        "threshold",
+        "graph_path",
+        "ti_indicator",
+        "technique"
+      ],
+      "title": "EvidenceKind",
+      "type": "string"
+    },
+    "MappingConfidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "MappingConfidence",
+      "type": "string"
+    },
+    "MappingSource": {
+      "enum": [
+        "rule",
+        "graph",
+        "feature",
+        "llm",
+        "analyst"
+      ],
+      "title": "MappingSource",
+      "type": "string"
+    },
+    "MappingSubjectType": {
+      "enum": [
+        "detection",
+        "attack_chain"
+      ],
+      "title": "MappingSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A persisted subject\u2192technique mapping (Postgres `technique_mapping`).",
+  "properties": {
+    "confidence": {
+      "$ref": "#/definitions/MappingConfidence"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/definitions/EvidenceItem"
+      },
+      "maxItems": 64,
+      "title": "Evidence",
+      "type": "array"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "matrix_version": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Matrix Version",
+      "type": "string"
+    },
+    "rationale": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/definitions/MappingSource"
+    },
+    "subject_id": {
+      "format": "uuid",
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "$ref": "#/definitions/MappingSubjectType"
+    },
+    "tactic_id": {
+      "anyOf": [
+        {
+          "pattern": "^TA\\d{4}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tactic Id"
+    },
+    "technique_id": {
+      "pattern": "^T\\d{4}(\\.\\d{3})?$",
+      "title": "Technique Id",
+      "type": "string"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "subject_type",
+    "subject_id",
+    "technique_id",
+    "confidence",
+    "source",
+    "rationale",
+    "matrix_version"
+  ],
+  "title": "TechniqueMapping",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "IndicatorFreshness": {
+      "enum": [
+        "fresh",
+        "aging",
+        "stale",
+        "expired"
+      ],
+      "title": "IndicatorFreshness",
+      "type": "string"
+    },
+    "IndicatorType": {
+      "enum": [
+        "ipv4",
+        "ipv6",
+        "domain",
+        "url",
+        "sha256",
+        "sha1",
+        "md5",
+        "email"
+      ],
+      "title": "IndicatorType",
+      "type": "string"
+    },
+    "TiConfidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "TiConfidence",
+      "type": "string"
+    },
+    "TiUpdateAction": {
+      "enum": [
+        "added",
+        "updated",
+        "expired"
+      ],
+      "title": "TiUpdateAction",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`ti.updates` topic event (`EventType.ti_indicator_updated`).",
+  "properties": {
+    "action": {
+      "$ref": "#/definitions/TiUpdateAction"
+    },
+    "confidence": {
+      "$ref": "#/definitions/TiConfidence"
+    },
+    "freshness": {
+      "$ref": "#/definitions/IndicatorFreshness"
+    },
+    "indicator_id": {
+      "format": "uuid",
+      "title": "Indicator Id",
+      "type": "string"
+    },
+    "observed_at": {
+      "format": "date-time",
+      "title": "Observed At",
+      "type": "string"
+    },
+    "source": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+    },
+    "tenant_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tenant Id"
+    },
+    "type": {
+      "$ref": "#/definitions/IndicatorType"
+    },
+    "value": {
+      "title": "Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "indicator_id",
+    "type",
+    "value",
+    "source",
+    "action",
+    "confidence",
+    "freshness",
+    "observed_at"
+  ],
+  "title": "TiUpdatePayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

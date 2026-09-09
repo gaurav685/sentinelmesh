@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "MappingConfidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "MappingConfidence",
+      "type": "string"
+    },
+    "MappingSource": {
+      "enum": [
+        "rule",
+        "graph",
+        "feature",
+        "llm",
+        "analyst"
+      ],
+      "title": "MappingSource",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One result of the mapping API \u2014 a candidate technique for a behaviour.",
+  "properties": {
+    "confidence": {
+      "$ref": "#/definitions/MappingConfidence"
+    },
+    "matrix_version": {
+      "title": "Matrix Version",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "rationale": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Rationale",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/definitions/MappingSource"
+    },
+    "tactic_id": {
+      "anyOf": [
+        {
+          "pattern": "^TA\\d{4}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tactic Id"
+    },
+    "tactic_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tactic Name"
+    },
+    "technique_id": {
+      "pattern": "^T\\d{4}(\\.\\d{3})?$",
+      "title": "Technique Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "technique_id",
+    "name",
+    "confidence",
+    "source",
+    "rationale",
+    "matrix_version"
+  ],
+  "title": "TechniqueMatch",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

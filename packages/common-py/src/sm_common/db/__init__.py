@@ -5,6 +5,16 @@ from __future__ import annotations
 from .base import NAMING_CONVENTION, Base, TimestampMixin
 from .detection_models import Anomaly, Detection, SecurityAlert, ThreatScore
 from .engine import build_engine
+from .intel_models import (
+    AttackMatrixVersionRow,
+    AttackTacticRow,
+    AttackTechniqueRow,
+    TechniqueMappingRow,
+    ThreatActorRow,
+    ThreatIndicatorRow,
+    TiCampaignRow,
+    TiSourceRow,
+)
 from .models import (
     AuditLog,
     Permission,
@@ -20,6 +30,9 @@ from .session import Database
 __all__ = [
     "NAMING_CONVENTION",
     "Anomaly",
+    "AttackMatrixVersionRow",
+    "AttackTacticRow",
+    "AttackTechniqueRow",
     "AuditLog",
     "Base",
     "Database",
@@ -29,8 +42,13 @@ __all__ = [
     "RolePermission",
     "SecurityAlert",
     "Sensor",
+    "TechniqueMappingRow",
     "Tenant",
+    "ThreatActorRow",
+    "ThreatIndicatorRow",
     "ThreatScore",
+    "TiCampaignRow",
+    "TiSourceRow",
     "TimestampMixin",
     "User",
     "UserRole",
