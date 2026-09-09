@@ -7,9 +7,13 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Units 1–2 DONE.**
-Unit 1 (CI-green, run
-[`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544)):
+**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Units 1–2 DONE
+and CI-green** (Unit 1 run
+[`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544),
+Unit 2 run
+[`34348143536`](https://github.com/gaurav685/sentinelmesh/actions/runs/34348143536)
+— all four jobs, `integration` against real PostgreSQL + Redis + Redpanda + Neo4j).
+Unit 1 (run `34346140544`):
 the Neo4j async driver wrapper, the label/relationship allowlist (Cypher-injection
 guard), the versioned `.cypher` schema migration + runner, the production config
 guard, and the compose/CI wiring for a Neo4j service. Unit 2 (local + integration
@@ -79,7 +83,8 @@ consuming phase has arrived.
   `tests/integration/test_graph_service_neo4j.py` (6, real Neo4j via the `graph`
   fixture): tenant-scoped node creation, `command_id` no-op, out-of-order keeps
   the newer value, edge creation + both endpoints, no duplicate relationship,
-  cross-tenant isolation (two nodes, zero cross-tenant edges). **CI pending.**
+  cross-tenant isolation (two nodes, zero cross-tenant edges). CI-green (run
+  `34348143536`).
 
 **Phase 2 — Telemetry Ingestion + Normalization. COMPLETE / CI-VERIFIED.**
 Units 1–4 implemented; §23 review done; full compose stack + live end-to-end
@@ -1204,11 +1209,8 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Phase 4, Units 1–2 are DONE.** Unit 1 CI-green (commit `5c17a33`, run
-`34346140544`). Unit 2 (`services/graph-service`) is local + integration verified
-(333 unit tests, ruff, `mypy --strict` over 7 trees, 86 integration tests incl. 6
-new against real Neo4j; image builds and imports `sm_graph_service`). **Commit
-Unit 2, then push and confirm CI green.**
+**Phase 4, Units 1–2 are DONE and CI-green** (Unit 1 commit `5c17a33` / run
+`34346140544`; Unit 2 commit `a19c61b` / run `34348143536` — all four jobs).
 
 **Then Phase 4, Unit 3 — the graph-query API.** A `GraphRepository` in
 `sm_graph_service` (or `sm_common.graph`): `entity(tenant_id, label, key)`,
