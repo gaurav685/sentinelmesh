@@ -424,6 +424,7 @@ def build_settings(**over: Any) -> AppSettings:
         "pg_password": "x",
         "internal_jwt_signing_key": "k",
         "oidc_client_secret": "s",
+        "neo4j_password": "x",
         "session_cookie_secure": False,  # TestClient uses http://
         "login_max_failures": 3,
         "login_lockout_seconds": 300,

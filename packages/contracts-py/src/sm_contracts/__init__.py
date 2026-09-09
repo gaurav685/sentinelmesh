@@ -65,11 +65,16 @@ from .events import (
     make_partition_key,
 )
 from .graph import (
+    GRAPH_NODE_KEY,
+    GRAPH_NODE_LABELS,
     GRAPH_PAYLOADS,
+    GRAPH_REL_TYPES,
     GraphCommandPayload,
     GraphEndpoint,
     GraphOp,
     graph_command_id,
+    graph_node_uid,
+    normalize_label,
 )
 from .telemetry import (
     TELEMETRY_PAYLOADS,
@@ -142,12 +147,17 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "topic_for_event_type",
     "dlq_topic",
     "replay_group",
-    # graph commands (Phase 3)
+    # graph commands (Phase 3) + graph model allowlist (Phase 4)
     "GraphCommandPayload",
     "GraphEndpoint",
     "GraphOp",
     "GRAPH_PAYLOADS",
     "graph_command_id",
+    "graph_node_uid",
+    "GRAPH_NODE_LABELS",
+    "GRAPH_NODE_KEY",
+    "GRAPH_REL_TYPES",
+    "normalize_label",
     # enums
     "TenantStatus",
     "UserStatus",

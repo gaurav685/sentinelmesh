@@ -7,15 +7,24 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 3 — Kafka + Stream Processing. Units 1–4 DONE; awaiting final CI green,
-then the Phase 4 prompt.** Unit 1 topic registry; Unit 2 bus hardening + topic
-provisioning; Unit 3 `RecordProcessor` + `stream-processor` (`graph-update-emitter`);
-Unit 4 ADR-010 decision (U-001/U-002 **resolved** — plain-Python for stateless,
-cluster engine deferred per job), `scripts/replay.py`,
-`docs/architecture/observability.md`, `REQUIREMENTS_TRACEABILITY` R3/R20, the
-Phase 3 exit report (below). Flink **not** implemented — no JDK 11+ locally
-(ADR-001), no stateful job's consuming phase has arrived. `graph.commands` has
-no consumer yet — `graph-writer` / Neo4j is Phase 4.
+**Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Unit 1 DONE
+(local + unit verified; real-Neo4j integration + CI pending).** Unit 1 lays the
+Neo4j foundation: the async driver wrapper, the label/relationship allowlist
+(the Cypher-injection guard), the versioned `.cypher` schema migration + runner,
+the production config guard, and the compose/CI wiring for a Neo4j service.
+Units 2–4 (the `graph.commands` consumer `graph-service`, the graph-query API,
+the full integration-test set + exit report) follow.
+
+**Phase 3 — Kafka + Stream Processing. COMPLETE / CI-VERIFIED.** Units 1–4:
+Unit 1 topic registry; Unit 2 bus hardening + topic provisioning; Unit 3
+`RecordProcessor` + `stream-processor` (`graph-update-emitter`); Unit 4 ADR-010
+decision (U-001/U-002 **resolved** — plain-Python for stateless, cluster engine
+deferred per job), `scripts/replay.py`, `docs/architecture/observability.md`,
+`REQUIREMENTS_TRACEABILITY` R3/R20, the Phase 3 exit report (below). **CI green
+on a clean runner** (run
+[`34342866073`](https://github.com/gaurav685/sentinelmesh/actions/runs/34342866073)).
+Flink **not** implemented — no JDK 11+ locally (ADR-001), no stateful job's
+consuming phase has arrived.
 
 ---
 
@@ -342,7 +351,53 @@ implemented (deferred per ADR-010).**
 | Kafka = transport, Flink = stream processing, Redis = cache — no duplication | ✅ ADR-008/009/010; roles documented |
 | Flink "only where Phase 0 established it as necessary" | ✅ nowhere yet — deferred, decision recorded |
 | Real Kafka integration tests | ✅ 13 against Redpanda (bus 9, norm 2, stream 2) |
-| **CI green on a clean runner** | Units 1–3 ✅ (runs `274914d`, `9ebb91a`, `f36182c`); Unit 4 pending this commit |
+| **CI green on a clean runner** | ✅ **all four jobs — run `34342866073`** |
+
+## Phase 4, Unit 1 — Neo4j foundation (DONE — local + unit verified)
+
+- `sm_common.graph.Graph` — one async `neo4j` driver per process. `start()` /
+  `ping()` verify connectivity (`ServiceUnavailable` / `OSError` →
+  `GraphUnavailableError`, which the caller turns into a 503 / `TransientError`);
+  `run_read` / `run_write` take a Cypher string + a parameter dict and run it
+  auto-commit with `default_access_mode` READ / WRITE and the configured
+  per-query timeout (`SM_NEO4J_QUERY_TIMEOUT_MS`, default 10 s — a slow query
+  raises, never hangs). A real `Neo4jError` (constraint violation etc.)
+  propagates unwrapped so the writer can decide DLQ vs. retry.
+- `sm_contracts.graph` — the Neo4j **label / relationship allowlist**
+  (`GRAPH_NODE_KEY` 13 labels + key property, `GRAPH_NODE_LABELS`,
+  `GRAPH_REL_TYPES` 15 types), `normalize_label(":Host" → "Host")`,
+  `graph_node_uid(tenant_id, key)` → `"<tenant>:<key>"`. Cypher cannot
+  parameterize a label or relationship type, so `graph-service` (Unit 2) checks
+  every command's label against these sets before building Cypher; anything else
+  is dead-lettered. `packages/contracts-py/tests/test_graph_model.py` pins the
+  allowlist to `data-model.md` (the only extra beyond the canonical set is
+  `ACCESSED`, used by the stream-processor file-access mapper).
+- `migrations/neo4j/0001_schema.cypher` + `sm_common.graph.apply_pending`
+  (runner) + `scripts/graph_migrate.py` (CLI, `--status`). Versioned `.cypher`
+  files applied in filename order, each recorded as a `:_GraphMigration`
+  node → re-running is a no-op. 0001 creates: a UNIQUE constraint on the
+  synthetic per-tenant `uid` for every node label (Community has no composite
+  NODE KEY — data-model.md permits "a synthetic key"), a `_GraphCommand.command_id`
+  UNIQUE constraint (idempotency ledger for Unit 2), tenant-scoped
+  `(tenant_id, <key>)` range indexes, `last_seen` / relationship `observed_at`
+  range indexes, and the `Host.hostname` / `Domain.fqdn` / `Identity.name`
+  full-text indexes for hunting.
+- `AppSettings` — `SM_NEO4J_PASSWORD` is now a production fail-fast guard (like
+  `SM_PG_PASSWORD`); the stale "unused until Phase 2/3" comment is corrected.
+- Wiring: `neo4j` gets a compose healthcheck under the `graph` profile;
+  `make migrate` now also runs the Neo4j schema; CI `integration` job adds a
+  `neo4j:5-community` service + an "Apply Neo4j schema" step; the `image` job's
+  entrypoint-import check covers `sm_common.graph` + `neo4j`; the two prod-guard
+  image steps carry `SM_NEO4J_PASSWORD`. `.env.example` neo4j block corrected
+  (dropped the non-existent `SM_NEO4J_MAX_POOL_SIZE`).
+- Tests: `packages/common-py/tests/test_graph_driver.py` (12 — fake driver:
+  param / timeout / access-mode pass-through, outage wrapping, `Neo4jError`
+  propagation, statement splitter), `test_graph_model.py` (8),
+  `test_config.py` (+2). `tests/integration/test_graph_schema_neo4j.py` (6,
+  marked `integration`, real Neo4j via the `graph` fixture): migration creates
+  constraints + indexes, idempotent re-run, apply-from-bare-schema, `uid`
+  uniqueness enforced, parameter values never executed as Cypher, slow query
+  hits the timeout. **Not yet run against real Neo4j / on CI** — pending.
 
 ## Phase 2 exit report
 
@@ -1095,16 +1150,31 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Await the Phase 4 prompt** (Neo4j + graph engine — the first `graph.commands`
-consumer). Phase 3 Units 1–4 are done; all commits CI-green (last run 34342866073).
-Nothing to build until the Phase 4 prompt arrives; do not start speculatively.
+**Phase 4, Unit 1 is code-complete and locally verified** (313 unit tests, ruff,
+`mypy --strict` over 6 trees, 80 integration tests incl. 6 new against a real
+Neo4j 5 Community container; `scripts/graph_migrate.py` exercised end-to-end).
+**Commit Unit 1, then push and confirm CI green** (the `integration` job now
+starts a `neo4j:5-community` service + runs "Apply Neo4j schema"; the `image`
+job imports `sm_common.graph` + `neo4j`).
 
-Phase 4 will add `services/graph-writer` (or `graph-service`) consuming
-`graph.commands` (group `graph-writer`), applying each `GraphCommandPayload` as
-MERGE Cypher against Neo4j (compose `graph` profile), with the data-model.md
-invariants (every node/edge non-null `tenant_id`; no cross-tenant edge) and
-`command_id` idempotency; producing `graph.events`. The graph-query API
-(parameterized, tenant-scoped, depth-bounded) follows.
+**Then Phase 4, Unit 2 — `services/graph-service`.** Consume `graph.commands`
+(group `graph-writer`) via `RecordProcessor`. For each `GraphCommandPayload`:
+validate `label` against `GRAPH_NODE_LABELS` / `GRAPH_REL_TYPES`
+(`sm_contracts.graph`) — non-allowlisted → DLQ (`PoisonError`); build a
+**parameterized** MERGE (never interpolate) keyed on `graph_node_uid(tenant_id,
+key)`; idempotent by `command_id` via the `_GraphCommand` ledger constraint;
+enforce the data-model invariants (non-null `tenant_id`; no cross-tenant edge —
+both endpoints' `tenant_id` must match the command's); last-write-wins on
+`observed_at` for out-of-order events; Neo4j unavailable → `GraphUnavailableError`
+→ `TransientError` (retry). Produce `graph.events`. Health probe
+`probe_check("neo4j", graph.ping)`; `/metrics`; no HTTP ingest. Then Unit 3
+(graph-query API: `neighbors`, `attack_path`, `entity` — parameterized,
+tenant-scoped, depth default 4 / hard cap 8, row-capped) and Unit 4 (full
+integration set + docs + exit report + Dockerfile/compose/CI/Makefile wiring for
+`graph-service`).
+
+Exit next action after Phase 4: **PHASE 5 — DETECTION + ANOMALY DETECTION**
+(user pastes the prompt; do not start speculatively).
 
 ### Standing debt carried past Phase 2
 

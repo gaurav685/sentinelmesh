@@ -9,48 +9,81 @@ graph-ML detection, reconstructs attack chains, maps them to MITRE ATT&CK, score
 threats, and drives an analyst-facing SOC experience with LLM-assisted
 explanation, hunting, prediction, simulation, and (guarded) autonomous response.
 
+This repository is built phase by phase under a strict engineering constitution
+([`CLAUDE.md`](CLAUDE.md)). No phase begins before the previous one is complete
+and its CI is green on a clean runner. No performance, benchmark, deployment, or
+ML-accuracy claim appears anywhere in this repository.
+
 ## Status
 
-**Phase 0 complete — architecture LOCKED. Phase 1 (Foundation) in progress.**
+**Phases 0–3 complete and CI-verified. Phase 4 (Neo4j + graph intelligence) in
+progress.**
 
-| Phase | State |
-|---|---|
-| 0 — Architecture discovery + lock | complete |
-| 1 — Foundation: config, database, authentication | Units 1–5 done, Unit 6 open |
-| 2–10, 38 | not started |
+| Phase | Scope | State |
+|---|---|---|
+| 0 | Architecture discovery + lock | complete |
+| 1 | Foundation: config, database, authentication, RBAC | complete — CI green |
+| 2 | Telemetry ingestion + normalization | complete — CI green |
+| 3 | Kafka event bus + stream processing | complete — CI green |
+| 4 | Neo4j attack graph + graph intelligence | in progress — Unit 1 done |
+| 5–10, 38 | detection, chains, scoring, SOC UI, LLM, response, simulation, … | not started |
 
-What exists and runs today:
+`docs/IMPLEMENTATION_STATE.md` is authoritative for exactly where the build is
+and what the next action is.
 
-- `packages/contracts-py` — canonical event envelope, error contract, Phase-1
-  entity and API models; JSON Schema generation for the frontend.
-- `packages/common-py` — typed configuration with production guards, structured
-  logging with secret redaction, request/correlation IDs, error types, Argon2id
-  passwords, internal service JWTs, an OIDC client, Postgres/Redis clients,
-  health/metrics/tracing, and the audit hash chain.
-- `migrations/postgres` — the eight control-plane tables plus an RBAC seed.
-- `services/api-gateway` — authentication (local + OIDC), server-side sessions,
+### What exists and runs today
+
+- **`packages/contracts-py`** — the canonical event envelope, the API error
+  contract, telemetry payloads, the graph-command contract, the Kafka topic
+  registry, and the Neo4j label/relationship allowlist. JSON Schema for the
+  frontend is generated from these models.
+- **`packages/common-py`** — typed configuration with production fail-fast
+  guards, structured logging with secret redaction, request/correlation IDs,
+  Argon2id passwords, internal service JWTs, an OIDC client, Postgres / Redis /
+  Kafka / Neo4j clients, the at-least-once consumer + retry/DLQ processor,
+  health / metrics / tracing, and the audit hash chain.
+- **`services/ingestion-gateway`** — authenticated sensor telemetry intake,
+  per-sensor dedup, batch limits, writes to Kafka `telemetry.raw`.
+- **`services/normalization-engine`** — `telemetry.raw` → canonical events on
+  `events.canonical`; poison messages to the DLQ.
+- **`services/stream-processor`** — a stateless stream job that turns canonical
+  events into idempotent graph commands on `graph.commands`.
+- **`services/api-gateway`** — local + OIDC authentication, server-side sessions,
   CSRF, deny-by-default RBAC, tenant-scoped reads, audited admin routes.
-- `deploy/docker` — a local stack (authored; see the honesty note below).
+- **`migrations/postgres`** — the control-plane schema (Alembic, linear history).
+- **`migrations/neo4j`** — versioned Cypher schema (constraints + indexes),
+  applied by `scripts/graph_migrate.py`.
+- **`deploy/docker`** — the full local stack (compose profiles for the bus,
+  graph, OIDC, observability, and object storage).
 
-**Honesty note.** Nothing has yet run against real infrastructure on the
-development machine: Docker is not installed there, so no image has been built,
-no container started, and the 49 integration tests are skipped rather than
-passed. `docs/IMPLEMENTATION_STATE.md` lists exactly what that leaves unverified.
-No performance, benchmark, deployment or ML-accuracy claim appears anywhere in
-this repository.
+### Verification
+
+CI runs four jobs on every push and pull request: `static` (ruff +
+`mypy --strict`), `unit` (unit + contract tests + JSON-Schema drift check),
+`integration` (the marked tests against real PostgreSQL 16, Redis 7, Redpanda,
+and Neo4j 5), and `image` (build the single application image for all services,
+assert non-root, importability, and the production fail-fast guards).
+
+`SM_REQUIRE_INTEGRATION=1` (set in CI) turns an unreachable dependency into a
+failure instead of a skip, so a green `integration` job always means the tests
+really ran.
+
+Deliberately not implemented yet: a cluster stream engine (Flink) — the stream
+jobs so far are stateless and run as plain Python; the decision and its trigger
+are recorded in ADR-010.
 
 ## Documentation
 
 - [`docs/IMPLEMENTATION_STATE.md`](docs/IMPLEMENTATION_STATE.md) — authoritative current state and exact next action
-- [`docs/ARCHITECTURE_DECISIONS.md`](docs/ARCHITECTURE_DECISIONS.md) — ADR-001…024 and the open questions
+- [`docs/ARCHITECTURE_DECISIONS.md`](docs/ARCHITECTURE_DECISIONS.md) — the ADRs and open questions
 - [`docs/CONTRACTS.md`](docs/CONTRACTS.md) — API / event / entity / ML / AI contracts
 - [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) — all 38 architecture requirements, mapped
-- [`docs/architecture/`](docs/architecture/) — overview, service catalog, data model, event model, security model, failure model, deployment
+- [`docs/architecture/`](docs/architecture/) — overview, service catalog, data model, event model, security model, failure model, observability, deployment
 - [`CLAUDE.md`](CLAUDE.md) — the engineering constitution this repository is built under
 
 ## Getting started
 
-Requires Python 3.11+ and (for anything involving real infrastructure) Docker.
+Requires Python 3.11+ and Docker.
 
 ```bash
 python -m venv .venv
@@ -58,51 +91,62 @@ python -m venv .venv
 
 pip install -e "packages/contracts-py[dev]" \
             -e "packages/common-py[dev]" \
-            -e "services/api-gateway[dev]"
+            -e "services/api-gateway[dev]" \
+            -e "services/ingestion-gateway[dev]" \
+            -e "services/normalization-engine[dev]" \
+            -e "services/stream-processor[dev]"
 pip install alembic pyyaml respx ruff mypy
 
 cp .env.example .env
 # then set at minimum:
-#   SM_PG_PASSWORD, SM_INTERNAL_JWT_SIGNING_KEY, SM_OIDC_CLIENT_SECRET
+#   SM_PG_PASSWORD, SM_NEO4J_PASSWORD, SM_INTERNAL_JWT_SIGNING_KEY, SM_OIDC_CLIENT_SECRET
 ```
 
 ### Run the checks
 
 ```bash
-pytest packages services tests -q          # integration tests skip without Docker
+pytest packages services tests -q -m "not integration"
 mypy --strict --python-version 3.11 \
      packages/contracts-py/src/sm_contracts \
      packages/common-py/src/sm_common \
-     services/api-gateway/src/sm_api_gateway
+     services/api-gateway/src/sm_api_gateway \
+     services/ingestion-gateway/src/sm_ingestion_gateway \
+     services/normalization-engine/src/sm_normalization_engine \
+     services/stream-processor/src/sm_stream_processor
 ruff check packages services tests migrations scripts
 python scripts/gen_contracts.py --check
 ```
 
 `make help` lists the same commands as targets (`make` is not installed on
-Windows by default — run the commands directly, or use WSL/Git Bash).
+Windows by default — run the commands directly, or use WSL / Git Bash).
 
 ### Run the stack
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml up -d --build
+docker compose -f deploy/docker/docker-compose.yml \
+  --profile bus --profile graph up -d --build
+
+python scripts/provision_topics.py     # Kafka topic catalog
+python scripts/graph_migrate.py        # Neo4j schema     (or: make migrate)
+
 curl http://localhost:8000/healthz
 curl http://localhost:8000/readyz
 ```
 
-`migrate` brings the schema to head and exits; `app` will not start until it
-succeeds. Details, profiles and the service-name networking rule:
+`migrate` brings the Postgres schema to head and exits; `app` will not start
+until it succeeds. Profiles and the service-name networking rule:
 [`deploy/docker/README.md`](deploy/docker/README.md).
 
 ### Run the integration tests
 
 ```bash
-docker compose -f deploy/docker/docker-compose.yml up -d postgres redis
+docker compose -f deploy/docker/docker-compose.yml \
+  --profile bus --profile graph up -d postgres redis redpanda neo4j
 pytest tests/integration -q -m integration
 ```
 
-They skip with an actionable message when the services are unreachable. Set
-`SM_REQUIRE_INTEGRATION=1` to turn that skip into a failure — CI does this so a
-green build can never mean "the database was missing".
+They skip with an actionable message when a service is unreachable. Set
+`SM_REQUIRE_INTEGRATION=1` to turn that skip into a failure.
 
 ## Datasets
 

@@ -78,7 +78,7 @@ def test_each_service_has_its_own_service_name_setting(compose: dict[str, Any]):
 
 
 def test_stateful_dependencies_have_healthchecks(compose: dict[str, Any]):
-    for name in ("postgres", "redis"):
+    for name in ("postgres", "redis", "neo4j"):
         assert "healthcheck" in compose["services"][name], name
         assert compose["services"][name]["healthcheck"]["test"], name
 

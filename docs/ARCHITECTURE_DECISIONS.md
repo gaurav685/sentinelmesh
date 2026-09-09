@@ -328,7 +328,16 @@ question** for production and is tracked as an unresolved decision in
 **Operational implications.** Query timeout enforced
 (`SM_NEO4J_QUERY_TIMEOUT_MS`); bounded traversal depth on all
 externally-triggered queries; graph migrations (constraints, indexes) are
-versioned `.cypher` files with a runner in `migrations/neo4j`.
+versioned `.cypher` files with a runner in `migrations/neo4j`
+(`sm_common.graph.apply_pending` / `scripts/graph_migrate.py`; a
+`:_GraphMigration` node per applied version). Per-tenant node uniqueness is a
+synthetic-key UNIQUE constraint (`uid = "<tenant_id>:<natural key>"`) because
+Community has no composite `NODE KEY` — see `data-model.md`.
+
+**Phase 4 status.** Unit 1 (driver wrapper, label/relationship allowlist,
+`0001_schema.cypher` + runner, config guard, compose/CI wiring) implemented and
+verified against a real Neo4j 5 Community container. The `graph.commands`
+consumer (`graph-service`) and the read-query surface are Units 2–3.
 
 **Security implications.** All Cypher is **parameterized** — no string
 interpolation, no LLM-authored Cypher executed directly (ADR-015). A read-only

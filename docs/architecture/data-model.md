@@ -128,13 +128,24 @@ property (`'op'` | `'kg'`) and/or separate database on Neo4j Enterprise (U-003).
 Relationships carry `tenant_id` + `observed_at`. Time-on-edge enables temporal
 queries (req 12) without a separate temporal store.
 
-### Constraints & indexes (migration `neo4j/0001`)
+### Constraints & indexes (migration `neo4j/0001_schema.cypher`)
 
-- `CREATE CONSTRAINT` uniqueness on every `*_id` key property per label, scoped
-  with `tenant_id` where relevant (composite via a synthetic key or
-  application-enforced + index).
-- Range indexes on `observed_at` / `last_seen`.
+- Per-tenant node uniqueness via a **synthetic key**: every node carries
+  `uid = "<tenant_id>:<natural key>"` (`sm_contracts.graph_node_uid`) with a
+  `CREATE CONSTRAINT ... REQUIRE n.uid IS UNIQUE` per label. Neo4j Community has
+  no composite `NODE KEY`; on Enterprise a real `(tenant_id, <key>) IS NODE KEY`
+  SHOULD be added alongside. The natural key (`host_id`, `ip`, …) and
+  `tenant_id` stay as their own properties with a composite `(tenant_id, <key>)`
+  range index for lookups.
+- `_GraphCommand.command_id IS UNIQUE` — the graph-command idempotency ledger.
+- Range indexes on relationship `observed_at` (the temporal-query hot types) and
+  node `last_seen`.
 - Full-text index on `Host.hostname`, `Domain.fqdn`, `Identity.name` for hunting.
+
+Migrations are versioned `.cypher` files applied in filename order by
+`sm_common.graph.apply_pending` (CLI: `scripts/graph_migrate.py`); each is
+recorded as a `:_GraphMigration {version}` node so a re-run is a no-op. This is
+the Neo4j equivalent of the Alembic history — there is no schema autogen.
 
 ### Graph invariants
 

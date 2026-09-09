@@ -181,6 +181,7 @@ def build_settings(**over: Any) -> AppSettings:
         "pg_password": "x",
         "internal_jwt_signing_key": "k",
         "oidc_client_secret": "s",
+        "neo4j_password": "x",
         "rate_limit_per_minute": 5,
     }
     values.update(over)

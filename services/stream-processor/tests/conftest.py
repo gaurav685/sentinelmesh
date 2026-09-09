@@ -140,6 +140,7 @@ def build_settings(**over: Any) -> AppSettings:
     values: dict[str, Any] = {
         "service_name": "stream-processor", "pg_password": "x",
         "internal_jwt_signing_key": "k", "oidc_client_secret": "s",
+        "neo4j_password": "x",
         "kafka_consumer_group": "stream-processor",
     }
     values.update(over)

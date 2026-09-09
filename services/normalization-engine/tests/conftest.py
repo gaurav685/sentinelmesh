@@ -156,6 +156,7 @@ def build_settings(**over: Any) -> AppSettings:
         "pg_password": "x",
         "internal_jwt_signing_key": "k",
         "oidc_client_secret": "s",
+        "neo4j_password": "x",
         "kafka_consumer_group": "normalization",
     }
     values.update(over)

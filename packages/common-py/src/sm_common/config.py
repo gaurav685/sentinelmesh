@@ -79,7 +79,7 @@ class AppSettings(BaseSettings):
     pg_pool_max: int = Field(default=10, ge=1)
     pg_statement_timeout_ms: int = Field(default=15_000, ge=0)
 
-    # ---- neo4j (declared now; unused until Phase 2/3) --------------------
+    # ---- neo4j (graph store; ADR-007, used from Phase 4) ----------------
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_user: str = "neo4j"
     neo4j_password: SecretStr = SecretStr("")
@@ -200,6 +200,7 @@ class AppSettings(BaseSettings):
             ("SM_PG_PASSWORD", self.pg_password),
             ("SM_INTERNAL_JWT_SIGNING_KEY", self.internal_jwt_signing_key),
             ("SM_OIDC_CLIENT_SECRET", self.oidc_client_secret),
+            ("SM_NEO4J_PASSWORD", self.neo4j_password),
         ):
             if not secret.get_secret_value():
                 problems.append(f"{name} is required in production")

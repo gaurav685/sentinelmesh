@@ -19,7 +19,7 @@ help:
 	@echo "test-integration only integration tests (needs 'make up')"
 	@echo "contracts        regenerate JSON Schema from sm_contracts"
 	@echo "up / down        start / stop the local stack (postgres, redis, migrate, app)"
-	@echo "migrate          alembic upgrade head against the local database"
+	@echo "migrate          alembic upgrade head + Neo4j schema against the local stores"
 	@echo "run              run api-gateway on the host"
 
 setup:
@@ -64,6 +64,7 @@ logs:
 
 migrate:
 	$(PY) -m alembic -c migrations/postgres/alembic.ini upgrade head
+	$(PY) scripts/graph_migrate.py
 
 provision-topics:
 	$(PY) scripts/provision_topics.py
