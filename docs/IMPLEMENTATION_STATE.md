@@ -7,6 +7,19 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 3 — Kafka + Stream Processing. IN PROGRESS (Unit 1 done).**
+Definitive topic registry + versioned-event-type policy landed in
+`sm_contracts.topics`; `ingestion-gateway` and `normalization-engine` now
+address topics through it. Remaining: bus hardening (lag / backpressure /
+graceful shutdown / replay / retry-DLQ helper), the `stream-processor` service
+(`graph-update-emitter` job: `events.canonical` → `graph.commands`), the
+stream-engine decision (ADR-010 / U-001 / U-002), topic provisioning, and real
+Redpanda integration tests for all of it. Flink is **not** implemented — no
+JDK 11+ locally (ADR-001), and no stateful job's consuming phase has arrived;
+the engine-independent stream contracts (event-model.md §7) stand.
+
+---
+
 **Phase 2 — Telemetry Ingestion + Normalization. COMPLETE / CI-VERIFIED.**
 Units 1–4 implemented; §23 review done; full compose stack + live end-to-end
 verified; **CI green on a clean runner** (run
@@ -18,11 +31,23 @@ entrypoint imports + prod fail-fast guards). Pipeline: sensor →
 `ingestion-gateway` → `telemetry.raw` → `normalization-engine` →
 `events.canonical` (poison → `telemetry.raw.dlq`).
 
-**Exact next action: await the Phase 3 prompt (graph / detection — consumes
-`events.canonical`).** Nothing to build until it arrives.
-
 Phase 1 exited INTEGRATION VERIFIED on local Docker; its CI jobs also went green
 in the same run.
+
+### Phase 3, Unit 1 — topic registry + versioned event types (DONE)
+
+`sm_contracts.topics`: `TopicSpec` (name, partitions, key, retention, cleanup,
+producers, consumer_groups, `has_dlq`, `partitions_min`, `retention_ms`) and
+`TOPICS` — the 12-topic catalog from event-model.md §3, verbatim. `EVENT_TYPE_TOPIC`
+maps every `EventType` to its topic (`topic_for_event_type`); `dlq_topic(t)` =
+`<t>.dlq`; `replay_group(g)` = `<g>-replay` (event-model.md §5/§6).
+`EVENT_TYPE_VERSION` records the major version per type (all 1 today; a breaking
+change adds a `.v2` member — the "versioned event types" policy, now also in
+event-model.md §2). `ingestion-gateway` / `normalization-engine` now derive their
+topic names from the registry (no string literals). `test_topics.py` (10 tests)
+guards the mapping, the catalog invariants and the key partition counts.
+Verified: pytest 278 non-integration / 63 integration, mypy --strict clean, ruff
+clean, `gen_contracts --check` clean.
 
 ### Phase 2, Unit 1 — telemetry payload contracts (DONE)
 
@@ -945,14 +970,37 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Await the Phase 3 prompt** (graph / detection — the first consumer of
-`events.canonical`). Phases 0, 1, 2 are COMPLETE and CI-VERIFIED (run
-`34333269219`). Nothing to build until the Phase 3 prompt arrives; do not start
-Phase 3 work speculatively.
+**PHASE 3, Unit 2 — bus hardening in `sm_common.bus`.** Unit 1 (topic registry)
+is done. Unit 2:
 
-When it arrives: it consumes `events.canonical` (24 partitions, keyed
-tenant+entity, 30d retention — event-model.md §3), likely via a new
-`sm_common.bus` consumer group and `services/graph-service` / `detection-engine`.
+1. `EventBusConsumer`:
+   - **consumer-lag metric** — `highwater(tp) - position(tp)` per assigned
+     partition, exported as `sm_consumer_lag{group,topic,partition}` on a
+     background tick.
+   - **graceful shutdown** — `stop()` lets the in-flight `run_once` batch
+     finish and commit before closing (bounded by a deadline), not a hard cut.
+   - **backpressure** — `pause()` / `resume()` the assignment when a handler
+     runs slow; bound in-flight work (already capped by `max_records_per_poll`,
+     make it settings-driven `SM_KAFKA_MAX_POLL_RECORDS`).
+   - **retry + DLQ helper** — a `RecordProcessor` that wraps a handler with the
+     event-model.md §4 policy (transient error → exp backoff, max 3, then
+     `dlq_payload` to `dlq_topic(source)`), so `normalization-engine` and the
+     new `stream-processor` share one implementation instead of hand-rolling it.
+   - **replay** — `seek_by_timestamp(ts)` on all assigned partitions
+     (event-model.md §6); a `replay_group()` helper is already in the registry.
+2. `EventBusProducer`: `flush()` on `stop()`; expose `linger_ms` / `max_batch`
+   from settings; a `sm_producer_send_errors_total` metric.
+3. `sm_common.bus.admin.ensure_topics(bootstrap, specs)` — `AIOKafkaAdminClient`
+   create-if-absent with the registry's partition counts + retention; a
+   `scripts/provision_topics.py` CLI; call it from the integration-test rig and
+   a compose one-shot.
+4. Real Redpanda integration tests: produce/consume, serialization/validation,
+   duplicate handling, retry→DLQ, offset-commit-after-side-effect, graceful
+   shutdown mid-batch, replay by timestamp, lag metric moves.
+
+Then **Unit 3** = `services/stream-processor` (`graph-update-emitter`).
+**Unit 4** = ADR-010 decision (U-001/U-002), replay tooling doc, observability
+doc, `REQUIREMENTS_TRACEABILITY` R20 + the stream-contract rows.
 
 ### Standing debt carried past Phase 2
 

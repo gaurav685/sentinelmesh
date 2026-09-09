@@ -22,12 +22,12 @@ from typing import Any
 from uuid import UUID
 
 from sm_common.bus import EventBusProducer
-from sm_contracts import EventEnvelope
+from sm_contracts import EventEnvelope, EventType, dlq_topic, topic_for_event_type
 
 __all__ = ["DLQ_TOPIC", "RAW_TOPIC", "KafkaDeadLetterSink", "KafkaRawEventSink"]
 
-RAW_TOPIC = "telemetry.raw"
-DLQ_TOPIC = "telemetry.raw.dlq"
+RAW_TOPIC = topic_for_event_type(EventType.telemetry_network_flow)  # all telemetry.* -> telemetry.raw
+DLQ_TOPIC = dlq_topic(RAW_TOPIC)
 
 
 class KafkaRawEventSink:

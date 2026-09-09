@@ -30,14 +30,24 @@ Rules:
 - **MVP:** JSON, validated against JSON Schema generated from the Pydantic
   models. Producer validates before publish; consumer validates on receive;
   invalid → DLQ (never silently dropped, never partially processed).
-- **Compatibility:** payload schema changes are **backward-compatible within a
-  major `event_version`** (add optional fields only). A breaking change bumps
-  `event_type` suffix (`...v1` → `...v2`) and both run in parallel during
-  migration.
+- **Compatibility / versioned event types:** payload schema changes are
+  **backward-compatible within a major `event_version`** (add optional fields
+  only); `event_version` (int on the envelope) is bumped, `event_type` is
+  unchanged. A **breaking** change adds a new `EventType` member with a `.v2`
+  suffix and its own `TOPICS` / `EVENT_TYPE_TOPIC` entry; both versions run in
+  parallel during migration. Today every type is at v1
+  (`sm_contracts.topics.EVENT_TYPE_VERSION`), so no member carries a suffix.
 - **Later option U-004:** schema registry + Avro/Protobuf when volume/perf
   justifies; the envelope contract is designed to survive that change.
 
 ## 3. Topic catalog
+
+This table is mirrored in code as `sm_contracts.topics.TOPICS` (Phase 3, Unit 1)
+— every producer and consumer addresses a topic through that registry or
+`topic_for_event_type(...)`, never a string literal. `test_topics.py` guards the
+partition counts below against the registry. Partition provisioning is done by
+`sm_common.bus.admin.ensure_topics` (local / CI); production pre-creates topics
+via IaC.
 
 | Topic | Partitions (initial) | Key | Retention | Cleanup | Producers | Consumer groups |
 |---|---|---|---|---|---|---|

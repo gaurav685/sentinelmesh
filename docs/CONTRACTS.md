@@ -123,6 +123,24 @@ onto `events.canonical` (Unit 4).
 (`sha256(<tenant_id>:<primary_entity>)[:16]`, event-model.md §2). Every other
 payload model is **DRAFT**.
 
+### 2.1 Topic registry + versioned event types (Phase 3 — **STABLE**)
+
+`sm_contracts.topics` is the definitive Kafka topic catalog — `TOPICS`
+(name, partitions, key, retention, cleanup, producers, consumer groups) mirrors
+event-model.md §3 one-to-one, and `EVENT_TYPE_TOPIC` / `topic_for_event_type`
+map every `EventType` to its topic. Every producer and consumer addresses topics
+through this module; string literals are a contract violation.
+
+**Versioned event types.** `event_type` is the version identifier. A
+backward-compatible payload change (optional fields only) keeps `event_type` and
+bumps the envelope's `event_version` int. A breaking change adds a new
+`EventType` member with a `.v2` suffix, its own `TOPICS` / `EVENT_TYPE_TOPIC`
+entry, and runs in parallel with v1 during migration. `EVENT_TYPE_VERSION`
+records the current major per type — all **1** today.
+
+DLQ topic = `dlq_topic(t)` → `<t>.dlq`. Replay group = `replay_group(g)` →
+`<g>-replay` (side-effecting adapters disabled; event-model.md §6).
+
 ---
 
 ## 3. Canonical entity contracts
@@ -302,5 +320,6 @@ Action without `rollback_plan` cannot be `auto`.
 | 2026-09-09 | `normalization-engine` implemented (Phase 2, Unit 4): consumes `telemetry.raw`, deterministic per-source mapping → `CanonicalEventPayload`, produces `event.canonical` on `events.canonical` (verified against Redpanda). Canonical envelope keeps `raw_event_id` lineage; `correlation_id` / `source` carried from the raw event. Poison records → `telemetry.raw.dlq` wrapped per §5. `sm_common.bus.EventBusConsumer` + `dlq_payload` added; `make_partition_key` extracted to `sm_contracts`. `event.canonical` now producer+consumer exercised; STABLE target holds pending Phase 2 CI. | 2 (Unit 4) |
 | 2026-09-09 | Phase 2 §23 review: (1) the canonical `event_id` is now `uuid5(raw_event_id)` — deterministic, so at-least-once redelivery re-emits the same id (event-model.md §4). (2) `DnsQueryPayload.answers` now rejects an empty-string answer (was a silent downstream DLQ). (3) ingestion-gateway frees the `X-Sensor-Event-Id` dedup mark on a 4xx so a corrected retry is not suppressed. | 2 (review) |
 | 2026-09-09 | **Phase 2 exit — CI green** (GitHub Actions run `34333269219`). The five `telemetry.*` payloads promoted **DRAFT → STABLE** (a producer and a consumer both exercise them). `event.canonical` stays **STABLE target** — first downstream consumer is Phase 3. | 2 (close) |
+| 2026-09-09 | **Topic registry** (Phase 3, Unit 1): `sm_contracts.topics` — `TOPICS` mirrors event-model.md §3; `EVENT_TYPE_TOPIC` / `topic_for_event_type` map every `EventType`; `dlq_topic` / `replay_group` helpers; `EVENT_TYPE_VERSION` (all v1). The "versioned event types" policy is documented (§2.1). `ingestion-gateway` / `normalization-engine` refactored to the registry. STABLE. | 3 (Unit 1) |
 | 2026-09-08 | Phase-1 auth/admin API surface **implemented** in `services/api-gateway` and its contracts promoted DRAFT → **STABLE**: API conventions, the canonical error contract, the foundation endpoint set (§1.2), and the `Tenant`/`User`/`Role`/`Permission`/`UserRole`/`RolePermission`/`Sensor`/`AuditRecord` entity contracts. Cursor pagination, CSRF header (`X-CSRF-Token`) and the session cookie names are part of the stable surface. | 1 (Unit 4) |
 | 2026-09-08 | `packages/contracts-py` implements the canonical `EventEnvelope`, the `ErrorResponse` contract (`HTTP_STATUS_BY_CODE`), Phase-1 entity DTOs (`Tenant`, `User`, `Role`, `Permission`, `RolePermission`, `UserRoleGrant`, `Sensor`, `AuditRecord`), Phase-1 API models, and shared enums. JSON Schema generated to `packages/contracts-ts/schemas/` via `scripts/gen_contracts.py`. Status of these contracts: **STABLE target** — promoted to STABLE when the Phase-1 endpoints that use them ship. `identity_link` ownership corrected to `normalization-engine` (Phase 2) — see `architecture/consistency-review.md`. | 0 (close) |

@@ -79,6 +79,15 @@ from .telemetry import (
     NetworkFlowPayload,
     ProcessExecPayload,
 )
+from .topics import (
+    EVENT_TYPE_TOPIC,
+    EVENT_TYPE_VERSION,
+    TOPICS,
+    TopicSpec,
+    dlq_topic,
+    replay_group,
+    topic_for_event_type,
+)
 from .version import CONTRACTS_VERSION, ENVELOPE_SCHEMA_VERSION
 
 __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetically)
@@ -118,6 +127,14 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "AuthOutcome",
     "FileAction",
     "TELEMETRY_PAYLOADS",
+    # topics (Phase 3)
+    "TOPICS",
+    "TopicSpec",
+    "EVENT_TYPE_TOPIC",
+    "EVENT_TYPE_VERSION",
+    "topic_for_event_type",
+    "dlq_topic",
+    "replay_group",
     # enums
     "TenantStatus",
     "UserStatus",
