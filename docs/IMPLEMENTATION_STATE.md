@@ -28,13 +28,11 @@ lineage). Registered in `EVENT_PAYLOAD_REGISTRY` and `SCHEMA_MODELS`;
 Verified: pytest 32 (contracts-py) / 202 (non-integration), mypy --strict clean
 (19 files), ruff clean, schema `--check` clean. Commit `ce2d616`.
 
-Old Phase 1 status line, kept for the record: *Phase 1 — Foundation. IMPLEMENTED
-/ LOCALLY VERIFIED / INTEGRATION VERIFIED (local Docker). CI job not yet run.
-Phase 0 COMPLETE; architecture LOCKED 2026-09-08.*
+### Phase 1 — INTEGRATION VERIFIED on local Docker (kept for the record)
 
 Docker Desktop was installed on the development machine on 2026-09-09 (engine
 29.7.2, WSL2 2.5.10). The full compose stack and the integration suite now run
-here. As of 2026-09-09 the integration verification is done locally:
+here. The integration verification is done locally:
 
 - `docker compose -f deploy/docker/docker-compose.yml up -d postgres redis` then
   `pytest tests/integration -q -m integration` with `SM_REQUIRE_INTEGRATION=1`:
@@ -122,7 +120,7 @@ Six-role sign-off (each role reviewed the Phase-1 surface):
 `make test-integration`, **or** push to GitHub (`bash scripts/push_and_watch.sh`
 after `gh auth login`) and let the `integration` and `image` jobs run.
 
-## Architecture lock status## Architecture lock status
+## Architecture lock status
 
 **LOCKED** (2026-09-08).
 
