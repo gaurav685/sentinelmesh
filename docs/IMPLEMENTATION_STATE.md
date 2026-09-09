@@ -7,9 +7,30 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 1 — Foundation. IMPLEMENTED / LOCALLY VERIFIED / INTEGRATION VERIFIED
-(local Docker). CI job not yet run.** Phase 0 COMPLETE; architecture LOCKED
-2026-09-08.
+**Phase 2 — Telemetry Ingestion + Normalization. IN PROGRESS (Unit 1 done).**
+Phase 1 exited INTEGRATION VERIFIED on local Docker (52 integration tests, full
+compose stack, image build); the CI `integration`/`image` jobs remain the
+independent confirmation and still need a GitHub remote.
+
+At resume on 2026-09-09 the Phase 1 integration suite was re-run to confirm the
+recorded state: `docker compose up -d postgres redis` then
+`pytest tests/integration -q -m integration` with `SM_REQUIRE_INTEGRATION=1` —
+**52 passed** against PostgreSQL 16 + Redis 7.
+
+### Phase 2, Unit 1 — telemetry payload contracts (DONE)
+
+`sm_contracts.telemetry`: `NetworkFlowPayload`, `AuthEventPayload`,
+`DnsQueryPayload`, `ProcessExecPayload`, `FileAccessPayload` (sensor payloads,
+IP-validated, free-text bounded, case-normalized, cross-field rules) and
+`CanonicalEventPayload` + `EntityRef` (normalized view with `raw_event_id`
+lineage). Registered in `EVENT_PAYLOAD_REGISTRY` and `SCHEMA_MODELS`;
+`gen_contracts.py` emits 34 JSON Schema files. `test_telemetry.py` (13 tests).
+Verified: pytest 32 (contracts-py) / 202 (non-integration), mypy --strict clean
+(19 files), ruff clean, schema `--check` clean. Commit `ce2d616`.
+
+Old Phase 1 status line, kept for the record: *Phase 1 — Foundation. IMPLEMENTED
+/ LOCALLY VERIFIED / INTEGRATION VERIFIED (local Docker). CI job not yet run.
+Phase 0 COMPLETE; architecture LOCKED 2026-09-08.*
 
 Docker Desktop was installed on the development machine on 2026-09-09 (engine
 29.7.2, WSL2 2.5.10). The full compose stack and the integration suite now run
@@ -597,41 +618,54 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 2, Unit 1 — the canonical telemetry contracts and the ingestion gateway.**
+**PHASE 2, Unit 2 — the ingestion gateway.**
 
-Phase 1's integration layer is now verified on local Docker (52 tests, the full
-compose stack, and the image build all pass — see the Unit 6 integration
-verification section; four first-run defects were found and fixed). The one
-remaining confirmation is the CI `integration` and `image` jobs, which need a
-GitHub remote and `gh auth login` then `bash scripts/push_and_watch.sh`.
-**Standing requirement:** the CI run must happen before Phase 2 is itself
-declared complete.
+`sm_contracts.telemetry` (Unit 1) is done. Unit 2:
 
-Unit 1:
+1. `packages/common-py/src/sm_common/security/sensor_auth.py`: `SensorAuth` —
+   given a presented credential (`<sensor_id>.<secret>` or a bearer token),
+   look up the `sensor` row, verify the secret against `credential_hash` with
+   Argon2id (constant-time; `dummy_verify` for an unknown id), check
+   `status == active` and `deleted_at is null`, and touch `last_seen_at`.
+   Returns a `SensorIdentity(sensor_id, tenant_id, type)`. Every failure is one
+   generic `Unauthenticated`.
+2. `services/ingestion-gateway`: FastAPI service.
+   - `POST /api/v1/ingest/{source_type}` where `source_type` is one of
+     `network_flow|auth_event|dns_query|process_exec|file_access`. Per-sensor
+     auth via `SensorAuth` (Authorization header). The body is the bare payload;
+     the service builds the canonical `EventEnvelope` server-side —
+     `event_id` = UUIDv7, `tenant_id` from the sensor identity (**never** the
+     body), `source.type = sensor`, `source.sensor_id` from the identity,
+     `occurred_at` lifted from the payload, `ingested_at` = now,
+     `producer = ingestion-gateway@<version>`, `partition_key` derived.
+   - Also `POST /api/v1/ingest/batch` taking `{source_type, events: [...]}`
+     (bounded count) so a sensor can amortize the round trip.
+   - `SM_HTTP_MAX_BODY_BYTES`; a **fail-CLOSED** rate limiter (a new
+     `RateLimitMiddleware` mode, or a small variant — ingestion must reject on
+     limiter error, not pass); `event_id` idempotency via a short-TTL Redis
+     dedup set keyed on `(sensor_id, client_event_id)` when the sensor supplies
+     one.
+   - Malformed payload (schema fail, bad IP, wrong `source_type`) →
+     `422 validation_error` **and** the raw body is written to a
+     `telemetry.raw.dlq` sink. The Kafka producer itself is Phase 3, so for now
+     the sink is an interface with a logging/Postgres-table implementation
+     recorded as a stopgap; the accepted-event path likewise ends at a
+     `RawEventSink` interface.
+   - `/healthz`, `/readyz` (postgres + redis probes), `/metrics`. No `/docs` in
+     production.
+3. Tests: valid payload per source type produces the right envelope;
+   unknown/disabled sensor rejected generically; wrong-tenant value in the body
+   is ignored; oversized body → 413; malformed payload → 422 + DLQ; unsupported
+   `source_type` → 404; duplicate `client_event_id` → 200 (idempotent, not
+   re-sunk); rate limiter fails closed. Integration test for `SensorAuth` SQL.
+4. Docs: `IMPLEMENTATION_STATE.md`; promote the telemetry payloads DRAFT ->
+   STABLE once this ships; `REQUIREMENTS_TRACEABILITY.md` R1.
 
-1. `packages/contracts-py`: implement the five telemetry payload models
-   (`NetworkFlowPayload`, `AuthEventPayload`, `DnsQueryPayload`,
-   `ProcessExecPayload`, `FileAccessPayload`) and `CanonicalEventPayload`,
-   register them in `EVENT_PAYLOAD_REGISTRY`, add them to `SCHEMA_MODELS`, and
-   regenerate the JSON Schema. Field schemas per `docs/architecture/data-model.md`.
-2. `services/ingestion-gateway`: FastAPI service. `POST /api/v1/ingest/{source_type}`
-   with per-sensor credential auth (Argon2id against the `sensor` table),
-   payload-schema validation, `SM_HTTP_MAX_BODY_BYTES`, a **fail-closed** rate
-   limiter (unlike the gateway's fail-open one), `event_id` idempotency, and the
-   canonical envelope constructed server-side with `tenant_id` taken from the
-   sensor identity — never from the body. Malformed events produce an explicit
-   DLQ decision (recorded; the Kafka producer itself is Phase 3).
-3. `packages/common-py`: a `SensorAuth` helper (verify a presented credential
-   against `sensor.credential_hash`, update `last_seen_at`), shared by the
-   ingestion gateway.
-4. Tests: valid/invalid/oversized/duplicate/unknown-version payloads per source
-   type; wrong-tenant payload rejected; unknown or disabled sensor rejected;
-   rate limiter fails closed; envelope fields correct. Integration test for the
-   sensor-auth SQL, marked `integration`.
-5. Docs: update `IMPLEMENTATION_STATE.md`, promote the telemetry payload
-   contracts DRAFT -> STABLE, update `REQUIREMENTS_TRACEABILITY.md` R1/R2.
+Then **Unit 3** = the Kafka producer (Redpanda) behind `RawEventSink`, the real
+DLQ topic, and the ingestion -> topic integration test (needs the `bus`
+compose profile). **Unit 4** = `normalization-engine`.
 
-### Superseded plan for Phase 1 Unit 6 (kept for the record)
+### Superseded plan for Phase 1 Unit 6### Superseded plan for Phase 1 Unit 6 (kept for the record)
 
 **PHASE 1, Unit 6 (remaining) — close out Phase 1.** Blocked until Docker is
 available, by either route (`make up` + `make test-integration`, or push to
