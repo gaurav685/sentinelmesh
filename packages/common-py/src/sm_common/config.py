@@ -177,9 +177,17 @@ class AppSettings(BaseSettings):
     # normalization-engine calls threat-intel-service to tag canonical events.
     ti_enrichment_enabled: bool = False
 
-    # ---- detection engine (Phase 5) ------------------------------
+    # ---- ML / GNN + temporal (Phase 5, extended Phase 8) --------
     ml_inference_url: str = "http://localhost:8005"
     ml_inference_timeout_s: float = Field(default=2.0, gt=0.0, le=30.0)
+    # Global seed for every reproducible ML pipeline (ml-training, GNN inference).
+    ml_seed: int = Field(default=1337, ge=0)
+    # Structural graph-anomaly z-threshold (the always-available graph detector).
+    graph_anomaly_z: float = Field(default=3.5, ge=1.0, le=10.0)
+    # Temporal engine: bound on how far a source clock may run ahead of ingest.
+    temporal_max_clock_skew_seconds: int = Field(default=300, ge=0, le=3600)
+    # Cross-session stitching: max gap between two sessions of the same entity to link them.
+    temporal_session_link_seconds: int = Field(default=3_600, ge=60, le=86_400)
     # Adaptive anomaly thresholds: a per-(tenant, canonical-kind) rolling window
     # of feature vectors, refit on every event once it has `min_samples`.
     detection_window_size: int = Field(default=512, ge=32, le=8192)
