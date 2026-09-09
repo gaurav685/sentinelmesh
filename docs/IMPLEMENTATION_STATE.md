@@ -7,13 +7,16 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 4 — Neo4j + Graph Intelligence Foundation. Units 1–4 IMPLEMENTED;
-Units 1–3 CI-green** (runs
+**Phase 4 — Neo4j + Graph Intelligence Foundation. COMPLETE / CI-VERIFIED.**
+Units 1–4, all four CI jobs green on a clean runner: runs
 [`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544)
 / [`34348143536`](https://github.com/gaurav685/sentinelmesh/actions/runs/34348143536)
-/ [`34349655012`](https://github.com/gaurav685/sentinelmesh/actions/runs/34349655012)).
-**Unit 4 = the real-infra end-to-end run + the Phase 4 exit report + the §23
-review (below); awaiting final CI green, then Phase 5.**
+/ [`34349655012`](https://github.com/gaurav685/sentinelmesh/actions/runs/34349655012)
+/ [`34350607501`](https://github.com/gaurav685/sentinelmesh/actions/runs/34350607501)
+(`integration` runs against real PostgreSQL + Redis + Redpanda + Neo4j 5). Write
+path `graph.commands → graph-service → Neo4j`, read path `GraphRepository` +
+`/api/v1/graph/*`, end-to-end from `events.canonical` verified. Phase 4 exit
+report + §23 review below.
 Unit 1 (run `34346140544`):
 the Neo4j async driver wrapper, the label/relationship allowlist (Cypher-injection
 guard), the versioned `.cypher` schema migration + runner, the production config
@@ -399,10 +402,9 @@ before Phase 2 is itself declared complete.
 
 ## Phase 4 exit report
 
-**State: IMPLEMENTED / INTEGRATION VERIFIED against real Neo4j 5 Community +
-real Redpanda. Units 1–3 CI-green; Unit 4 = this report + the end-to-end run +
-the §23 review. GDS pathfinding/centrality and the operational-graph pruning job
-are deferred to their consuming phase.**
+**State: COMPLETE / CI-VERIFIED (all four jobs, run `34350607501`) against real
+Neo4j 5 Community + real Redpanda. GDS pathfinding/centrality and the
+operational-graph pruning job are deferred to their consuming phase.**
 
 ### Delivered (Units 1–4)
 
@@ -484,7 +486,7 @@ trees, 91 integration tests all pass.
 | Attack-path traversal | ✅ `GraphRepository.attack_path` (`shortestPath`, depth-bounded), real-Neo4j test |
 | Tenant isolation | ✅ synthetic `uid` + path filter + JWT tenant; real-Neo4j cross-tenant tests |
 | Real Neo4j integration tests | ✅ 20 (`test_graph_schema_neo4j` 6, `test_graph_service_neo4j` 10, `test_graph_pipeline_e2e` 1, + query cases) |
-| **CI green on a clean runner** | ✅ Units 1–3 (runs `34346140544` / `34348143536` / `34349655012`); Unit 4 pending this commit |
+| **CI green on a clean runner** | ✅ **all four jobs — runs `34346140544` / `34348143536` / `34349655012` / `34350607501`** |
 
 ## Phase 3 exit report
 
@@ -1330,16 +1332,15 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Phase 4 is IMPLEMENTED (all 4 units).** Units 1–3 CI-green (commits `5c17a33` /
-`a19c61b` / `6b46a8e`). Unit 4 (this commit) adds the real-infra end-to-end test
-(`test_graph_pipeline_e2e.py` — canonical event → stream-processor → graph.commands
-→ graph-service → Neo4j → query round-trip, all real), the Phase 4 exit report,
-and the §23 review. Verified locally: 349 unit, ruff, `mypy --strict` ×7 trees,
-91 integration (real PostgreSQL + Redis + Redpanda + Neo4j). **Commit, push,
-confirm CI green — that closes Phase 4.**
+**Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; commits `5c17a33` / `a19c61b`
+/ `6b46a8e` / `7824507`; final run `34350607501` — all four jobs green).
 
-Exit next action after Phase 4: **PHASE 5 — DETECTION + ANOMALY DETECTION**
-(user pastes the prompt; do not start speculatively).
+**Next: await the PHASE 5 — DETECTION + ANOMALY DETECTION prompt.** Do not start
+speculatively. Phase 5 will add `services/detection-engine` (anomaly + rule
+detection over `events.canonical` / feature streams → `detections` topic +
+Postgres `detection` / `anomaly` tables), the ML I/O contract (CONTRACTS.md §6),
+and `(:Detection)-[:INVOLVES]->…` graph commands (labels already on the
+allowlist). `sm_common.graph` + `graph-service` are ready to receive them.
 
 ### Standing debt carried past Phase 2
 
