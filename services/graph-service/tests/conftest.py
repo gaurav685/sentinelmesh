@@ -52,6 +52,7 @@ class FakeGraph:
         self.writes: list[tuple[str, dict[str, Any]]] = []
         self.applied_ids: set[str] = set()
         self.write_rows: list[dict[str, Any]] = [{"current": True}]
+        self.read_plan: list[list[dict[str, Any]]] = []
         self.unavailable = False
 
     async def ping(self) -> None:
@@ -65,6 +66,8 @@ class FakeGraph:
         self.reads.append((cypher, params))
         if "_GraphCommand" in cypher and params.get("cid") in self.applied_ids:
             return [{"id": params["cid"]}]
+        if self.read_plan:
+            return self.read_plan.pop(0)
         return []
 
     async def run_write(self, cypher: str, params: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -152,6 +155,17 @@ def envelope_for(cmd: GraphCommandPayload) -> EventEnvelope[GraphCommandPayload]
     )
 
 
+_TEST_JWT_KEY = "graph-service-test-signing-key-0123456789"
+
+
+def internal_token(tenant_id: Any, *, key: str = _TEST_JWT_KEY, audience: str = "graph-service") -> str:
+    from sm_common.security import mint_internal_token
+
+    return mint_internal_token(
+        signing_key=key, subject="api-gateway", tenant_id=tenant_id, audience=audience
+    )
+
+
 def make_record(value: bytes) -> ConsumerRecord:
     return ConsumerRecord(
         topic="graph.commands", partition=0, offset=0, timestamp=0, timestamp_type=0,
@@ -189,7 +203,7 @@ def rig() -> Rig:
 def build_settings(**over: Any) -> AppSettings:
     values: dict[str, Any] = {
         "service_name": "graph-service", "pg_password": "x",
-        "internal_jwt_signing_key": "k", "oidc_client_secret": "s",
+        "internal_jwt_signing_key": _TEST_JWT_KEY, "oidc_client_secret": "s",
         "neo4j_password": "x", "kafka_consumer_group": "graph-writer",
     }
     values.update(over)
@@ -200,8 +214,10 @@ def build_settings(**over: Any) -> AppSettings:
 def app_client() -> AsyncIterator[Any]:
     from fastapi.testclient import TestClient
 
+    from sm_common.bus import RecordProcessor
     from sm_graph_service.app import create_app
     from sm_graph_service.deps import Services
+    from sm_graph_service.repository import GraphRepository
 
     base = build_metrics("graph-service")
     gm = GraphMetrics(base, "graph-service")
@@ -209,16 +225,16 @@ def app_client() -> AsyncIterator[Any]:
     producer = FakeProducer()
     writer = GraphWriter(graph)  # type: ignore[arg-type]
     engine = GraphEngine(writer=writer, producer=producer, metrics=base, graph_metrics=gm)  # type: ignore[arg-type]
-    from sm_common.bus import RecordProcessor
-
     processor = RecordProcessor(
         producer=producer, consumer_group="graph-writer", handle=engine.handle,  # type: ignore[arg-type]
         metrics=base, service_name="graph-service",
     )
     services = Services(
         settings=build_settings(), metrics=base, graph_metrics=gm, graph=graph,  # type: ignore[arg-type]
+        repository=GraphRepository(graph, max_rows=1000, max_depth=8),  # type: ignore[arg-type]
         producer=producer, consumer=FakeConsumer(), engine=engine, processor=processor,
     )
     app = create_app(services=services)
     with TestClient(app) as c:
+        c.fake_graph = graph  # type: ignore[attr-defined]
         yield c

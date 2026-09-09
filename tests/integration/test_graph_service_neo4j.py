@@ -25,6 +25,7 @@ from sm_contracts import (
     GraphOp,
     graph_command_id,
 )
+from sm_graph_service.repository import GraphRepository
 from sm_graph_service.writer import GraphWriter
 
 pytestmark = pytest.mark.integration
@@ -59,6 +60,29 @@ def _edge(
 @pytest.fixture
 def writer(graph: Graph) -> GraphWriter:
     return GraphWriter(graph)
+
+
+@pytest.fixture
+def repo(graph: Graph) -> GraphRepository:
+    return GraphRepository(graph, max_rows=1000, max_depth=8)
+
+
+async def _seed_chain(writer: GraphWriter, tenant: uuid.UUID) -> None:
+    """alice -LOGGED_INTO-> web01 -CONNECTED_TO-> 10.0.0.5"""
+    await writer.apply(
+        _edge(
+            tenant, "LOGGED_INTO",
+            GraphEndpoint(label=":Identity", key={"identity_id": "alice"}),
+            GraphEndpoint(label=":Host", key={"host_id": "web01"}),
+        )
+    )
+    await writer.apply(
+        _edge(
+            tenant, "CONNECTED_TO",
+            GraphEndpoint(label=":Host", key={"host_id": "web01"}),
+            GraphEndpoint(label=":IpAddress", key={"ip": "10.0.0.5"}),
+        )
+    )
 
 
 async def test_merge_node_creates_a_tenant_scoped_node(writer: GraphWriter, graph: Graph) -> None:
@@ -173,3 +197,59 @@ async def test_relationships_never_cross_tenants(writer: GraphWriter, graph: Gra
         "MATCH (a)-[r]->(b) WHERE a.tenant_id <> b.tenant_id RETURN count(r) AS c"
     )
     assert cross[0]["c"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# read-query API (Unit 3)
+# --------------------------------------------------------------------------- #
+async def test_entity_returns_only_public_props(
+    writer: GraphWriter, repo: GraphRepository
+) -> None:
+    tenant = uuid.uuid4()
+    await writer.apply(_node(tenant, ":Host", {"host_id": "web09"}, props={"os": "linux"}))
+    node = await repo.entity(tenant, ":Host", "web09")
+    assert node is not None
+    assert node.properties["host_id"] == "web09"
+    assert node.properties["os"] == "linux"
+    assert "uid" not in node.properties
+    assert not any(k.startswith("_") for k in node.properties)
+
+
+async def test_neighbors_walks_a_bounded_neighbourhood(
+    writer: GraphWriter, repo: GraphRepository
+) -> None:
+    tenant = uuid.uuid4()
+    await _seed_chain(writer, tenant)
+
+    depth1 = await repo.neighbors(tenant, ":Identity", "alice", depth=1)
+    assert {tuple(n.labels) for n in depth1.nodes} == {("Identity",), ("Host",)}
+
+    depth2 = await repo.neighbors(tenant, ":Identity", "alice", depth=2)
+    assert ("IpAddress",) in {tuple(n.labels) for n in depth2.nodes}
+    assert {e.type for e in depth2.edges} == {"LOGGED_INTO", "CONNECTED_TO"}
+
+
+async def test_attack_path_finds_the_shortest_chain(
+    writer: GraphWriter, repo: GraphRepository
+) -> None:
+    tenant = uuid.uuid4()
+    await _seed_chain(writer, tenant)
+    path = await repo.attack_path(
+        tenant, (":Identity", "alice"), (":IpAddress", "10.0.0.5"), max_depth=5
+    )
+    assert path.found is True
+    assert path.length == 2
+    assert [tuple(n.labels) for n in path.nodes] == [("Identity",), ("Host",), ("IpAddress",)]
+
+
+async def test_queries_never_cross_tenants(
+    writer: GraphWriter, repo: GraphRepository
+) -> None:
+    t1, t2 = uuid.uuid4(), uuid.uuid4()
+    await _seed_chain(writer, t1)
+    # t2 asks about t1's node — must see nothing
+    assert await repo.entity(t2, ":Identity", "alice") is None
+    view = await repo.neighbors(t2, ":Identity", "alice", depth=3)
+    assert view.nodes == [] and view.edges == []
+    path = await repo.attack_path(t2, (":Identity", "alice"), (":IpAddress", "10.0.0.5"))
+    assert path.found is False
