@@ -8,7 +8,10 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 4 — Neo4j + Graph Intelligence Foundation. IN PROGRESS — Unit 1 DONE
-(local + unit verified; real-Neo4j integration + CI pending).** Unit 1 lays the
+and CI-green on a clean runner (run
+[`34346140544`](https://github.com/gaurav685/sentinelmesh/actions/runs/34346140544),
+all four jobs; the `integration` job ran the schema against a real
+`neo4j:5-community` service).** Unit 1 lays the
 Neo4j foundation: the async driver wrapper, the label/relationship allowlist
 (the Cypher-injection guard), the versioned `.cypher` schema migration + runner,
 the production config guard, and the compose/CI wiring for a Neo4j service.
@@ -397,7 +400,8 @@ implemented (deferred per ADR-010).**
   marked `integration`, real Neo4j via the `graph` fixture): migration creates
   constraints + indexes, idempotent re-run, apply-from-bare-schema, `uid`
   uniqueness enforced, parameter values never executed as Cypher, slow query
-  hits the timeout. **Not yet run against real Neo4j / on CI** — pending.
+  hits the timeout. Verified locally against Neo4j 5 Community **and CI-green**
+  (run `34346140544`).
 
 ## Phase 2 exit report
 
@@ -1150,14 +1154,11 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**Phase 4, Unit 1 is code-complete and locally verified** (313 unit tests, ruff,
-`mypy --strict` over 6 trees, 80 integration tests incl. 6 new against a real
-Neo4j 5 Community container; `scripts/graph_migrate.py` exercised end-to-end).
-**Commit Unit 1, then push and confirm CI green** (the `integration` job now
-starts a `neo4j:5-community` service + runs "Apply Neo4j schema"; the `image`
-job imports `sm_common.graph` + `neo4j`).
+**Phase 4, Unit 1 is DONE and CI-green** (commit `5c17a33`, run `34346140544` —
+all four jobs; `integration` ran the schema against a real `neo4j:5-community`
+service).
 
-**Then Phase 4, Unit 2 — `services/graph-service`.** Consume `graph.commands`
+**Next: Phase 4, Unit 2 — `services/graph-service`.** Consume `graph.commands`
 (group `graph-writer`) via `RecordProcessor`. For each `GraphCommandPayload`:
 validate `label` against `GRAPH_NODE_LABELS` / `GRAPH_REL_TYPES`
 (`sm_contracts.graph`) — non-allowlisted → DLQ (`PoisonError`); build a
