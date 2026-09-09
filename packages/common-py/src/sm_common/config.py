@@ -171,6 +171,7 @@ class AppSettings(BaseSettings):
     ti_http_max_retries: int = Field(default=2, ge=0, le=6)
     ti_default_ttl_seconds: int = Field(default=86_400, ge=60)
     ti_expiry_sweep_seconds: int = Field(default=900, ge=30, le=86_400)
+    ti_poll_seconds: int = Field(default=3_600, ge=60, le=86_400)
     ti_service_url: str = "http://localhost:8007"
     mitre_service_url: str = "http://localhost:8008"
 

@@ -11,6 +11,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 
+import httpx
 from fastapi import FastAPI
 
 from sm_common.bus import EventBusProducer
@@ -26,6 +27,8 @@ from sm_common.observability import build_metrics, configure_tracing, shutdown_t
 
 from .deps import Services
 from .metrics import TiMetrics
+from .poller import ProviderPoller
+from .providers import build_providers
 from .routes import health, metrics, ti
 from .scheduler import ExpirySweeper
 from .store import IndicatorRepository
@@ -36,7 +39,7 @@ __all__ = ["build_services", "create_app"]
 _log = get_logger("sm.ti_service")
 
 
-def build_services(settings: AppSettings) -> Services:
+def build_services(settings: AppSettings, *, http: httpx.AsyncClient) -> Services:
     base_metrics = build_metrics(SERVICE_NAME)
     ti_metrics = TiMetrics(base_metrics, SERVICE_NAME)
     db = Database.from_settings(settings)
@@ -46,9 +49,15 @@ def build_services(settings: AppSettings) -> Services:
         repo=repo, producer=producer, metrics=ti_metrics,
         interval_seconds=settings.ti_expiry_sweep_seconds,
     )
+    poller = ProviderPoller(
+        providers=build_providers(settings, http, ti_metrics),
+        repo=repo, db=db, producer=producer, metrics=ti_metrics,
+        interval_seconds=settings.ti_poll_seconds,
+        default_ttl_seconds=settings.ti_default_ttl_seconds,
+    )
     return Services(
         settings=settings, metrics=base_metrics, ti_metrics=ti_metrics, db=db,
-        repo=repo, producer=producer, sweeper=sweeper,
+        repo=repo, producer=producer, sweeper=sweeper, poller=poller,
     )
 
 
@@ -62,24 +71,34 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         owns = services is None
-        svc = services or build_services(resolved_settings)
+        http: httpx.AsyncClient | None = None
+        if owns:
+            http = httpx.AsyncClient(timeout=resolved_settings.ti_http_timeout_s)
+            svc = build_services(resolved_settings, http=http)
+        else:
+            assert services is not None
+            svc = services
         app.state.services = svc
 
-        task: asyncio.Task[None] | None = None
+        tasks: list[asyncio.Task[None]] = []
         if owns:
             await svc.producer.start()
-            task = asyncio.create_task(svc.sweeper.run())
+            tasks.append(asyncio.create_task(svc.sweeper.run()))
+            tasks.append(asyncio.create_task(svc.poller.run()))
         _log.info("service_start", service=SERVICE_NAME, version=SERVICE_VERSION)
         try:
             yield
         finally:
             if owns:
                 svc.sweeper.stop()
-                if task is not None:
+                svc.poller.stop()
+                for task in tasks:
                     with suppress(TimeoutError, asyncio.CancelledError):
                         await asyncio.wait_for(task, timeout=5)
                 await svc.producer.stop()
                 await svc.db.dispose()
+                if http is not None:
+                    await http.aclose()
             shutdown_tracing()
             _log.info("service_stop", service=SERVICE_NAME)
 

@@ -7,7 +7,13 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 6 — Threat Intelligence + MITRE ATT&CK. IN PROGRESS — Units 1–3 DONE.**
+**Phase 6 — Threat Intelligence + MITRE ATT&CK. IN PROGRESS — Units 1–4 DONE.**
+Unit 4: `sm_ti_service.providers` — the `ThreatIntelProvider → ProviderAdapter →
+ExternalProvider` architecture (per-call timeout, backoff retry, HTTP 429 handling,
+malformed-row drop, outage → `ok=False` + metric), a `FixtureProvider` (labelled
+`source_kind=FIXTURE`), stubbed `abusech` / `otx` adapters (feature-flagged off;
+`SM_TI_PROVIDERS` empty by default), and a `ProviderPoller` background task that
+upserts + emits `ti.updates` + records `ti_source`.
 Unit 3: `services/threat-intel-service` (req 9, TB-4) — IOC store of record
 (`threat_indicator` etc.), dedup on `indicator_dedup_key` (global vs tenant),
 rule-based deterministic `reputation_score`, freshness derived on read, a
@@ -1508,20 +1514,21 @@ integration test. Docker is still absent.
 **Phase 5 is COMPLETE and CI-VERIFIED** (Units 1–5; commits `5c7da92` / `d6b2c1a`
 / `fe63df5` / `a40c22f` / `cd6e02e`; final run `34358654888` — all four jobs).
 
-**Phase 6 Units 1–3 done.** Units 1–2 CI-green (commits `b468eca` / `9778fb7`,
-runs `34360762175` / `34362599920`). Unit 3 (`threat-intel-service`) locally
-verified: 464 unit tests, ruff, `mypy --strict` over 12 trees, `gen_contracts
---check`; 5 real-PG store tests; image builds and imports `sm_ti_service`.
-**Commit Unit 3, push, confirm CI green.**
+**Phase 6 Units 1–4 done.** Units 1–3 CI-green (commits `b468eca` / `9778fb7` /
+`1da61e1`). Unit 4 (provider adapters) locally verified: 470 unit tests, ruff,
+`mypy --strict` over 12 trees, `gen_contracts --check`; 6 real-PG store/poller
+tests. **Commit Unit 4, push, confirm CI green.**
 
-**Then Phase 6, Unit 4 — provider adapters** (`sm_ti_service.providers`).
-`ThreatIntelProvider` protocol → `ProviderAdapter` base (per-call timeout, retry
-with backoff, HTTP 429 → back off, malformed response → drop + log, provider
-outage → return `[]` + a metric, provenance stamped on every indicator) → a
-`FixtureProvider` (deterministic local data, `source_kind = FIXTURE`,
-`provider = "fixture:<name>"`) and stubbed `AbuseChAdapter` / `OtxAdapter`
-(feature-flagged off; `SM_TI_PROVIDERS` empty by default — no outbound calls). A
-poller that runs enabled providers on a schedule, upserts, and emits `ti.updates`.
+**Then Phase 6, Unit 5 — enrichment wiring + close the phase.**
+`normalization-engine`: a `ThreatIntelEnricher` calls `threat-intel-service`
+`POST /enrich` for a canonical event's entities → `canonical.enrichment["threat_intel"]`
+(provider-keyed, provenance-carrying; a TI-service outage leaves it absent, never
+fails the event). `detection-engine`: a canonical event with a TI match adds an
+`EvidenceItem(kind=ti_indicator)` + a `rule.ti.known_bad_indicator` hit; after a
+detection is raised it calls `mitre-service` `POST /map` and records the returned
+technique mappings' confidence + evidence. Real-infra integration test of the
+full chain. Phase 6 exit report + §23 + `REQUIREMENTS_TRACEABILITY` R7 / R9
+promotion.
 (`ThreatIntelProvider → ProviderAdapter → ExternalProvider`; timeouts / retries /
 429 / malformed-rejection / outage → cache+STALE; `FixtureProvider` labelled
 `source_kind=FIXTURE`; all feature-flagged off). Unit 5 = `normalization-engine`
