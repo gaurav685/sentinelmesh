@@ -3,7 +3,7 @@
 These tests exercise what unit tests with fakes cannot — constraints, triggers,
 transaction and locking behaviour, TTL semantics. They need the compose stack:
 
-    docker compose -f deploy/docker/docker-compose.yml up -d postgres redis
+    docker compose -f deploy/docker/docker-compose.yml --profile graph up -d postgres redis neo4j
 
 When the services are not reachable every test in this directory is **skipped**,
 not failed, so the suite still runs on a machine without Docker. A skip is not a
@@ -27,6 +27,7 @@ from sqlalchemy import text
 from sm_common.cache import Cache
 from sm_common.config import AppSettings
 from sm_common.db import Base, Database
+from sm_common.graph import Graph, apply_pending
 
 pytestmark = pytest.mark.integration
 
@@ -65,6 +66,8 @@ def integration_settings(**over: object) -> AppSettings:
         "pg_user": os.environ.get("SM_PG_USER", "sentinelmesh"),
         "pg_password": os.environ.get("SM_PG_PASSWORD", "sentinelmesh"),
         "redis_url": os.environ.get("SM_TEST_REDIS_URL", "redis://localhost:6379/15"),
+        "neo4j_uri": os.environ.get("SM_TEST_NEO4J_URI", "bolt://localhost:7687"),
+        "neo4j_password": os.environ.get("SM_TEST_NEO4J_PASSWORD", "neo4j-dev-password"),
         "internal_jwt_signing_key": "integration-signing-key-0123456789",
         "oidc_client_secret": "integration",
         "session_idle_seconds": 60,
@@ -172,3 +175,39 @@ async def clean(database: Database, schema: None) -> AsyncIterator[Database]:
             text(f"TRUNCATE {', '.join(_TABLES_IN_TRUNCATE_ORDER)} RESTART IDENTITY CASCADE")
         )
     yield database
+
+
+async def drop_graph_schema(g: Graph) -> None:
+    """Bare metal: drop every constraint and index and forget the migration
+    ledger, so the next `apply_pending` runs everything from scratch."""
+    await g.run_write("MATCH (m:_GraphMigration) DELETE m")
+    for row in await g.run_read("SHOW CONSTRAINTS YIELD name RETURN name"):
+        await g.run_write(f"DROP CONSTRAINT {row['name']} IF EXISTS")
+    for row in await g.run_read("SHOW INDEXES YIELD name, type RETURN name, type"):
+        # LOOKUP indexes are built in and cannot be dropped.
+        if row["type"] != "LOOKUP":
+            await g.run_write(f"DROP INDEX {row['name']} IF EXISTS")
+
+
+@pytest_asyncio.fixture
+async def graph(settings: AppSettings) -> AsyncIterator[Graph]:
+    """A reachable Neo4j with the `neo4j/0001` schema applied and no data.
+
+    Needs the compose `graph` profile:
+        docker compose -f deploy/docker/docker-compose.yml --profile graph up -d neo4j
+    """
+    g = Graph.from_settings(settings)
+    if not await _reachable(g.ping):
+        await g.close()
+        _unavailable(
+            "Neo4j is not reachable; start it with `docker compose "
+            "-f deploy/docker/docker-compose.yml --profile graph up -d neo4j`"
+        )
+    await g.start()
+    await g.run_write("MATCH (n) DETACH DELETE n")
+    await apply_pending(g)
+    try:
+        yield g
+    finally:
+        await g.run_write("MATCH (n) DETACH DELETE n")
+        await g.close()

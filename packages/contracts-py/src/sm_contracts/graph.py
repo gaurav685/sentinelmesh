@@ -28,13 +28,61 @@ from .common import SmBaseModel, to_utc
 from .events import EVENT_PAYLOAD_REGISTRY, EventType
 
 __all__ = [
+    "GRAPH_NODE_KEY",
+    "GRAPH_NODE_LABELS",
     "GRAPH_PAYLOADS",
+    "GRAPH_REL_TYPES",
     "GraphCommandPayload",
+    "GraphEndpoint",
     "GraphOp",
     "graph_command_id",
+    "graph_node_uid",
+    "normalize_label",
 ]
 
 _GRAPH_CMD_NS = uuid.UUID("b7d2f1a0-3c4e-5d6a-8b9c-0e1f2a3b4c5d")
+
+# --------------------------------------------------------------------------- #
+# Neo4j label / relationship allowlist (docs/architecture/data-model.md).
+# Cypher cannot parameterize a label or a relationship type, so `graph-writer`
+# validates every command's label against these sets before building Cypher.
+# Anything not here is dead-lettered — this is the injection guard.
+# --------------------------------------------------------------------------- #
+GRAPH_NODE_KEY: dict[str, str] = {
+    "Tenant": "tenant_id",
+    "Identity": "identity_id",
+    "Host": "host_id",
+    "IpAddress": "ip",
+    "Domain": "fqdn",
+    "Process": "process_id",
+    "File": "file_id",
+    "Sensor": "sensor_id",
+    "Detection": "detection_id",
+    "AttackChain": "chain_id",
+    "AttackTechnique": "technique_id",
+    "ThreatActor": "actor_id",
+    "Campaign": "campaign_id",
+}
+GRAPH_NODE_LABELS: frozenset[str] = frozenset(GRAPH_NODE_KEY)
+
+GRAPH_REL_TYPES: frozenset[str] = frozenset({
+    "AUTHENTICATED_TO", "LOGGED_INTO", "CONNECTED_TO", "RESOLVED", "RESOLVES_TO",
+    "EXECUTED", "DOWNLOADED", "SPAWNED", "ACCESSED", "USED_CREDENTIAL_ON",
+    "INVOLVES", "HAS_STAGE", "MAPPED_TO", "INCLUDES", "ATTRIBUTED",
+})
+
+
+def normalize_label(label: str) -> str:
+    """`':Host'` / `'Host'` -> `'Host'`. Commands carry the `:`-prefixed form."""
+    return label.lstrip(":")
+
+
+def graph_node_uid(tenant_id: UUID, key_value: object) -> str:
+    """Synthetic per-tenant node key. Neo4j Community cannot enforce a composite
+    `(tenant_id, <key>)` uniqueness constraint, so `graph-service` writes this
+    `uid` on every node and the `neo4j/0001` migration puts the UNIQUE
+    constraint there. Format: `"<tenant_id>:<natural key value>"`."""
+    return f"{tenant_id}:{key_value}"
 
 
 class GraphOp(StrEnum):

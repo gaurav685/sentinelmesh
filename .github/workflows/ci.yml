@@ -132,6 +132,19 @@ jobs:
           --health-retries 12
           --health-start-period 5s
 
+      neo4j:
+        image: neo4j:5-community
+        env:
+          NEO4J_AUTH: neo4j/ci-neo4j-password
+        ports:
+          - 7687:7687
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p ci-neo4j-password 'RETURN 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 18
+          --health-start-period 10s
+
     env:
       # The job runs on the runner host, so localhost is correct here — unlike
       # inside the compose network, where services address each other by name.
@@ -142,6 +155,8 @@ jobs:
       SM_PG_PASSWORD: ci-postgres-password
       SM_TEST_REDIS_URL: redis://localhost:6379/15
       SM_TEST_KAFKA_BOOTSTRAP: localhost:19092
+      SM_TEST_NEO4J_URI: bolt://localhost:7687
+      SM_TEST_NEO4J_PASSWORD: ci-neo4j-password
       # A skipped integration test must fail the build, not pass it quietly.
       SM_REQUIRE_INTEGRATION: "1"
 
@@ -197,6 +212,12 @@ jobs:
           SM_SERVICE_NAME: migrations
           SM_PG_HOST: localhost
 
+      - name: Apply Neo4j schema
+        run: python scripts/graph_migrate.py
+        env:
+          SM_NEO4J_URI: bolt://localhost:7687
+          SM_NEO4J_PASSWORD: ci-neo4j-password
+
       - name: Integration tests
         # SM_REQUIRE_INTEGRATION=1 turns an unreachable dependency into a
         # failure rather than a skip, so a green build always means these
@@ -220,7 +241,7 @@ jobs:
       - name: Every service entrypoint is importable in the image
         run: |
           docker run --rm --entrypoint python sentinelmesh/app:ci -c \
-            "import sm_api_gateway, sm_ingestion_gateway, sm_normalization_engine, sm_stream_processor, sm_common.bus, aiokafka"
+            "import sm_api_gateway, sm_ingestion_gateway, sm_normalization_engine, sm_stream_processor, sm_common.bus, sm_common.graph, aiokafka, neo4j"
 
       - name: Configuration validation refuses an unsafe production setup
         # Proves the fail-fast guards are live in the built image.
@@ -232,6 +253,7 @@ jobs:
               -e SM_PG_PASSWORD=x \
               -e SM_INTERNAL_JWT_SIGNING_KEY=x \
               -e SM_OIDC_CLIENT_SECRET=x \
+              -e SM_NEO4J_PASSWORD=x \
               -e SM_KAFKA_SECURITY_PROTOCOL=SASL_SSL \
               sentinelmesh/app:ci python -c "from sm_common.config import AppSettings; AppSettings()"; then
             echo "::error::a CORS wildcard was accepted in production"
@@ -247,6 +269,7 @@ jobs:
               -e SM_PG_PASSWORD=x \
               -e SM_INTERNAL_JWT_SIGNING_KEY=x \
               -e SM_OIDC_CLIENT_SECRET=x \
+              -e SM_NEO4J_PASSWORD=x \
               -e SM_KAFKA_SECURITY_PROTOCOL=SASL_SSL \
               -e SM_EVENT_BUS_ENABLED=false \
               sentinelmesh/app:ci python -c "from sm_ingestion_gateway.app import create_app; create_app()"; then

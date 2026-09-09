@@ -12,7 +12,7 @@
 #   (default)        postgres, redis, migrate, app, ingestion-gateway
 #   --profile oidc   keycloak
 #   --profile obs    prometheus, grafana
-#   --profile graph  neo4j            (Phase 3+)
+#   --profile graph  neo4j            (Phase 4+)
 #   --profile bus    redpanda         (Phase 2+)
 #   --profile objects minio           (Phase 5+)
 
@@ -246,17 +246,25 @@ services:
     depends_on:
       - prometheus
 
-  # Declared now so the addresses are settled; not needed until their phase.
+  # Attack graph + knowledge graph (Phase 4). Apply the schema after it is up:
+  #   python scripts/graph_migrate.py      (or `make migrate`)
   neo4j:
     profiles: ["graph"]
     image: neo4j:5-community
     environment:
       NEO4J_AUTH: ${SM_NEO4J_USER:-neo4j}/${SM_NEO4J_PASSWORD:-neo4j-dev-password}
+      NEO4J_server_memory_pagecache_size: 256m
     ports:
       - "7474:7474"
       - "7687:7687"
     volumes:
       - neo4j-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${SM_NEO4J_USER:-neo4j} -p ${SM_NEO4J_PASSWORD:-neo4j-dev-password} 'RETURN 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
 
   redpanda:
     profiles: ["bus"]

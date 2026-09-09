@@ -53,6 +53,25 @@ def test_production_requires_secrets():
         )
 
 
+def test_production_requires_neo4j_password():
+    with pytest.raises(ValidationError, match="SM_NEO4J_PASSWORD"):
+        _settings(
+            env="production",
+            cors_allowed_origins="https://app.example.com",
+            kafka_security_protocol="SASL_SSL",
+        )
+
+
+def test_production_ok_with_all_secrets():
+    s = _settings(
+        env="production",
+        cors_allowed_origins="https://app.example.com",
+        kafka_security_protocol="SASL_SSL",
+        neo4j_password="n",
+    )
+    assert s.is_production
+
+
 def test_response_auto_only_in_production():
     with pytest.raises(ValidationError):
         _settings(response_mode="auto")

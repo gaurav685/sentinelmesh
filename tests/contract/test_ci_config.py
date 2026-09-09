@@ -66,11 +66,11 @@ def test_unit_job_excludes_integration_and_checks_the_contract_schema(
     assert "gen_contracts.py --check" in script
 
 
-def test_integration_job_provides_postgres_and_redis_with_healthchecks(
+def test_integration_job_provides_its_backing_services_with_healthchecks(
     workflow: dict[str, Any],
 ):
     services = workflow["jobs"]["integration"]["services"]
-    assert set(services) == {"postgres", "redis"}
+    assert set(services) == {"postgres", "redis", "neo4j"}
     for name in services:
         assert "--health-cmd" in services[name]["options"], name
         assert services[name]["ports"], name
@@ -88,7 +88,10 @@ def test_integration_job_refuses_to_pass_by_skipping(workflow: dict[str, Any]):
 def test_integration_job_applies_migrations_before_testing(workflow: dict[str, Any]):
     names = [s.get("name") for s in _steps(workflow, "integration")]
     assert names.index("Apply migrations") < names.index("Integration tests")
-    assert "alembic" in _run_script(workflow, "integration")
+    assert names.index("Apply Neo4j schema") < names.index("Integration tests")
+    script = _run_script(workflow, "integration")
+    assert "alembic" in script
+    assert "scripts/graph_migrate.py" in script
 
 
 def test_integration_job_talks_to_localhost_because_it_runs_on_the_runner(
@@ -99,6 +102,7 @@ def test_integration_job_talks_to_localhost_because_it_runs_on_the_runner(
     env = workflow["jobs"]["integration"]["env"]
     assert env["SM_TEST_PG_HOST"] == "localhost"
     assert env["SM_TEST_REDIS_URL"].startswith("redis://localhost:")
+    assert env["SM_TEST_NEO4J_URI"].startswith("bolt://localhost:")
 
 
 def test_image_job_builds_the_dockerfile_and_asserts_non_root(workflow: dict[str, Any]):
