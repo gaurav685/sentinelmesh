@@ -132,6 +132,19 @@ def test_duplicate_client_event_id_is_idempotent(
     assert len(rig.raw.events) == 1  # not re-sunk
 
 
+def test_corrected_retry_after_a_422_is_not_suppressed_as_duplicate(
+    client: TestClient, rig: Any, auth_header: dict[str, str], flow: Any
+) -> None:
+    headers = {**auth_header, "x-sensor-event-id": "evt-fix"}
+    bad = client.post("/api/v1/ingest/network_flow", json=flow(src_ip="bad"), headers=headers)
+    assert bad.status_code == 422
+    assert not rig.raw.events
+
+    fixed = client.post("/api/v1/ingest/network_flow", json=flow(), headers=headers)
+    assert fixed.status_code == 202  # the id was freed, not remembered as a dup
+    assert len(rig.raw.events) == 1
+
+
 def test_rate_limiter_fails_closed_with_503(
     client: TestClient, rig: Any, auth_header: dict[str, str], flow: Any
 ) -> None:

@@ -150,6 +150,8 @@ class DnsQueryPayload(_TimedPayload):
     @classmethod
     def _bounded_answers(cls, v: list[str]) -> list[str]:
         for a in v:
+            if not a:
+                raise ValueError("a DNS answer is empty")
             if len(a) > 253:
                 raise ValueError("a DNS answer exceeds 253 characters")
         return v

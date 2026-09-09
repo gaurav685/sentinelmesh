@@ -51,3 +51,12 @@ class Dedup:
             _log.warning("dedup_store_unavailable", sensor_id=str(sensor_id))
             return DedupState.unavailable
         return DedupState.fresh if was_set else DedupState.duplicate
+
+    async def forget(self, sensor_id: UUID, client_event_id: str) -> None:
+        """Drop the mark for an id whose request was rejected (4xx). The event
+        was never accepted, so a corrected retry with the same id must be able
+        to get through rather than be suppressed as a duplicate."""
+        try:
+            await self._client.delete(self._key(sensor_id, client_event_id))
+        except Exception:
+            _log.warning("dedup_forget_failed", sensor_id=str(sensor_id))

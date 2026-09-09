@@ -76,6 +76,23 @@ async def test_dlq_key_falls_back_to_unknown_without_a_record_key(
     assert key == "unknown"
 
 
+async def test_redelivery_produces_the_same_canonical_event_id(
+    rig: Any, make_envelope_fn: Any, make_record_fn: Any
+) -> None:
+    # At-least-once: the same raw record handled twice (consumer crash / rebalance
+    # before commit) must yield an identical canonical event_id so downstream
+    # event_id dedup suppresses the duplicate.
+    env = make_envelope_fn("network_flow", src_ip="10.0.0.1", dst_ip="8.8.8.8", protocol="tcp")
+    raw = env.model_dump_json().encode()
+    await rig.engine.handle(make_record_fn(raw))
+    await rig.engine.handle(make_record_fn(raw))
+
+    out = rig.producer.to(CANONICAL_TOPIC)
+    assert len(out) == 2
+    assert out[0]["event_id"] == out[1]["event_id"]
+    assert out[0]["payload"]["raw_event_id"] == str(env.event_id)
+
+
 async def test_each_source_type_round_trips_through_handle(
     rig: Any, make_envelope_fn: Any, make_record_fn: Any
 ) -> None:
