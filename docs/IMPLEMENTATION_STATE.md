@@ -7,7 +7,19 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 6 — Threat Intelligence + MITRE ATT&CK. IN PROGRESS — Units 1–4 DONE.**
+**Phase 6 — Threat Intelligence + MITRE ATT&CK. COMPLETE — full local gauntlet
+green; CI run pending.** Units 1–5. Pipeline:
+`detections → mitre-service → technique_mapping` (Postgres) and
+`events.canonical → normalization-engine ThreatIntelEnricher → threat-intel-service
+POST /enrich → canonical.enrichment["threat_intel"] → detection-engine
+rule.ti.known_bad_indicator + ti_indicator evidence`. Phase 6 exit report + §23
+review below.
+Unit 5: `normalization-engine` `ThreatIntelEnricher` (feature-flagged
+`SM_TI_ENRICHMENT_ENABLED`, default off; IP / domain / hash lookups; a TI-service
+outage leaves `enrichment` absent, never fails the event — R2) + `detection-engine`
+`rule.ti.known_bad_indicator` (severity from match reputation, `technique_ids=()`,
+`EvidenceItem(kind=ti_indicator)` with provenance) + `test_ti_enrichment_chain_pg.py`
+(seeded global IOC → real enrich API → detection with TI evidence; no-match path).
 Unit 4: `sm_ti_service.providers` — the `ThreatIntelProvider → ProviderAdapter →
 ExternalProvider` architecture (per-call timeout, backoff retry, HTTP 429 handling,
 malformed-row drop, outage → `ok=False` + metric), a `FixtureProvider` (labelled
@@ -37,9 +49,7 @@ catalog. Unit 1: `sm_contracts.mitre` (`AttackTactic` /
 `IndicatorType` / `IndicatorFreshness` / `TiConfidence` / `TiSourceKind` /
 `TiUpdateAction`; `normalize_indicator_value` reject-not-fabricate,
 `indicator_dedup_key`, `freshness_for`). Alembic `0004` + models for the eight
-`mitre-service` / `threat-intel-service` tables. Units 2–5 (`mitre-service`,
-`threat-intel-service`, provider adapters, enrichment wiring + e2e + exit report)
-follow.
+`mitre-service` / `threat-intel-service` tables.
 
 **Phase 5 — Detection + Anomaly Detection. COMPLETE / CI-VERIFIED.** Units 1–5,
 all four CI jobs green on a clean runner: runs
@@ -475,6 +485,77 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 6 exit report
+
+**State: COMPLETE — full local gauntlet green (ruff, `mypy --strict` over 12 src
+trees, 480 unit tests + `gen_contracts --check`, 117 real-infra integration tests
+against PostgreSQL 16 + Redis 7 + Redpanda + Neo4j 5, `Dockerfile.app` build).
+CI run pending — this section is updated with the run id once all four jobs are
+green on a clean runner.**
+
+**Threat intelligence and ATT&CK coverage are exactly what is imported / stored —
+nothing is fabricated. No ATT&CK STIX bundle ships in the repo (ADR-024); the
+tests run on a labelled fixture bundle (`tests/fixtures/attack_mini_bundle.json`
+— 2 tactics, 3 techniques, 1 sub-technique). No current-ATT&CK-version claim
+appears anywhere. External TI providers are feature-flagged off by default
+(`SM_TI_PROVIDERS` empty → zero outbound calls).**
+
+### Delivered (Units 1–5)
+
+| Area | State |
+|---|---|
+| `sm_contracts.mitre` | `AttackTactic` / `AttackTechnique` / `AttackMatrixVersion` / `TechniqueMapping` (`TenantScoped` + `TimestampedModel`, persisted) / `TechniqueMatch` (mapping-API result); `MappingConfidence` / `MappingSource` (rule/graph/feature/llm/analyst — LLM never authoritative alone) / `MappingSubjectType`; `TECHNIQUE_ID_RE`, `is_technique_id`, `parent_technique_id`. **STABLE target.** |
+| `sm_contracts.threatintel` | `ThreatIndicator` (mandatory `Provenance`, `reputation` 0..1, derived `freshness`, nullable `tenant_id`) / `ThreatActor` / `TiCampaign` / `TiSource` / `EnrichmentMatch` / `Provenance`; `TiUpdatePayload` on `ti.updates` (`EventType.ti_indicator_updated`); `IndicatorType` / `IndicatorFreshness` / `TiConfidence` / `TiSourceKind` (incl. `FIXTURE`) / `TiUpdateAction`; `normalize_indicator_value` **rejects malformed (`ValueError`), never fabricates** (TB-4); `indicator_dedup_key` (global vs tenant); `freshness_for`. **STABLE target.** |
+| `migrations/postgres/0004` + models | `attack_tactic` / `attack_technique` / `attack_matrix_version` / `technique_mapping` / `threat_indicator` / `threat_actor` / `ti_campaign` / `ti_source`. Enum/range CHECK constraints from the contract enums, `dedup_key` unique, `uq_technique_mapping_subject_technique_source`, partial index on `threat_indicator.expires_at`, `updated_at` triggers. Reversible downgrade. |
+| `services/mitre-service` (port 8008) | `stix.py` (STIX 2.1 bundle → tactics / techniques / sub-techniques + `AttackMatrixVersion` with `stix_bundle_sha256` and **real** counts; `ValueError` on a non-bundle); `CatalogRepository.import_catalog` (delete + re-add per version in one transaction); `MappingEngine.map_techniques` validates candidate `technique_ids` against the imported catalog — unknown or deprecated → `unmapped`, **never guessed** — and `persist` upserts `technique_mapping`; consumes `detections` (group `mitre-mapping`, poison → DLQ); `GET /api/v1/mitre/{techniques,heatmap}` + `POST /map` (internal-JWT, tenant from token); `/readyz` flags an empty catalog. `scripts/import_attack_stix.py` CLI. |
+| `services/threat-intel-service` (port 8007) | `IndicatorRepository` — IOC system of record; dedup on `indicator_dedup_key`, first/last-seen widened on re-observe, deterministic `reputation_score` (fixed base-by-confidence + malicious/benign tag deltas, clamped `[0,1]`), freshness derived on read, `sweep_expired` + `ExpirySweeper` emitting `ti.updates` (`expired`). Providers: `ProviderAdapter` (`asyncio.wait_for` per-attempt timeout, backoff retry, HTTP 429 → longer backoff, malformed row dropped-and-logged never ingested, outage → `ProviderResult(ok=False)` + metric); `FixtureProvider` labelled `source_kind=FIXTURE`, deterministic; `abusech` / `otx` external adapters, feature-flagged off. `ProviderPoller` upserts + emits `ti.updates` + records `ti_source`. Internal API `POST /api/v1/ti/{enrich,indicators}` + `GET /indicators` (a bad value → 422). Every indicator carries a `Provenance`. |
+| `services/normalization-engine` (Unit 5) | `ThreatIntelEnricher` (an `Enricher`) — collects a canonical event's IP (v4/v6 by `ipaddress`), domain, and `hash_sha256`-by-length lookups, mints an internal token (`subject=normalization-engine`, `tenant_id=uuid(int=0)`, `audience=threat-intel-service`), calls `POST /api/v1/ti/enrich`, writes `enrichment["threat_intel"] = {provider, as_of, matches}` (genuine non-expired hits only). Any TI-service failure → `{}` (the runner records the provider unavailable; the event is **not** failed, R2). Feature-flagged `SM_TI_ENRICHMENT_ENABLED` (default off); the httpx client is lifespan-owned. |
+| `services/detection-engine` (Unit 5) | Rule `rule.ti.known_bad_indicator` — fires only on a real `enrichment["threat_intel"]["matches"]`; severity from the top match reputation (`>= 0.75` → `high`, else `medium`); `technique_ids = ()` (a TI hit is not itself a technique); evidence is one `EvidenceItem(kind=ti_indicator)` carrying the matches, `as_of`, and a `threat-intel-service (via normalization-engine):<raw_event_id>` provenance. |
+| Wiring | `mitre-service` + `threat-intel-service` in `Dockerfile.app` (COPY + `pip install`), `docker-compose.yml` (`detect` profile, ports 8007 / 8008), CI (installs, `mypy` trees 11 + 12, image entrypoint-import). `normalization-engine` `pyproject.toml`: `httpx` runtime dep, `respx` dev dep. `known-first-party` += the two service modules. Config: `SM_MITRE_*` / `SM_TI_*` (providers, timeouts, retries, TTLs, sweep / poll intervals, service URLs, `ti_enrichment_enabled`). |
+
+### Integration verification
+
+- `test_intel_models_pg.py` — the `0004` CHECK / uniqueness / global-catalog constraints.
+- `test_mitre_catalog_pg.py` — a fixture-bundle import records the matrix version (technique_count 3, subtechnique_count 1), deprecated techniques are hidden from the listing, a reimport replaces the version in place, map + persist + heatmap + tenant isolation.
+- `test_ti_store_pg.py` — upsert add → update the same row; a global and a tenant IOC of the same value are separate rows; enrich hit / miss / expired / malformed; list scope is global + this tenant; the sweep returns only rows that crossed into expired.
+- `test_ti_poller_pg.py` — a fixture poll upserts 3, emits 3 `ti.updates`, records `ti_source` (`fixture`/`fixture`/`ok`/3); a second poll re-updates, no new rows.
+- `test_ti_enrichment_chain_pg.py` (Unit 5) — a seeded **global** IOC → the real `normalization-engine` `ThreatIntelEnricher` over the real `POST /api/v1/ti/enrich` (ASGI transport) → `canonical.enrichment["threat_intel"]` populated with a reputation, `freshness == "fresh"`, and provenance → `detection-engine` `run_rules` raises `rule.ti.known_bad_indicator` at `high` with a `ti_indicator` evidence item; an unknown indicator value produces `{}` and no rule hit.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Never fabricate threat intelligence (§3).** `normalize_indicator_value` raises `ValueError` on a malformed value; the API turns that into a 422 and the poller counts it as malformed — a bad value is never coerced into a stored indicator. `ProviderAdapter` drops a row it cannot parse (logs + metric) rather than inventing fields. `EnrichmentMatch.matched` is true only when a row is present **and** not expired. Every `ThreatIndicator` carries a `Provenance` (provider, `source_kind`, reference, `retrieved_at`); fixture data is `source_kind = FIXTURE` / `provider = "fixture"` and the fixture bundle file is self-labelled.
+- **Do not claim ATT&CK coverage beyond the imported data.** `AttackMatrixVersion` stores the counts the parser actually produced and the bundle sha256. `MappingEngine` only ever returns techniques that are in the catalog; anything else is `unmapped`. No string names a "current" ATT&CK version. The repo ships no STIX bundle (`.gitignore` + ADR-024); CI and local tests use the labelled mini fixture.
+- **Provider outage → serve what we have, mark it stale (TB-4).** A provider timeout / unreachable / 429-exhausted / HTTP-error → `ProviderResult(ok=False, [])`; the poller logs and skips, `ti_source.last_poll_status` records the failure, and the store keeps serving its existing indicators whose `freshness_for` ages `fresh → aging → stale → expired` on read against the TTL. Nothing is dropped, nothing is invented.
+- **Deterministic reputation.** `reputation_score` is a pure function of `(confidence, tags)` — fixed base (0.35 / 0.6 / 0.85), fixed tag deltas, clamped and rounded. No RNG, no clock, no model.
+- **Tenant isolation.** The catalog is global (no `tenant_id`); every `technique_mapping` and every tenant-submitted indicator carries the token's `tenant_id`, never a request field. `indicator_dedup_key` keeps a tenant IOC separate from the global one of the same value. `enrich` / `list_indicators` scope to `tenant_id IS NULL OR tenant_id = :t`. Integration tests assert a second tenant sees neither the first's mappings nor its indicators.
+- **Enrichment cannot fail an event (R2).** `ThreatIntelEnricher.enrich` catches every `httpx.HTTPError` and returns `{}`; `run_enrichers` additionally traps any exception into `enrichment["_errors"]`. A TI-service outage degrades enrichment to absent, never a poison / retry.
+- **Malformed input.** `mitre-service` / `threat-intel-service` consumers: an unparseable or wrong-type record → `PoisonError` → the topic DLQ; a DB write or produce failure → `TransientError` → retried by `RecordProcessor`.
+- **Bounded / feature-flagged external surface.** `SM_TI_PROVIDERS` is empty by default, so no outbound provider call is made unless an operator opts in. `SM_TI_ENRICHMENT_ENABLED` is off by default. The OTX adapter reads its key from `SM_TI_OTX_KEY` env only.
+
+### Deferred (deliberately)
+
+- **A real ATT&CK import** — `scripts/import_attack_stix.py` is ready; an operator runs it against a pinned `enterprise-attack.json` out of band. Until then the catalog is empty and `/readyz` says so; `MappingEngine` maps nothing.
+- **`ti.updates` consumers** — `mitre-service` maps `detections`; no service yet consumes `ti.updates` to re-score existing detections against newly-arrived IOCs. Phase 7+.
+- **TI / MITRE as composite-score inputs** — `rule.ti.known_bad_indicator` contributes through the existing rule channel; a dedicated TI weight in `scoring.py` is not added (R8 note).
+- **`detection-engine` → `mitre-service` `POST /map` call** — a raised detection's technique candidates are mapped by the `mitre-service` `detections` consumer (Unit 2), not by a synchronous call from `detection-engine`; the synchronous enrichment of a detection row with returned mappings is left to the read/API phase.
+- **External-provider live verification** — the `abusech` / `otx` adapters match the documented public shapes and are unit-tested with fixtures; no live call has been made (no credentials, feature-flagged off).
+- **Redis reputation cache** (R9) — reputation is computed deterministically on write; a cache is unnecessary at current scale.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| IOC model / IP-domain-hash indicators / reputation / actors / campaigns | ✅ `sm_contracts.threatintel` + `threat_indicator` / `threat_actor` / `ti_campaign` |
+| Provider adapter interface (`ThreatIntelProvider → ProviderAdapter → ExternalProvider`) | ✅ `sm_ti_service.providers` |
+| Timeouts / retries / rate-limit / malformed / outage / provenance | ✅ `ProviderAdapter` + unit tests (`test_providers.py`) |
+| Enrichment + provenance + confidence + freshness + expiration | ✅ `IndicatorRepository.enrich` + `ExpirySweeper` + `freshness_for` |
+| Never fabricate threat intelligence | ✅ reject-not-fabricate, `Provenance` mandatory, fixtures labelled |
+| MITRE technique representation + mapping + ATT&CK versioning | ✅ `sm_contracts.mitre` + `mitre-service` catalog + `AttackMatrixVersion` |
+| Do not claim ATT&CK coverage beyond imported data | ✅ counts + sha from the parse; `unmapped` for anything off-catalog; no bundle ships |
+| Tests: indicator validation / enrichment / provider failure / stale / duplicate / mapping / tenant isolation / provenance | ✅ unit + 5 real-PG integration files |
+| Enrichment cannot fail an event | ✅ `ThreatIntelEnricher` → `{}` on any error (R2), integration-verified |
+| **CI green on a clean runner** | ⏳ run pending — updated here when green |
 
 ## Phase 5 exit report
 
@@ -1514,26 +1595,19 @@ integration test. Docker is still absent.
 **Phase 5 is COMPLETE and CI-VERIFIED** (Units 1–5; commits `5c7da92` / `d6b2c1a`
 / `fe63df5` / `a40c22f` / `cd6e02e`; final run `34358654888` — all four jobs).
 
-**Phase 6 Units 1–4 done.** Units 1–3 CI-green (commits `b468eca` / `9778fb7` /
-`1da61e1`). Unit 4 (provider adapters) locally verified: 470 unit tests, ruff,
-`mypy --strict` over 12 trees, `gen_contracts --check`; 6 real-PG store/poller
-tests. **Commit Unit 4, push, confirm CI green.**
+**Phase 6 Units 1–5 done.** Units 1–3 CI-green (commits `b468eca` / `9778fb7` /
+`1da61e1`); Unit 4 committed `43cbcc5`. Unit 5 (enrichment wiring + close)
+locally verified: ruff clean, `mypy --strict` over 12 trees (224 files),
+480 unit tests + `gen_contracts --check`, **117** real-infra integration tests
+(PostgreSQL 16 + Redis 7 + Redpanda + Neo4j 5), `Dockerfile.app` build green.
+New: `ThreatIntelEnricher`, `rule.ti.known_bad_indicator`,
+`test_ti_enricher.py` (6), `test_ti_enrichment_chain_pg.py` (2),
+`SM_TI_ENRICHMENT_ENABLED`. Phase 6 exit report + §23 review + traceability
+R7 / R9 → IMPLEMENTED + `CONTRACTS.md` "Phase 6 closed" written.
 
-**Then Phase 6, Unit 5 — enrichment wiring + close the phase.**
-`normalization-engine`: a `ThreatIntelEnricher` calls `threat-intel-service`
-`POST /enrich` for a canonical event's entities → `canonical.enrichment["threat_intel"]`
-(provider-keyed, provenance-carrying; a TI-service outage leaves it absent, never
-fails the event). `detection-engine`: a canonical event with a TI match adds an
-`EvidenceItem(kind=ti_indicator)` + a `rule.ti.known_bad_indicator` hit; after a
-detection is raised it calls `mitre-service` `POST /map` and records the returned
-technique mappings' confidence + evidence. Real-infra integration test of the
-full chain. Phase 6 exit report + §23 + `REQUIREMENTS_TRACEABILITY` R7 / R9
-promotion.
-(`ThreatIntelProvider → ProviderAdapter → ExternalProvider`; timeouts / retries /
-429 / malformed-rejection / outage → cache+STALE; `FixtureProvider` labelled
-`source_kind=FIXTURE`; all feature-flagged off). Unit 5 = `normalization-engine`
-TI enricher + `detection-engine` TI/MITRE evidence + integration e2e + Phase 6
-exit report + §23 + `REQUIREMENTS_TRACEABILITY` R7/R9.
+**Next: commit Unit 5, push to `main`, watch CI. When all four jobs are green,
+fill the CI run id into the Phase 6 exit report + `CONTRACTS.md` and commit that.
+Then Phase 6 is closed.**
 
 Exit next action after Phase 6: **PHASE 7 — ATTACK CHAINS + THREAT SCORING**
 (user pastes the prompt; do not start speculatively).

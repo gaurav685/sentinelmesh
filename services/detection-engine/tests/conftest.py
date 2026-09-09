@@ -46,6 +46,7 @@ def canonical(
     actor: tuple[str, str] | None = None,
     target: tuple[str, str] | None = None,
     attributes: dict[str, Any] | None = None,
+    enrichment: dict[str, Any] | None = None,
     occurred_at: datetime | None = None,
     tenant_id: uuid.UUID | None = None,
 ) -> EventEnvelope[CanonicalEventPayload]:
@@ -57,6 +58,7 @@ def canonical(
         kind=kind, occurred_at=occurred, action=action, outcome=outcome,
         actor=a, target=t, entities=[r for r in (a, t) if r is not None],
         raw_event_id=raw_id, raw_event_type=_RAW_TYPE[kind], attributes=attributes or {},
+        enrichment=enrichment or {},
     )
     tid = tenant_id or TENANT_ID
     return EventEnvelope[CanonicalEventPayload](
