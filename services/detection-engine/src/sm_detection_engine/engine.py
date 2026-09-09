@@ -37,6 +37,7 @@ from sm_contracts import (
     EvidenceKind,
     ScoringStatus,
     Severity,
+    ThreatSubjectType,
     detection_dedup_key,
     detection_id_for,
     make_partition_key,
@@ -228,7 +229,8 @@ class DetectionEngine:
                 raise TransientError(f"alert write failed: {exc!r}") from exc
 
         await self._emit(envelope, c, detection_id, detector, rule_id, severity, comp,
-                         entities, technique_ids, dedup_key, len(evidence))
+                         entities, technique_ids, dedup_key, len(evidence),
+                         subject_type, subject_val)
 
     async def _emit(
         self,
@@ -243,12 +245,15 @@ class DetectionEngine:
         technique_ids: list[str],
         dedup_key: str,
         evidence_count: int,
+        subject_type: ThreatSubjectType,
+        subject_id: str,
     ) -> None:
         payload = DetectionPayload(
             detection_id=detection_id, tenant_id=source.tenant_id, occurred_at=c.occurred_at,
             detected_at=utcnow(), detector=detector, rule_id=rule_id, title=_short_title(c, rule_id),
             severity=severity, score=comp.score, scoring_status=comp.scoring_status,
             raw_event_id=c.raw_event_id,
+            subject_type=subject_type, subject_id=subject_id,
             entities=c.entities, technique_ids=technique_ids,
             evidence_count=evidence_count, dedup_key=dedup_key,
         )

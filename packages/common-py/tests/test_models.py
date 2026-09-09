@@ -36,6 +36,9 @@ EXPECTED_TABLES = {
     "threat_actor",
     "ti_campaign",
     "ti_source",
+    # attack-chain correlation (Phase 7)
+    "attack_chain",
+    "attack_chain_stage",
 }
 
 

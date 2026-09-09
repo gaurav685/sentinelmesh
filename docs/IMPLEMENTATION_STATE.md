@@ -7,6 +7,28 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 7 — Attack Chain Reconstruction + Threat Scoring. IN PROGRESS — Unit 1 DONE
+(local gauntlet green; CI pending).**
+Unit 1: `sm_contracts.chains` — `AttackStage` (14 ATT&CK-tactic kill-chain stages
++ `unknown`), `STAGE_ORDER`, `TACTIC_STAGE` / `TECHNIQUE_STAGE` deterministic
+lookups (`stage_for_tactic` / `stage_for_technique`; a technique with no known
+mapping → `unknown`, never guessed), `ChainStatus` (forming/active/dormant — never
+auto-`confirmed`), `ChainStageModel`, `AttackChainModel` (read DTO),
+`AttackChainPayload` on `attack_chains` (`EventType.attack_chain_updated`),
+`chain_dedup_key` / `chain_window_start` (fixed tumbling window → deterministic
+under redelivery + out-of-order) / `chain_id_for`. `confidence` is capped at
+`CONFIDENCE_CEILING = 0.95` — a chain never claims certainty. Alembic `0005` +
+`sm_common.db.chain_models` (`attack_chain`, `attack_chain_stage`; CHECK
+constraints from the contract enums, deterministic id, `(tenant, subject,
+window_start)` unique, stage unique per chain, CASCADE). `DetectionPayload` gained
+optional `subject_type` / `subject_id` (populated by `detection-engine`, consumed
+by the correlator). Config: `SM_CHAIN_WINDOW_SECONDS`, `SM_CHAIN_DORMANT_SECONDS`,
+`SM_CHAIN_SCORE_ALERT_THRESHOLD`, `SM_CORRELATION_ENGINE_URL`.
+Units 2–3 (`correlation-engine` service — staging + chain repo + versioned
+scoring + engine + read API; then graph projection + `mitre-service` `attack_chains`
+consumer + `detection-engine` `threat_score` handoff + integration + exit report)
+follow.
+
 **Phase 6 — Threat Intelligence + MITRE ATT&CK. COMPLETE / CI-VERIFIED**
 (all four jobs, run
 [`34366970151`](https://github.com/gaurav685/sentinelmesh/actions/runs/34366970151)).
@@ -1611,8 +1633,37 @@ R7 / R9 → IMPLEMENTED + `CONTRACTS.md` "Phase 6 closed" written.
 
 **Phase 6 is CLOSED — CI-VERIFIED, run `34366970151` (all four jobs).**
 
-**Exact next action: PHASE 7 — ATTACK CHAINS + THREAT SCORING. Wait for the user
-to paste the Phase 7 prompt. Do not start speculatively.**
+**Phase 7 — Attack Chain Reconstruction + Threat Scoring. Unit 1 DONE** (contracts
+`sm_contracts.chains`, Alembic `0005` + `chain_models`, `DetectionPayload.subject_*`,
+config). Local: ruff, `mypy --strict`, 232 unit tests + `gen_contracts --check`,
+13 real-PG integration tests (chain models + migrations 0→0005 + detection
+pipeline). **Commit Unit 1, push, confirm CI green.**
+
+**Then Unit 2 — `correlation-engine` service** (port 8009, module
+`sm_correlation_engine`, consumer group `correlation`). Consumes `detections`;
+per `DetectionPayload`: resolve the subject (`subject_type`/`subject_id`, else
+`entities[0]`), place it on an `AttackStage` via `stage_for_technique`, upsert the
+chain (`chain_id_for(chain_dedup_key, chain_window_start)`) + its `attack_chain_stage`
+rows (detection ids as a set → idempotent on redelivery; min/max timestamps →
+out-of-order safe), recompute `progression` / `confidence` (probabilistic,
+`<= 0.95`) / `status`, run a **versioned deterministic** chain scorer
+(`CHAIN_SCORE_VERSION`) over severity + anomaly + TI-evidence + progression +
+confidence (+ asset-criticality / identity-risk inputs accepted as `None` — no
+registry yet — and renormalised out), persist, own `threat_score` for the entity,
+emit `AttackChainPayload` on `attack_chains`. Read API `GET /api/v1/chains[/{id}]`.
+Unit tests: chain construction, ordering, duplicate evidence, incomplete chains,
+scoring + score boundaries, deterministic output, tenant isolation.
+
+**Then Unit 3 — graph projection + wiring + close.** `correlation-engine` emits
+`graph.commands` for `:AttackChain` / `INVOLVES` / `HAS_STAGE` / `MAPPED_TO`;
+`mitre-service` also consumes `attack_chains` → `technique_mapping`
+(`subject_type=attack_chain`); `detection-engine` stops writing `threat_score`
+(correlation-engine owns it). Real-infra integration test of the full chain.
+Dockerfile / compose (`detect` profile, 8009) / CI (13th mypy tree). Phase 7 exit
+report + §23 + `REQUIREMENTS_TRACEABILITY` R6 / R8.
+
+Exit next action after Phase 7: **PHASE 8 — ML/GNN + TEMPORAL ANALYSIS**
+(user pastes the prompt; do not start speculatively).
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
 (user pastes the prompt; do not start speculatively).

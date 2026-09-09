@@ -26,7 +26,7 @@ from uuid import UUID
 from pydantic import Field, field_validator
 
 from .common import SmBaseModel, to_utc
-from .enums import DetectorKind, ScoringStatus, Severity
+from .enums import DetectorKind, ScoringStatus, Severity, ThreatSubjectType
 from .events import EVENT_PAYLOAD_REGISTRY, EventType
 from .telemetry import EntityRef
 
@@ -80,6 +80,10 @@ class DetectionPayload(SmBaseModel):
     score: float = Field(ge=0.0, le=1.0, description="Composite threat score in [0,1].")
     scoring_status: ScoringStatus
     raw_event_id: UUID | None = Field(default=None, description="Lineage to the canonical event.")
+    subject_type: ThreatSubjectType | None = Field(
+        default=None, description="Primary subject of the finding (for correlation into attack chains)."
+    )
+    subject_id: str | None = Field(default=None, max_length=256, description="Primary subject value.")
     entities: list[EntityRef] = Field(default_factory=list, max_length=64)
     technique_ids: list[str] = Field(default_factory=list, max_length=32)
     evidence_count: int = Field(ge=0)

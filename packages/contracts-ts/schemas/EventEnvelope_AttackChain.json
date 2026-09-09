@@ -1,119 +1,88 @@
 {
   "$defs": {
-    "DetectionPayload": {
+    "AttackChainPayload": {
       "additionalProperties": false,
-      "description": "`detections` topic event \u2014 the thin projection of a Postgres `detection`.",
+      "description": "`attack_chains` topic event (`EventType.attack_chain_updated`).\n\nThin projection: enough to render a chain row and to fan a notification out.\nThe per-stage evidence stays in Postgres.",
       "properties": {
-        "dedup_key": {
-          "maxLength": 200,
-          "minLength": 1,
-          "title": "Dedup Key",
-          "type": "string"
-        },
-        "detected_at": {
-          "description": "When detection-engine raised it. UTC.",
-          "format": "date-time",
-          "title": "Detected At",
-          "type": "string"
-        },
-        "detection_id": {
+        "chain_id": {
           "format": "uuid",
-          "title": "Detection Id",
+          "title": "Chain Id",
           "type": "string"
         },
-        "detector": {
-          "$ref": "#/definitions/DetectorKind"
+        "confidence": {
+          "maximum": 0.95,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
         },
-        "entities": {
-          "items": {
-            "$ref": "#/definitions/EntityRef"
-          },
-          "maxItems": 64,
-          "title": "Entities",
-          "type": "array"
-        },
-        "evidence_count": {
+        "detection_count": {
           "minimum": 0,
-          "title": "Evidence Count",
+          "title": "Detection Count",
           "type": "integer"
         },
-        "occurred_at": {
-          "description": "Event time of the telemetry that triggered this. UTC.",
+        "distinct_stage_count": {
+          "description": "Distinct real kill-chain stages.",
+          "minimum": 0,
+          "title": "Distinct Stage Count",
+          "type": "integer"
+        },
+        "first_seen": {
           "format": "date-time",
-          "title": "Occurred At",
+          "title": "First Seen",
           "type": "string"
         },
-        "raw_event_id": {
-          "anyOf": [
-            {
-              "format": "uuid",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Lineage to the canonical event.",
-          "title": "Raw Event Id"
+        "last_seen": {
+          "format": "date-time",
+          "title": "Last Seen",
+          "type": "string"
         },
-        "rule_id": {
-          "anyOf": [
-            {
-              "maxLength": 128,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Rule Id"
+        "latest_stage": {
+          "$ref": "#/definitions/AttackStage"
+        },
+        "progression": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Progression",
+          "type": "number"
         },
         "score": {
-          "description": "Composite threat score in [0,1].",
           "maximum": 1.0,
           "minimum": 0.0,
           "title": "Score",
           "type": "number"
         },
+        "score_version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Score Version",
+          "type": "string"
+        },
         "scoring_status": {
           "$ref": "#/definitions/ScoringStatus"
         },
-        "severity": {
-          "$ref": "#/definitions/Severity"
+        "stage_count": {
+          "description": "Total stage rows (includes 'unknown').",
+          "minimum": 0,
+          "title": "Stage Count",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/definitions/ChainStatus"
         },
         "subject_id": {
-          "anyOf": [
-            {
-              "maxLength": 256,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Primary subject value.",
-          "title": "Subject Id"
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Subject Id",
+          "type": "string"
         },
         "subject_type": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ThreatSubjectType"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Primary subject of the finding (for correlation into attack chains)."
+          "$ref": "#/definitions/ThreatSubjectType"
         },
         "technique_ids": {
           "items": {
             "type": "string"
           },
-          "maxItems": 32,
+          "maxItems": 128,
           "title": "Technique Ids",
           "type": "array"
         },
@@ -122,73 +91,65 @@
           "title": "Tenant Id",
           "type": "string"
         },
-        "title": {
-          "maxLength": 200,
-          "minLength": 1,
-          "title": "Title",
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
           "type": "string"
         }
       },
       "required": [
-        "detection_id",
+        "chain_id",
         "tenant_id",
-        "occurred_at",
-        "detected_at",
-        "detector",
-        "title",
-        "severity",
+        "subject_type",
+        "subject_id",
+        "status",
+        "first_seen",
+        "last_seen",
+        "updated_at",
+        "stage_count",
+        "distinct_stage_count",
+        "latest_stage",
+        "progression",
+        "confidence",
         "score",
+        "score_version",
         "scoring_status",
-        "evidence_count",
-        "dedup_key"
+        "detection_count"
       ],
-      "title": "DetectionPayload",
+      "title": "AttackChainPayload",
       "type": "object"
     },
-    "DetectorKind": {
-      "description": "How a detection was produced.",
+    "AttackStage": {
+      "description": "Kill-chain stage, one per enterprise ATT&CK tactic, in kill-chain order.\n\n`unknown` is a real, first-class value: a detection whose techniques the\nplatform cannot place goes here rather than being forced onto a stage.",
       "enum": [
-        "rule",
-        "statistical",
-        "isolation_forest",
-        "autoencoder",
-        "composite"
+        "reconnaissance",
+        "resource_development",
+        "initial_access",
+        "execution",
+        "persistence",
+        "privilege_escalation",
+        "defense_evasion",
+        "credential_access",
+        "discovery",
+        "lateral_movement",
+        "collection",
+        "command_and_control",
+        "exfiltration",
+        "impact",
+        "unknown"
       ],
-      "title": "DetectorKind",
+      "title": "AttackStage",
       "type": "string"
     },
-    "EntityKind": {
+    "ChainStatus": {
+      "description": "Lifecycle of a chain's *evidence* \u2014 not an analyst verdict.\n\nA chain is never automatically `confirmed`; confirmation is a human action on\nthe alert/investigation layer (Constitution \u00a717), not something the\ncorrelator asserts.",
       "enum": [
-        "identity",
-        "host",
-        "ip",
-        "domain",
-        "process",
-        "file"
+        "forming",
+        "active",
+        "dormant"
       ],
-      "title": "EntityKind",
+      "title": "ChainStatus",
       "type": "string"
-    },
-    "EntityRef": {
-      "additionalProperties": false,
-      "properties": {
-        "kind": {
-          "$ref": "#/definitions/EntityKind"
-        },
-        "value": {
-          "description": "Canonical identifier for the entity.",
-          "maxLength": 512,
-          "minLength": 1,
-          "title": "Value",
-          "type": "string"
-        }
-      },
-      "required": [
-        "kind",
-        "value"
-      ],
-      "title": "EntityRef",
-      "type": "object"
     },
     "EventSource": {
       "additionalProperties": false,
@@ -258,17 +219,6 @@
         "degraded"
       ],
       "title": "ScoringStatus",
-      "type": "string"
-    },
-    "Severity": {
-      "enum": [
-        "info",
-        "low",
-        "medium",
-        "high",
-        "critical"
-      ],
-      "title": "Severity",
       "type": "string"
     },
     "SourceType": {
@@ -342,7 +292,7 @@
       "type": "string"
     },
     "payload": {
-      "$ref": "#/definitions/DetectionPayload"
+      "$ref": "#/definitions/AttackChainPayload"
     },
     "producer": {
       "description": "`<service>@<semver>`, e.g. ingestion-gateway@0.1.0",
@@ -386,7 +336,7 @@
     "partition_key",
     "payload"
   ],
-  "title": "EventEnvelope[DetectionPayload]",
+  "title": "EventEnvelope[AttackChainPayload]",
   "type": "object",
   "x-sentinelmesh-contracts-version": "0.1.0"
 }

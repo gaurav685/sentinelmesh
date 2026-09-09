@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "AttackStage": {
+      "description": "Kill-chain stage, one per enterprise ATT&CK tactic, in kill-chain order.\n\n`unknown` is a real, first-class value: a detection whose techniques the\nplatform cannot place goes here rather than being forced onto a stage.",
+      "enum": [
+        "reconnaissance",
+        "resource_development",
+        "initial_access",
+        "execution",
+        "persistence",
+        "privilege_escalation",
+        "defense_evasion",
+        "credential_access",
+        "discovery",
+        "lateral_movement",
+        "collection",
+        "command_and_control",
+        "exfiltration",
+        "impact",
+        "unknown"
+      ],
+      "title": "AttackStage",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One kill-chain stage within a chain, with the detections behind it.",
+  "properties": {
+    "detection_count": {
+      "minimum": 0,
+      "title": "Detection Count",
+      "type": "integer"
+    },
+    "detection_ids": {
+      "items": {
+        "format": "uuid",
+        "type": "string"
+      },
+      "maxItems": 2000,
+      "title": "Detection Ids",
+      "type": "array"
+    },
+    "first_seen": {
+      "format": "date-time",
+      "title": "First Seen",
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "title": "Last Seen",
+      "type": "string"
+    },
+    "max_severity": {
+      "$ref": "#/definitions/Severity"
+    },
+    "stage": {
+      "$ref": "#/definitions/AttackStage"
+    },
+    "stage_order": {
+      "maximum": 13,
+      "minimum": -1,
+      "title": "Stage Order",
+      "type": "integer"
+    },
+    "technique_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 64,
+      "title": "Technique Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "stage",
+    "stage_order",
+    "max_severity",
+    "detection_count",
+    "first_seen",
+    "last_seen"
+  ],
+  "title": "ChainStageModel",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

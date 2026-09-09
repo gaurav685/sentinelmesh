@@ -64,6 +64,17 @@
       ],
       "title": "Severity",
       "type": "string"
+    },
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -148,6 +159,32 @@
     },
     "severity": {
       "$ref": "#/definitions/Severity"
+    },
+    "subject_id": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Primary subject value.",
+      "title": "Subject Id"
+    },
+    "subject_type": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ThreatSubjectType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Primary subject of the finding (for correlation into attack chains)."
     },
     "technique_ids": {
       "items": {
