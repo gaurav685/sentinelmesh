@@ -77,8 +77,15 @@ reducing) with awareness that `partition_key` distribution changes.
 
 ## 5. DLQ handling
 
-- Each DLQ message wraps the original + `{error_type, error_detail,
-  consumer_group, failed_at, attempts}`.
+- **Consumer-side** (a stream job could not process a record): the DLQ message
+  wraps the original + `{error_type, error_detail, consumer_group, failed_at,
+  attempts}` — `sm_common.bus.dlq_payload`. Implemented by `normalization-engine`
+  (Phase 2 Unit 4).
+- **Producer-side reject at a trust boundary** (`ingestion-gateway`: a sensor
+  sent malformed bytes that never became a valid event): the DLQ message is the
+  **raw bytes verbatim**, with `reason` / `source_type` / `sensor_id` in Kafka
+  headers, so `dlq-ops` sees exactly what the sensor sent. No `consumer_group` /
+  `attempts` — there was no consumer.
 - `dlq-ops` tooling: inspect, fix-and-replay to source, or discard (audited).
 - DLQ depth is a paged alert.
 

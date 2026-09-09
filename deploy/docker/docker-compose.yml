@@ -133,6 +133,35 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  # Stream processor: telemetry.raw -> events.canonical. Needs the `bus` profile
+  # (Redpanda), so it only starts when that profile is active.
+  normalization-engine:
+    profiles: ["bus"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_normalization_engine"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: normalization-engine
+      SM_DEPLOYMENT_PROFILE: monolith
+      SM_EVENT_BUS_ENABLED: "true"
+      SM_KAFKA_CONSUMER_GROUP: normalization
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8002/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
   keycloak:
     profiles: ["oidc"]
     image: quay.io/keycloak/keycloak:26.0
