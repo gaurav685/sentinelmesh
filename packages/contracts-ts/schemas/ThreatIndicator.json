@@ -1,0 +1,207 @@
+{
+  "$defs": {
+    "IndicatorFreshness": {
+      "enum": [
+        "fresh",
+        "aging",
+        "stale",
+        "expired"
+      ],
+      "title": "IndicatorFreshness",
+      "type": "string"
+    },
+    "IndicatorType": {
+      "enum": [
+        "ipv4",
+        "ipv6",
+        "domain",
+        "url",
+        "sha256",
+        "sha1",
+        "md5",
+        "email"
+      ],
+      "title": "IndicatorType",
+      "type": "string"
+    },
+    "Provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "description": "'<source>' or 'fixture:<name>'.",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        },
+        "reference": {
+          "default": "",
+          "description": "URL / feed line / ticket id.",
+          "maxLength": 512,
+          "title": "Reference",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "format": "date-time",
+          "title": "Retrieved At",
+          "type": "string"
+        },
+        "source_kind": {
+          "$ref": "#/definitions/TiSourceKind"
+        }
+      },
+      "required": [
+        "provider",
+        "source_kind",
+        "retrieved_at"
+      ],
+      "title": "Provenance",
+      "type": "object"
+    },
+    "TiConfidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "TiConfidence",
+      "type": "string"
+    },
+    "TiSourceKind": {
+      "enum": [
+        "feed",
+        "api",
+        "manual",
+        "fixture"
+      ],
+      "title": "TiSourceKind",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actor_id": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Actor Id"
+    },
+    "confidence": {
+      "$ref": "#/definitions/TiConfidence"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expires At"
+    },
+    "first_seen": {
+      "format": "date-time",
+      "title": "First Seen",
+      "type": "string"
+    },
+    "freshness": {
+      "$ref": "#/definitions/IndicatorFreshness"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "title": "Last Seen",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/definitions/Provenance"
+    },
+    "reputation": {
+      "description": "Rule-derived, 1 = most malicious.",
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Reputation",
+      "type": "number"
+    },
+    "source": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Source",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 32,
+      "title": "Tags",
+      "type": "array"
+    },
+    "tenant_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "NULL = platform-global.",
+      "title": "Tenant Id"
+    },
+    "type": {
+      "$ref": "#/definitions/IndicatorType"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "value": {
+      "description": "Normalized (normalize_indicator_value).",
+      "maxLength": 2048,
+      "minLength": 1,
+      "title": "Value",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "id",
+    "type",
+    "value",
+    "source",
+    "confidence",
+    "reputation",
+    "first_seen",
+    "last_seen",
+    "freshness",
+    "provenance"
+  ],
+  "title": "ThreatIndicator",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

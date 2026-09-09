@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "description": {
+      "default": "",
+      "maxLength": 8000,
+      "title": "Description",
+      "type": "string"
+    },
+    "matrix_version": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Matrix Version",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "shortname": {
+      "description": "STIX x_mitre_shortname.",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Shortname",
+      "type": "string"
+    },
+    "tactic_id": {
+      "pattern": "^TA\\d{4}$",
+      "title": "Tactic Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tactic_id",
+    "name",
+    "shortname",
+    "matrix_version"
+  ],
+  "title": "AttackTactic",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

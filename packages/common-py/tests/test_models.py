@@ -27,6 +27,15 @@ EXPECTED_TABLES = {
     "anomaly",
     "threat_score",
     "security_alert",
+    # threat intel + MITRE (Phase 6)
+    "attack_tactic",
+    "attack_technique",
+    "attack_matrix_version",
+    "technique_mapping",
+    "threat_indicator",
+    "threat_actor",
+    "ti_campaign",
+    "ti_source",
 }
 
 

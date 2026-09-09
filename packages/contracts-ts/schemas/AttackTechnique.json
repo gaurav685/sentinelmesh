@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "deprecated": {
+      "default": false,
+      "title": "Deprecated",
+      "type": "boolean"
+    },
+    "description": {
+      "default": "",
+      "maxLength": 16000,
+      "title": "Description",
+      "type": "string"
+    },
+    "is_subtechnique": {
+      "default": false,
+      "title": "Is Subtechnique",
+      "type": "boolean"
+    },
+    "matrix_version": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Matrix Version",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 200,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "parent_technique_id": {
+      "anyOf": [
+        {
+          "pattern": "^T\\d{4}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Technique Id"
+    },
+    "tactic_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 16,
+      "title": "Tactic Ids",
+      "type": "array"
+    },
+    "technique_id": {
+      "pattern": "^T\\d{4}(\\.\\d{3})?$",
+      "title": "Technique Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "technique_id",
+    "name",
+    "matrix_version"
+  ],
+  "title": "AttackTechnique",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

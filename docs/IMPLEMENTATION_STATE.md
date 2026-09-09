@@ -7,6 +7,19 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 6 — Threat Intelligence + MITRE ATT&CK. IN PROGRESS — Unit 1 DONE
+(contracts + `0004` schema).** `sm_contracts.mitre` (`AttackTactic` /
+`AttackTechnique` / `AttackMatrixVersion` / `TechniqueMapping` / `TechniqueMatch`;
+`MappingConfidence` / `MappingSource` / `MappingSubjectType`) and
+`sm_contracts.threatintel` (`ThreatIndicator` / `ThreatActor` / `TiCampaign` /
+`TiSource` / `EnrichmentMatch` / `Provenance` / `TiUpdatePayload` on `ti.updates`;
+`IndicatorType` / `IndicatorFreshness` / `TiConfidence` / `TiSourceKind` /
+`TiUpdateAction`; `normalize_indicator_value` reject-not-fabricate,
+`indicator_dedup_key`, `freshness_for`). Alembic `0004` + models for the eight
+`mitre-service` / `threat-intel-service` tables. Units 2–5 (`mitre-service`,
+`threat-intel-service`, provider adapters, enrichment wiring + e2e + exit report)
+follow.
+
 **Phase 5 — Detection + Anomaly Detection. COMPLETE / CI-VERIFIED.** Units 1–5,
 all four CI jobs green on a clean runner: runs
 [`34353986031`](https://github.com/gaurav685/sentinelmesh/actions/runs/34353986031)
@@ -1480,13 +1493,31 @@ integration test. Docker is still absent.
 **Phase 5 is COMPLETE and CI-VERIFIED** (Units 1–5; commits `5c7da92` / `d6b2c1a`
 / `fe63df5` / `a40c22f` / `cd6e02e`; final run `34358654888` — all four jobs).
 
-**Next: await the PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK prompt.** Do not
-start speculatively. Phase 6 will add `services/threat-intel-service` +
-`services/mitre-service`, the `ti.updates` topic consumer path, IOC / actor /
-technique catalogs in Postgres, `(:AttackTechnique)` / `(:ThreatActor)` graph
-commands (labels already on the allowlist), and MITRE mapping of a `Detection`'s
-candidate `technique_ids` (currently rule-supplied, non-authoritative). The
-`normalization-engine` enrichment hook and `detection-engine` are the consumers.
+**Phase 6 Unit 1 (contracts + `0004`) is code-complete and locally verified**
+(436 unit tests, ruff, `mypy --strict`, `gen_contracts --check`; 5 real-PG intel
+model tests + the `0001→0004` migration cycle). **Commit Unit 1, push, confirm CI
+green.**
+
+**Then Phase 6, Unit 2 — `services/mitre-service`.** Postgres catalog store;
+`scripts/import_attack_stix.py` (parses a MITRE ATT&CK STIX 2.1 bundle from a
+local path into `attack_tactic` / `attack_technique` / `attack_matrix_version` —
+**no bundle ships**; a deterministic fixture bundle drives tests). A rule-based
+`map_behavior(...)` engine (`CanonicalKind` + action + a detection's
+rule-supplied `technique_ids` → `TechniqueMatch` with `confidence` / `source` /
+`rationale` / `matrix_version`). Internal API: `GET /api/v1/mitre/techniques`,
+`/heatmap`, `POST /api/v1/mitre/map`. Consumes `detections` → writes
+`technique_mapping` rows (never claims coverage beyond the imported catalog;
+unknown technique id → typed error; catalog absent → `UNMAPPED` + `/readyz`
+warns). Unit 3 = `services/threat-intel-service` (IOC store + freshness/expiry +
+enrichment API + `ti.updates` + expiry sweep). Unit 4 = provider adapters
+(`ThreatIntelProvider → ProviderAdapter → ExternalProvider`; timeouts / retries /
+429 / malformed-rejection / outage → cache+STALE; `FixtureProvider` labelled
+`source_kind=FIXTURE`; all feature-flagged off). Unit 5 = `normalization-engine`
+TI enricher + `detection-engine` TI/MITRE evidence + integration e2e + Phase 6
+exit report + §23 + `REQUIREMENTS_TRACEABILITY` R7/R9.
+
+Exit next action after Phase 6: **PHASE 7 — ATTACK CHAINS + THREAT SCORING**
+(user pastes the prompt; do not start speculatively).
 
 Exit next action after Phase 5: **PHASE 6 — THREAT INTELLIGENCE + MITRE ATT&CK**
 (user pastes the prompt; do not start speculatively).

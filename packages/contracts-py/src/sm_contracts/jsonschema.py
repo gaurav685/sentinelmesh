@@ -42,6 +42,13 @@ from .entities import (
 from .errors import ErrorResponse
 from .events import EventEnvelope, UserEventPayload
 from .graph import GraphCommandPayload, GraphEventPayload
+from .mitre import (
+    AttackMatrixVersion,
+    AttackTactic,
+    AttackTechnique,
+    TechniqueMapping,
+    TechniqueMatch,
+)
 from .telemetry import (
     AuthEventPayload,
     CanonicalEventPayload,
@@ -49,6 +56,14 @@ from .telemetry import (
     FileAccessPayload,
     NetworkFlowPayload,
     ProcessExecPayload,
+)
+from .threatintel import (
+    EnrichmentMatch,
+    ThreatActor,
+    ThreatIndicator,
+    TiCampaign,
+    TiSource,
+    TiUpdatePayload,
 )
 
 __all__ = ["SCHEMA_MODELS", "export_all"]
@@ -64,6 +79,7 @@ CanonicalEventEnvelope = EventEnvelope[CanonicalEventPayload]
 GraphCommandEnvelope = EventEnvelope[GraphCommandPayload]
 GraphEventEnvelope = EventEnvelope[GraphEventPayload]
 DetectionEnvelope = EventEnvelope[DetectionPayload]
+TiUpdateEnvelope = EventEnvelope[TiUpdatePayload]
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ErrorResponse": ErrorResponse,
@@ -91,6 +107,18 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "Anomaly": Anomaly,
     "ThreatScore": ThreatScore,
     "SecurityAlert": SecurityAlert,
+    "EventEnvelope_TiUpdate": TiUpdateEnvelope,
+    "TiUpdatePayload": TiUpdatePayload,
+    "ThreatIndicator": ThreatIndicator,
+    "ThreatActor": ThreatActor,
+    "TiCampaign": TiCampaign,
+    "TiSource": TiSource,
+    "EnrichmentMatch": EnrichmentMatch,
+    "AttackTactic": AttackTactic,
+    "AttackTechnique": AttackTechnique,
+    "AttackMatrixVersion": AttackMatrixVersion,
+    "TechniqueMapping": TechniqueMapping,
+    "TechniqueMatch": TechniqueMatch,
     "Tenant": Tenant,
     "User": User,
     "Role": Role,

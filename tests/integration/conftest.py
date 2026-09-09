@@ -45,6 +45,14 @@ def _unavailable(message: str) -> None:
 
 # Tables truncated between tests, children first.
 _TABLES_IN_TRUNCATE_ORDER = (
+    "technique_mapping",
+    "ti_campaign",
+    "threat_indicator",
+    "threat_actor",
+    "ti_source",
+    "attack_technique",
+    "attack_tactic",
+    "attack_matrix_version",
     "security_alert",
     "detection",
     "anomaly",
