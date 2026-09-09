@@ -135,6 +135,26 @@ services:
 
   # Stream processor: telemetry.raw -> events.canonical. Needs the `bus` profile
   # (Redpanda), so it only starts when that profile is active.
+  # One-shot: create the topic catalog with the right partition counts before
+  # any producer/consumer starts (Redpanda auto-create would give 1 partition).
+  topics-init:
+    profiles: ["bus"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "scripts/provision_topics.py"]
+    working_dir: /app
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: topics-init
+    restart: "no"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
   normalization-engine:
     profiles: ["bus"]
     build:
@@ -161,6 +181,8 @@ services:
     depends_on:
       redpanda:
         condition: service_healthy
+      topics-init:
+        condition: service_completed_successfully
 
   keycloak:
     profiles: ["oidc"]

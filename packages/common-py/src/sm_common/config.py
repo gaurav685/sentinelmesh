@@ -93,6 +93,13 @@ class AppSettings(BaseSettings):
     kafka_sasl_username: SecretStr | None = None
     kafka_sasl_password: SecretStr | None = None
     kafka_send_timeout_ms: int = Field(default=10_000, ge=1_000, le=60_000)
+    kafka_linger_ms: int = Field(default=5, ge=0, le=1_000)
+    kafka_max_poll_records: int = Field(default=200, ge=1, le=10_000)
+    # A consumer shutdown lets the in-flight batch finish and commit within this
+    # budget before the client is force-closed.
+    kafka_shutdown_grace_ms: int = Field(default=15_000, ge=0, le=120_000)
+    # In-process handler retry policy (event-model.md §4): attempts then DLQ.
+    kafka_handler_max_attempts: int = Field(default=3, ge=1, le=10)
     # When true a producing service opens a Kafka producer at startup, probes it
     # in `/readyz`, and its event sinks write to the bus. When false the sinks
     # fall back to a logging stopgap (dev / tests without a broker).

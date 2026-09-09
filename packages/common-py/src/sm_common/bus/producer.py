@@ -22,6 +22,7 @@ from types import TracebackType
 from aiokafka import AIOKafkaProducer
 
 from ..config import AppSettings
+from ..observability import Metrics
 
 __all__ = ["EventBusProducer"]
 
@@ -39,13 +40,19 @@ class EventBusProducer:
         sasl_username: str | None = None,
         sasl_password: str | None = None,
         send_timeout_ms: int = 10_000,
+        linger_ms: int = 5,
+        metrics: Metrics | None = None,
+        service_name: str = "",
     ) -> None:
         self._send_timeout_ms = send_timeout_ms
+        self._metrics = metrics
+        self._service = service_name
         kwargs: dict[str, object] = {
             "bootstrap_servers": bootstrap_servers,
             "client_id": client_id,
             "enable_idempotence": True,  # implies acks="all"
             "request_timeout_ms": send_timeout_ms,
+            "linger_ms": linger_ms,
             "security_protocol": security_protocol,
         }
         if security_protocol in ("SASL_PLAINTEXT", "SASL_SSL"):
@@ -56,7 +63,9 @@ class EventBusProducer:
         self._started = False
 
     @classmethod
-    def from_settings(cls, settings: AppSettings) -> EventBusProducer:
+    def from_settings(
+        cls, settings: AppSettings, *, metrics: Metrics | None = None
+    ) -> EventBusProducer:
         return cls(
             bootstrap_servers=settings.kafka_bootstrap_servers,
             client_id=settings.service_name,
@@ -72,6 +81,9 @@ class EventBusProducer:
                 else None
             ),
             send_timeout_ms=settings.kafka_send_timeout_ms,
+            linger_ms=settings.kafka_linger_ms,
+            metrics=metrics,
+            service_name=settings.service_name,
         )
 
     async def start(self) -> None:
@@ -80,9 +92,13 @@ class EventBusProducer:
             self._started = True
 
     async def stop(self) -> None:
+        """Flush buffered records, then close. `AIOKafkaProducer.stop()` already
+        flushes, but the explicit call makes the intent (no lost buffered sends
+        on a clean shutdown) obvious and independent of that guarantee."""
         if self._started:
-            await self._producer.stop()
-            self._started = False
+            await self._producer.flush()
+        await self._producer.stop()  # idempotent; also closes a never-started client
+        self._started = False
 
     async def send(
         self, topic: str, *, key: str, value: bytes, headers: Headers | None = None
@@ -90,9 +106,16 @@ class EventBusProducer:
         """Send one record and wait for the broker acknowledgement. Raises on any
         produce error (no broker, timeout, not-acked) — the caller decides what a
         failure means for the request."""
-        await self._producer.send_and_wait(
-            topic, value=value, key=key.encode("utf-8"), headers=headers or []
-        )
+        try:
+            if not self._started:
+                raise RuntimeError("event bus producer is not started")
+            await self._producer.send_and_wait(
+                topic, value=value, key=key.encode("utf-8"), headers=headers or []
+            )
+        except Exception:
+            if self._metrics is not None:
+                self._metrics.producer_send_errors.labels(self._service, topic).inc()
+            raise
 
     async def ping(self) -> None:
         """Raises if no broker is reachable. Used by the readiness check."""

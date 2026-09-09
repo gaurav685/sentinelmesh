@@ -7,16 +7,14 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 3 — Kafka + Stream Processing. IN PROGRESS (Unit 1 done).**
-Definitive topic registry + versioned-event-type policy landed in
-`sm_contracts.topics`; `ingestion-gateway` and `normalization-engine` now
-address topics through it. Remaining: bus hardening (lag / backpressure /
-graceful shutdown / replay / retry-DLQ helper), the `stream-processor` service
-(`graph-update-emitter` job: `events.canonical` → `graph.commands`), the
-stream-engine decision (ADR-010 / U-001 / U-002), topic provisioning, and real
-Redpanda integration tests for all of it. Flink is **not** implemented — no
-JDK 11+ locally (ADR-001), and no stateful job's consuming phase has arrived;
-the engine-independent stream contracts (event-model.md §7) stand.
+**Phase 3 — Kafka + Stream Processing. IN PROGRESS (Units 1–2 done).**
+Unit 1: definitive topic registry + versioned-event-type policy
+(`sm_contracts.topics`). Unit 2: bus hardening + topic provisioning. Remaining:
+the `stream-processor` service (`graph-update-emitter`: `events.canonical` →
+`graph.commands`), the stream-engine decision (ADR-010 / U-001 / U-002),
+replay + observability docs. Flink is **not** implemented — no JDK 11+ locally
+(ADR-001), and no stateful job's consuming phase has arrived; the
+engine-independent stream contracts (event-model.md §7) stand.
 
 ---
 
@@ -33,6 +31,43 @@ entrypoint imports + prod fail-fast guards). Pipeline: sensor →
 
 Phase 1 exited INTEGRATION VERIFIED on local Docker; its CI jobs also went green
 in the same run.
+
+### Phase 3, Unit 2 — bus hardening + topic provisioning (DONE)
+
+- `sm_common.bus.admin.ensure_topics(settings, specs?)` — `AIOKafkaAdminClient`
+  create-if-absent from the registry's partition counts + retention, **and
+  grows** a pre-existing under-provisioned topic (`create_partitions`; Kafka
+  allows increasing only). `scripts/provision_topics.py` CLI (`--list`),
+  `make provision-topics` / `make topics`, a compose `topics-init` one-shot that
+  `normalization-engine` now `depends_on: service_completed_successfully`.
+- `EventBusConsumer`:
+  - **at-least-once on handler failure** — `run_once` now *rewinds the fetch
+    position* to the batch start on any exception, so the same consumer
+    redelivers on the next poll (aiokafka advances the in-memory position on
+    `getmany`; the old code only redelivered after a rebalance/restart). This
+    was a real gap — `test_offset_is_committed_only_after_the_handler_succeeds`
+    proves the fix.
+  - **graceful shutdown** — `request_stop()` (flag) lets the in-flight batch
+    finish + commit; `stop()` waits on the batch lock then closes. The
+    `normalization-engine` lifespan drives it with `SM_KAFKA_SHUTDOWN_GRACE_MS`.
+  - **backpressure** — `SM_KAFKA_MAX_POLL_RECORDS` bounds in-flight records; no
+    prefetch of the next batch until the current one commits.
+  - **replay** — `seek_by_timestamp(when)` on all assigned partitions
+    (event-model.md §6).
+  - **lag** — after each poll, `sm_consumer_lag{group,topic,partition}` =
+    `highwater - position`; plus `sm_consumer_records_total`.
+- `EventBusProducer`: `flush()` on `stop()`; `linger_ms` from settings; a
+  fast-fail + `sm_producer_send_errors_total{topic}` on a send that raises.
+- `Metrics` gained `consumer_records` / `consumer_dlq` / `consumer_retries` /
+  `consumer_lag` / `producer_send_errors`. Config: `kafka_linger_ms`,
+  `kafka_max_poll_records`, `kafka_shutdown_grace_ms`, `kafka_handler_max_attempts`.
+- `normalization-engine` passes `metrics` into its producer + consumer.
+- Tests: `tests/integration/test_bus_kafka.py` (9, real Redpanda) — topic
+  provision + grow, produce/consume, JSON round-trip, offset-commit-after-
+  side-effect, at-least-once redelivery, graceful shutdown commits the in-flight
+  batch, replay by timestamp, lag/records metrics, producer send-error metric.
+  Verified: pytest 278 non-integration / **72 integration**, `mypy --strict`
+  clean (108 files), `ruff` clean, `gen_contracts --check` clean.
 
 ### Phase 3, Unit 1 — topic registry + versioned event types (DONE)
 
@@ -970,43 +1005,40 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 3, Unit 2 — bus hardening in `sm_common.bus`.** Unit 1 (topic registry)
-is done. Unit 2:
+**PHASE 3, Unit 3 — `services/stream-processor` (`graph-update-emitter`).**
+Units 1–2 (topic registry, bus hardening) are done.
 
-1. `EventBusConsumer`:
-   - **consumer-lag metric** — `highwater(tp) - position(tp)` per assigned
-     partition, exported as `sm_consumer_lag{group,topic,partition}` on a
-     background tick.
-   - **graceful shutdown** — `stop()` lets the in-flight `run_once` batch
-     finish and commit before closing (bounded by a deadline), not a hard cut.
-   - **backpressure** — `pause()` / `resume()` the assignment when a handler
-     runs slow; bound in-flight work (already capped by `max_records_per_poll`,
-     make it settings-driven `SM_KAFKA_MAX_POLL_RECORDS`).
-   - **retry + DLQ helper** — a `RecordProcessor` that wraps a handler with the
-     event-model.md §4 policy (transient error → exp backoff, max 3, then
-     `dlq_payload` to `dlq_topic(source)`), so `normalization-engine` and the
-     new `stream-processor` share one implementation instead of hand-rolling it.
-   - **replay** — `seek_by_timestamp(ts)` on all assigned partitions
-     (event-model.md §6); a `replay_group()` helper is already in the registry.
-2. `EventBusProducer`: `flush()` on `stop()`; expose `linger_ms` / `max_batch`
-   from settings; a `sm_producer_send_errors_total` metric.
-3. `sm_common.bus.admin.ensure_topics(bootstrap, specs)` — `AIOKafkaAdminClient`
-   create-if-absent with the registry's partition counts + retention; a
-   `scripts/provision_topics.py` CLI; call it from the integration-test rig and
-   a compose one-shot.
-4. Real Redpanda integration tests: produce/consume, serialization/validation,
-   duplicate handling, retry→DLQ, offset-commit-after-side-effect, graceful
-   shutdown mid-batch, replay by timestamp, lag metric moves.
+1. A shared **retry + DLQ** helper in `sm_common.bus` — `RecordProcessor`: wraps
+   a domain handler with the event-model.md §4 policy. The handler raises
+   `PoisonError` (→ DLQ immediately) or `TransientError` (→ exp backoff, max
+   `SM_KAFKA_HANDLER_MAX_ATTEMPTS`, then DLQ); anything else propagates
+   (uncommitted → redeliver). It produces `dlq_payload(...)` to
+   `dlq_topic(source)` and meters `sm_consumer_dlq_total` / `sm_consumer_retries_total`.
+   Refactor `normalization-engine.engine` onto it (drop its hand-rolled loop).
+2. `services/stream-processor` — a plain-Python stream job (no Flink; the
+   `graph-update-emitter` needs no windowing, event-model.md §7). Consume
+   `events.canonical` (group `stream-processor`), emit one `graph.command`
+   payload per canonical event onto `graph.commands` with a deterministic
+   `command_id` (`uuid5` of the canonical `event_id` + the command kind), so a
+   redelivery is idempotent for `graph-writer` (Phase 4). Health / metrics,
+   no HTTP ingest. Add to `Dockerfile.app` / compose (`bus` profile) / CI.
+3. `graph.command` payload contract in `sm_contracts` (a new `EventType` member
+   `graph_command` already exists; add the payload model + register it).
+4. Integration test (real Redpanda): canonical event in → `graph.commands` out
+   with the right shape; a poison canonical record → `events.canonical.dlq`;
+   redelivery produces the identical `command_id`.
 
-Then **Unit 3** = `services/stream-processor` (`graph-update-emitter`).
-**Unit 4** = ADR-010 decision (U-001/U-002), replay tooling doc, observability
-doc, `REQUIREMENTS_TRACEABILITY` R20 + the stream-contract rows.
+Then **Unit 4** = the ADR-010 stream-engine decision (resolve U-001 / U-002),
+the replay-tooling + observability docs, `REQUIREMENTS_TRACEABILITY` R3/R20 +
+the stream-contract rows, Phase 3 exit report.
 
 ### Standing debt carried past Phase 2
 
-- `telemetry.raw` / `events.canonical` / `*.dlq` topics are Redpanda-auto-created
-  locally and in CI. A real deployment pre-creates them with the partition
-  counts in `event-model.md` — a deploy-time task, not code.
+- Topics are now provisioned by `ensure_topics` — the compose `topics-init`
+  one-shot and the CI `integration` job's "Provision Kafka topics" step both
+  run `scripts/provision_topics.py` before any consumer/producer starts (and an
+  under-provisioned auto-created topic is grown). A real deployment still runs
+  its own IaC.
 - The `ingestion-gateway` per-IP rate limiter is a placeholder; per-sensor
   quota (keyed on the resolved `SensorIdentity`, after auth) is the intended
   design and is deferred to a later unit.

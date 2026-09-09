@@ -63,6 +63,7 @@ COPY --from=builder /opt/venv /opt/venv
 # Alembic scripts at runtime.
 WORKDIR /app
 COPY migrations /app/migrations
+COPY scripts /app/scripts
 
 USER 10001
 

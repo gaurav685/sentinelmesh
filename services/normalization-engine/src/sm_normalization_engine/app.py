@@ -38,9 +38,11 @@ _log = get_logger("sm.normalization_engine")
 def build_services(settings: AppSettings) -> Services:
     base_metrics = build_metrics(SERVICE_NAME)
     norm_metrics = NormalizationMetrics(base_metrics, SERVICE_NAME)
-    producer = EventBusProducer.from_settings(settings)
+    producer = EventBusProducer.from_settings(settings, metrics=base_metrics)
     group = settings.kafka_consumer_group or DEFAULT_CONSUMER_GROUP
-    consumer = EventBusConsumer.from_settings(settings, topics=[RAW_TOPIC], group_id=group)
+    consumer = EventBusConsumer.from_settings(
+        settings, topics=[RAW_TOPIC], group_id=group, metrics=base_metrics
+    )
     engine = NormalizationEngine(
         producer=producer, consumer_group=group, metrics=base_metrics, norm_metrics=norm_metrics
     )
@@ -74,11 +76,17 @@ def create_app(
             yield
         finally:
             if owns:
-                await svc.consumer.stop()
+                # Graceful: let the in-flight batch finish + commit, then close.
+                svc.consumer.request_stop()
                 if task is not None:
-                    task.cancel()
-                    with suppress(asyncio.CancelledError):
-                        await task
+                    grace = resolved_settings.kafka_shutdown_grace_ms / 1000
+                    try:
+                        await asyncio.wait_for(task, timeout=grace)
+                    except TimeoutError:
+                        task.cancel()
+                        with suppress(asyncio.CancelledError):
+                            await task
+                await svc.consumer.stop()
                 await svc.producer.stop()
             shutdown_tracing()
             _log.info("service_stop", service=SERVICE_NAME)
