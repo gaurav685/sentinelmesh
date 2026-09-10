@@ -33,6 +33,7 @@ from .errors import (
     ToolOutputInvalid,
     UnknownToolError,
 )
+from .evidence import EvidenceBuilder, EvidenceBundle, EvidenceItem
 from .messages import (
     FinishReason,
     LlmMessage,
@@ -43,15 +44,24 @@ from .messages import (
     ToolCall,
     ToolSpec,
 )
+from .prompt import ANALYST_SYSTEM_RULES, build_grounded_messages
 from .provider import LlmProvider, ProviderInfo
+from .registry import ToolInvocationRecord, ToolRegistry
+from .sanitize import fence_untrusted, scan_for_injection
 from .tokens import RunBudget, estimate_message_tokens, estimate_tokens
+from .tools import FunctionTool, Tool, ToolContext, ToolOutcome, ToolPrincipal
 
 __all__ = [
+    "ANALYST_SYSTEM_RULES",
     "AiError",
     "AuditEvent",
     "ContextPoisoningDetected",
     "DeterministicAdapter",
+    "EvidenceBuilder",
+    "EvidenceBundle",
+    "EvidenceItem",
     "FinishReason",
+    "FunctionTool",
     "HttpLlmBoundary",
     "LlmClient",
     "LlmMessage",
@@ -69,12 +79,21 @@ __all__ = [
     "ScriptedReply",
     "TokenBudgetExceeded",
     "TokenUsage",
+    "Tool",
     "ToolAuthorizationError",
     "ToolCall",
+    "ToolContext",
     "ToolInputInvalid",
+    "ToolInvocationRecord",
+    "ToolOutcome",
     "ToolOutputInvalid",
+    "ToolPrincipal",
+    "ToolRegistry",
     "ToolSpec",
     "UnknownToolError",
+    "build_grounded_messages",
     "estimate_message_tokens",
     "estimate_tokens",
+    "fence_untrusted",
+    "scan_for_injection",
 ]

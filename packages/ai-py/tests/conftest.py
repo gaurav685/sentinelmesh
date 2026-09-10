@@ -1,11 +1,38 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
+from uuid import UUID
 
 from sm_ai.messages import FinishReason, LlmMessage, LlmRequest, LlmResponse, MessageRole, TokenUsage
 from sm_ai.provider import ProviderInfo
 
-__all__ = ["ScriptedProvider", "make_request", "user_msg"]
+from sm_contracts import PermissionCode
+
+__all__ = ["FakePrincipal", "ScriptedProvider", "make_request", "user_msg"]
+
+
+class FakePrincipal:
+    """A `ToolPrincipal` for tests — holds an explicit permission set."""
+
+    def __init__(
+        self, *, subject: str = "agent:detection", grants: set[PermissionCode] | None = None,
+        tenant_id: UUID | None = None,
+    ) -> None:
+        self._subject = subject
+        self._grants = grants or set()
+        self._tenant = tenant_id or uuid.uuid4()
+
+    @property
+    def tenant_id(self) -> UUID:
+        return self._tenant
+
+    @property
+    def subject(self) -> str:
+        return self._subject
+
+    def has_permission(self, code: PermissionCode) -> bool:
+        return code in self._grants
 
 
 def user_msg(text: str) -> LlmMessage:

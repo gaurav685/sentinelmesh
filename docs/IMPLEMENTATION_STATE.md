@@ -7,18 +7,21 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 10 — AI Security Analyst + Multi-Agent Defense. IN PROGRESS — Unit 1
-(`packages/ai-py` / `sm_ai` — the untrusted-LLM boundary).** Provider-neutral
-message types, a `LlmProvider` protocol, a network-free `DeterministicAdapter`
-(the default with no credentials and what every test uses — `is_live=False`), a
-real `HttpLlmBoundary` for an Anthropic Messages-style API that raises
-`ProviderUnavailable` without an API key (never claimed as verified — no
-credentials exist), and an `LlmClient` that enforces a per-call prompt-token
-ceiling *before* any network I/O, a per-run `RunBudget`, a wall-clock timeout,
-cooperative cancellation, transient-only bounded retry, and a per-attempt
-`AuditEvent` (prompt sha256 + purpose + usage + outcome — never the raw prompt).
-Config `SM_LLM_*` + `SM_AGENT_*` ceilings in `sm_common`. **The LLM is not
-trusted; it never gains a privilege it was not already granted.**
+**Phase 10 — AI Security Analyst + Multi-Agent Defense. IN PROGRESS — Units 1–2
+done (`packages/ai-py` / `sm_ai`).** Unit 1 CI-verified (run `34429226626`): the
+untrusted-LLM boundary — provider-neutral messages, `LlmProvider` protocol,
+network-free `DeterministicAdapter` (default, `is_live=False`), `HttpLlmBoundary`
+(inert without an API key; never verified), `LlmClient` (per-call token ceiling
+before any network I/O, per-run `RunBudget`, timeout, cancellation, transient-only
+retry, `AuditEvent` per attempt — prompt sha256 not raw). Unit 2 (local green,
+awaiting CI): the authorized tool framework (`Tool` / `ToolRegistry` — deny-by-
+default, an unauthorized or unknown tool call is rejected regardless of the LLM
+asking; input + output validation; every invocation audited), the injection
+scanner + untrusted-content fence, the `EvidenceBuilder` (fences all
+telemetry-derived content as data, caps context size), and
+`build_grounded_messages` (evidence never in the system turn). `SM_LLM_*` /
+`SM_AGENT_*` config in `sm_common`. **The LLM is not trusted; it never gains a
+privilege it was not already granted.**
 
 **Phase 9 — Enterprise SOC Dashboard. COMPLETE / CI-VERIFIED** (all five jobs
 incl. `frontend`, final run `34428106928`). Units 1–4 (`15f5d1c` / `790fdf5` /
@@ -1915,22 +1918,32 @@ report + §23 + `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED (P9 core;
 WebSocket / `notification-service` / cinematic replay / Playwright deferred) +
 `CONTRACTS.md` "Phase 9 closed".
 
-**PHASE 10 — AI SECURITY ANALYST + MULTI-AGENT DEFENSE. Unit 1 DONE — local
+**PHASE 10 — AI SECURITY ANALYST + MULTI-AGENT DEFENSE. Unit 2 DONE — local
 gauntlet green, awaiting CI.**
-1. ✅ `packages/ai-py` (`sm_ai`) — the untrusted-LLM boundary: provider-neutral
-   messages, `LlmProvider` protocol, `DeterministicAdapter` (default, network-free,
-   `is_live=False`), `HttpLlmBoundary` (Anthropic Messages shape; `ProviderUnavailable`
-   without a key; never verified), `LlmClient` (pre-flight per-call token ceiling,
+1. ✅ **CI-VERIFIED (run `34429226626`, all five jobs).** `packages/ai-py`
+   (`sm_ai`) — the untrusted-LLM boundary: provider-neutral messages, `LlmProvider`
+   protocol, `DeterministicAdapter` (default, network-free, `is_live=False`),
+   `HttpLlmBoundary` (Anthropic Messages shape; `ProviderUnavailable` without a
+   key; never verified), `LlmClient` (pre-flight per-call token ceiling,
    `RunBudget`, timeout, cancellation, transient-only retry, `AuditEvent` per
    attempt — prompt sha256 not raw). `SM_LLM_*` / `SM_AGENT_*` config; `ai-py`
-   added to CI (static mypy + 3 install blocks). Local: ruff clean, `mypy --strict`
-   clean, **601 unit tests** (21 new) + `gen_contracts --check`, `Dockerfile.app`
-   builds. **Commit, push, confirm CI green.**
-2. Tool framework + evidence/context builder — `Tool` (explicit args schema,
-   required `PermissionCode`, input + output validation, audit), `ToolRegistry`
-   (deny-by-default; an unknown/unauthorised tool call is rejected, the LLM asking
-   changes nothing), `EvidenceBuilder` (read-only, tenant-scoped; retrieved
-   content fenced as data with an injection scan; context-size sanity bound).
+   added to CI (static mypy + 3 install blocks).
+2. ✅ **Tool framework + evidence/context builder** (`sm_ai.tools` / `.registry`
+   / `.sanitize` / `.evidence` / `.prompt`). `Tool` / `FunctionTool` (explicit
+   Pydantic `args_model` — the model only sees its JSON Schema; optional
+   `required_permission`; input + output validation). `ToolRegistry` — deny-by-
+   default: `specs_for(principal)` offers only authorized tools; `invoke`
+   re-checks the tool exists → `has_permission` (**the LLM asking is irrelevant**)
+   → args schema → runs → validates output → emits a `ToolInvocationRecord` for
+   every path. `scan_for_injection` (small, specific override-pattern set — quiet
+   on ordinary security prose) + `fence_untrusted` (delimiter-lookalikes
+   neutralised, truncation). `EvidenceBuilder` — trusted strings render plainly,
+   everything telemetry-/third-party-derived is fenced as data, injection hits
+   recorded per ref, total size capped → `ContextPoisoningDetected`.
+   `build_grounded_messages` **guarantees evidence never lands in the system
+   turn**. Local: ruff + `mypy --strict` clean, **625 unit tests** (24 new),
+   `gen_contracts --check`, `Dockerfile.app` builds. **Commit, push, confirm CI
+   green.**
 3. `services/ai-analyst` — grounded incident summarization / triage / reasoning /
    remediation *recommendations* (every claim → evidence ref; `LLM_UNAVAILABLE` →
    deterministic template). Read API via `api-gateway`

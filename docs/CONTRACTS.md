@@ -374,6 +374,28 @@ path to a model:
 - Orchestration ceilings for later units: `SM_AGENT_MAX_STEPS` /
   `SM_AGENT_MAX_TOOL_CALLS` / `SM_AGENT_WALL_CLOCK_TIMEOUT_S`.
 
+### 7.5 Authorized tools + evidence (`sm_ai` — **IMPLEMENTED** Phase 10, Unit 2)
+
+- **Tools** (`sm_ai.tools` / `sm_ai.registry`) — every capability is a `Tool`
+  with an explicit Pydantic `args_model` (the model only ever sees its JSON
+  Schema), an optional `required_permission: PermissionCode`, and input + output
+  validation. `ToolRegistry` is **deny-by-default**: `specs_for(principal)`
+  offers only the tools that principal is authorized for; `invoke(call, ctx)`
+  re-checks — tool exists (`UnknownToolError`) → principal holds the permission
+  (`ToolAuthorizationError` — *the LLM having asked is irrelevant*) → arguments
+  valid (`ToolInputInvalid`) → run → output valid (`ToolOutputInvalid`) — and
+  emits a `ToolInvocationRecord` (tool, principal, tenant, correlation id,
+  outcome, authorized?) for **every** path.
+- **Evidence** (`sm_ai.evidence` / `sm_ai.sanitize` / `sm_ai.prompt`) — the AI
+  analyst answers only from evidence the platform gathered. `EvidenceBuilder`
+  renders SentinelMesh-produced strings (`trusted=True`: rule ids, scores,
+  catalog technique ids) plainly and **fences everything telemetry- or
+  third-party-derived** (`fence_untrusted` — delimiter lookalikes neutralised,
+  per-item + total size caps → `ContextPoisoningDetected`). `scan_for_injection`
+  records override-pattern hits per evidence ref. `build_grounded_messages`
+  **guarantees the evidence is only ever a `user` turn** — instructions stay in
+  `system`, which tells the model that fenced content is inert data.
+
 ---
 
 ## 8. Frontend ↔ backend contract
@@ -398,6 +420,7 @@ path to a model:
 
 | Date | Change | Phase |
 |---|---|---|
+| 2026-09-10 | **Authorized tools + evidence builder** (Phase 10, Unit 2): `sm_ai.tools` / `sm_ai.registry` — `Tool` / `FunctionTool` (explicit Pydantic `args_model`, optional `required_permission: PermissionCode`, input + output validation); `ToolRegistry` deny-by-default (`specs_for(principal)` offers only authorized tools; `invoke` re-checks existence → permission (**the LLM asking is irrelevant**) → args → output, emitting a `ToolInvocationRecord` on every path). `sm_ai.sanitize` — `scan_for_injection` (a small, specific override-pattern set, quiet on ordinary security prose) + `fence_untrusted` (delimiter-lookalike neutralisation, truncation). `sm_ai.evidence.EvidenceBuilder` — trusted strings plain, all telemetry/third-party content fenced as data, injection hits recorded per ref, total size capped → `ContextPoisoningDetected`. `sm_ai.prompt.build_grounded_messages` — **evidence is only ever a `user` turn**; the `system` turn carries the rules (answer only from evidence, fenced content is inert, cite every claim, no actions). See §7.5. 24 unit tests (deny-by-default, unknown/unauthorized/bad-input/bad-output tool calls, injection scan precision, fence escaping, context-size rejection, evidence-not-in-system-turn). | 10 (Unit 2) |
 | 2026-09-10 | **LLM provider boundary** (Phase 10, Unit 1): `packages/ai-py` (`sm_ai`) — the untrusted-LLM boundary. Provider-neutral `LlmRequest` / `LlmResponse` / `ToolSpec` / `ToolCall`; `LlmProvider` protocol; `DeterministicAdapter` (network-free, reproducible, `is_live=False`, the default with no credentials and what every test uses) + `HttpLlmBoundary` (Anthropic Messages shape — `ProviderUnavailable` without `SM_LLM_API_KEY`, **never executed against a live endpoint**, `is_live` only reflects key presence). `LlmClient` enforces a per-call prompt-token ceiling **before any network I/O**, an optional per-run `RunBudget`, a wall-clock timeout, cooperative cancellation, transient-only bounded retry (a `ProviderRefused` is never retried), and one `AuditEvent` per attempt (`prompt_sha256` + `purpose` + usage + outcome — never the raw prompt). Config `SM_LLM_API_KEY` / `SM_LLM_BASE_URL` / `SM_LLM_MAX_PROMPT_TOKENS` / `SM_LLM_MAX_COMPLETION_TOKENS` / `SM_LLM_MAX_RETRIES` + `SM_AGENT_MAX_STEPS` / `SM_AGENT_MAX_TOOL_CALLS` / `SM_AGENT_WALL_CLOCK_TIMEOUT_S` / `SM_AGENT_MAX_LLM_TOKENS_PER_RUN`. CI: `ai-py` added to the `static` mypy trees + all three install blocks. See §7.4. 21 unit tests (determinism, budget rejection before call, retry-on-transient / no-retry-on-refused, timeout, provider outage, boundary inert without a key, audit emission). | 10 (Unit 1) |
 | 2026-09-10 | **Phase 9 closed** (Unit 4): attack graph + realtime + polish. `sm_contracts.api.graph` — `GraphNode` / `GraphEdge` / `GraphNeighborhood` / `GraphPath` promoted from the `graph-service` draft schemas so the browser consumes generated types; `properties` is display-only and documented as never used for an auth/routing decision. `api-gateway` `GET /api/v1/soc/graph/{neighbors,paths}` now `response_model` these (a graph-service drift → the BFF's own tests fail, not a silently-wrong UI); a non-object upstream response → 503. `frontend/web`: `graph/page.tsx` is a Cytoscape explorer (lazy-loaded client-only, `aria-hidden` canvas) with a node/edge **detail panel** and an accessible node/edge **list fallback** that is the real representation for assistive tech + keyboard; a `truncated` neighbourhood is flagged. `useResource` gains an optional `refreshMs` poll + `updatedAt`; `LiveBadge` ("Updated Ns ago · auto-refresh Ns") on the dashboard + alerts list — an honest poll, a test asserts the text says neither "streaming" nor "live". `prefers-reduced-motion` disables animation. `cytoscape` + `@types/cytoscape` added to `frontend/web`. Tests: `AttackGraph` (cytoscape mocked), `graph/page`, `LiveBadge` — 37 vitest total. Phase 9 exit report + §23 review in `IMPLEMENTATION_STATE.md`; `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED (P9 core; WebSocket realtime, `notification-service`, cinematic replay, Playwright/axe-in-CI deliberately deferred). | 9 (close) |
 | 2026-09-10 | **SOC views** (Phase 9, Unit 3): `frontend/web` renders real, typed views for every read surface the BFF exposes — dashboard, alerts list + `incidents/[id]` (which also fetches the triggering detection: rule id, evidence, ATT&CK techniques), attack-chain list + `chains/[id]` (kill-chain stage table with per-stage detection count + max severity), MITRE ATT&CK heatmap, risk heatmap, entity explorer + `entities/[id]` timeline, threat-intel indicators. A single `DataView<T>` primitive renders the loading / error / empty / ready branches so no view can forget one; severity is colour + text + shape everywhere. **No backend shape is re-declared** — every type is imported from `@sentinelmesh/contracts`, and optional generated array fields are guarded (`(x ?? [])`) under `noUncheckedIndexedAccess`. **No attack activity is fabricated** — empty states name the missing upstream (e.g. "Mappings appear once mitre-service has processed detections against an imported ATT&CK catalog"). `src/lib/contract.test.ts` compile-checks fixture responses against the generated types, so a regenerated contract that the fixture no longer satisfies fails the build. The CI `frontend` job's contract-drift check switched from `git diff --exit-status` (rejected by git 2.55) to `git diff --quiet`. `npm run build` OK (14 routes); 27 frontend unit tests. | 9 (Unit 3) |
