@@ -22,8 +22,14 @@ from .api import (
     LogoutResponse,
     MeResponse,
     MetaResponse,
+    MitreHeatmap,
+    MitreHeatmapCell,
     ReadyResponse,
+    RiskSubject,
     RoleSummary,
+    SocSummary,
+    TimelineEntry,
+    TimelineResponse,
     UserResponse,
 )
 from .chains import (
@@ -326,4 +332,11 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "ReadyResponse",
     "MetaResponse",
     "DepStatus",
+    # SOC read API (Phase 9)
+    "SocSummary",
+    "RiskSubject",
+    "MitreHeatmap",
+    "MitreHeatmapCell",
+    "TimelineEntry",
+    "TimelineResponse",
 ]

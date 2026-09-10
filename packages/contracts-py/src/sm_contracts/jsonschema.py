@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from .api import (
     CreateUserRequest,
+    CursorPage,
     GrantRoleRequest,
     HealthResponse,
     LoginRequest,
@@ -20,8 +21,11 @@ from .api import (
     LogoutResponse,
     MeResponse,
     MetaResponse,
+    MitreHeatmap,
     ReadyResponse,
     RoleSummary,
+    SocSummary,
+    TimelineResponse,
     UserResponse,
 )
 from .chains import AttackChainModel, AttackChainPayload, ChainStageModel
@@ -83,6 +87,11 @@ DetectionEnvelope = EventEnvelope[DetectionPayload]
 TiUpdateEnvelope = EventEnvelope[TiUpdatePayload]
 AttackChainEnvelope = EventEnvelope[AttackChainPayload]
 
+DetectionPage = CursorPage[Detection]
+AlertPage = CursorPage[SecurityAlert]
+ChainPage = CursorPage[AttackChainModel]
+ThreatScorePage = CursorPage[ThreatScore]
+
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ErrorResponse": ErrorResponse,
     "EventEnvelope_UserEvent": UserEventEnvelope,
@@ -125,6 +134,13 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "AttackChainPayload": AttackChainPayload,
     "AttackChainModel": AttackChainModel,
     "ChainStageModel": ChainStageModel,
+    "SocSummary": SocSummary,
+    "MitreHeatmap": MitreHeatmap,
+    "TimelineResponse": TimelineResponse,
+    "CursorPage_Detection": DetectionPage,
+    "CursorPage_SecurityAlert": AlertPage,
+    "CursorPage_AttackChain": ChainPage,
+    "CursorPage_ThreatScore": ThreatScorePage,
     "Tenant": Tenant,
     "User": User,
     "Role": Role,

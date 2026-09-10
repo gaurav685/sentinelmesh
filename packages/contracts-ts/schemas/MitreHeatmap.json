@@ -1,0 +1,71 @@
+{
+  "$defs": {
+    "MitreHeatmapCell": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Name",
+          "type": "string"
+        },
+        "subject_count": {
+          "minimum": 0,
+          "title": "Subject Count",
+          "type": "integer"
+        },
+        "tactic_id": {
+          "anyOf": [
+            {
+              "pattern": "^TA\\d{4}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tactic Id"
+        },
+        "technique_id": {
+          "pattern": "^T\\d{4}(\\.\\d{3})?$",
+          "title": "Technique Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "technique_id",
+        "subject_count"
+      ],
+      "title": "MitreHeatmapCell",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cells": {
+      "items": {
+        "$ref": "#/definitions/MitreHeatmapCell"
+      },
+      "maxItems": 1000,
+      "title": "Cells",
+      "type": "array"
+    },
+    "matrix_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Matrix Version"
+    }
+  },
+  "title": "MitreHeatmap",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

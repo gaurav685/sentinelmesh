@@ -1,0 +1,313 @@
+{
+  "$defs": {
+    "Detection": {
+      "additionalProperties": false,
+      "description": "A finding. Every claim it makes is backed by an item in `evidence`.",
+      "properties": {
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "dedup_key": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Dedup Key",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "maxLength": 2000,
+          "title": "Description",
+          "type": "string"
+        },
+        "detector": {
+          "$ref": "#/definitions/DetectorKind"
+        },
+        "entities": {
+          "items": {
+            "$ref": "#/definitions/EntityRef"
+          },
+          "maxItems": 64,
+          "title": "Entities",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/definitions/EvidenceItem"
+          },
+          "maxItems": 128,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "first_seen": {
+          "format": "date-time",
+          "title": "First Seen",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_seen": {
+          "format": "date-time",
+          "title": "Last Seen",
+          "type": "string"
+        },
+        "raw_event_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw Event Id"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        },
+        "score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        },
+        "scoring_status": {
+          "$ref": "#/definitions/ScoringStatus"
+        },
+        "severity": {
+          "$ref": "#/definitions/Severity"
+        },
+        "status": {
+          "$ref": "#/definitions/DetectionStatus"
+        },
+        "technique_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Technique Ids",
+          "type": "array"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at",
+        "updated_at",
+        "tenant_id",
+        "id",
+        "detector",
+        "title",
+        "severity",
+        "score",
+        "scoring_status",
+        "status",
+        "dedup_key",
+        "first_seen",
+        "last_seen"
+      ],
+      "title": "Detection",
+      "type": "object"
+    },
+    "DetectionStatus": {
+      "description": "Detection lifecycle (Constitution \u00a717).",
+      "enum": [
+        "new",
+        "triaged",
+        "confirmed",
+        "dismissed",
+        "suppressed"
+      ],
+      "title": "DetectionStatus",
+      "type": "string"
+    },
+    "DetectorKind": {
+      "description": "How a detection was produced.",
+      "enum": [
+        "rule",
+        "statistical",
+        "isolation_forest",
+        "autoencoder",
+        "composite"
+      ],
+      "title": "DetectorKind",
+      "type": "string"
+    },
+    "EntityKind": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "process",
+        "file"
+      ],
+      "title": "EntityKind",
+      "type": "string"
+    },
+    "EntityRef": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/EntityKind"
+        },
+        "value": {
+          "description": "Canonical identifier for the entity.",
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "title": "EntityRef",
+      "type": "object"
+    },
+    "EvidenceItem": {
+      "additionalProperties": false,
+      "description": "One grounded fact behind a detection. `provenance` is `<service>:<id>` so a\nreader can chase every claim back to its source.",
+      "properties": {
+        "detail": {
+          "additionalProperties": true,
+          "title": "Detail",
+          "type": "object"
+        },
+        "kind": {
+          "$ref": "#/definitions/EvidenceKind"
+        },
+        "provenance": {
+          "description": "'<service>:<id>'.",
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Provenance",
+          "type": "string"
+        },
+        "ref": {
+          "description": "Id / key of the evidence subject.",
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Ref",
+          "type": "string"
+        },
+        "summary": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Summary",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "summary",
+        "provenance"
+      ],
+      "title": "EvidenceItem",
+      "type": "object"
+    },
+    "EvidenceKind": {
+      "description": "What a single piece of detection evidence is.",
+      "enum": [
+        "event",
+        "feature",
+        "rule_match",
+        "anomaly_score",
+        "threshold",
+        "graph_path",
+        "ti_indicator",
+        "technique"
+      ],
+      "title": "EvidenceKind",
+      "type": "string"
+    },
+    "ScoringStatus": {
+      "description": "ADR-013: a model timeout / outage degrades the score, never drops it.",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "ScoringStatus",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/definitions/Detection"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "limit": {
+      "maximum": 200,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Cursor"
+    }
+  },
+  "required": [
+    "items",
+    "limit"
+  ],
+  "title": "CursorPage[Detection]",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

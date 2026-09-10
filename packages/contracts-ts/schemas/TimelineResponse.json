@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    },
+    "TimelineEntry": {
+      "additionalProperties": false,
+      "description": "One point on an entity's timeline \u2014 a detection, an alert transition, or a\nchain-stage advance. `kind` distinguishes them for the UI.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "detail": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Detail",
+          "type": "object"
+        },
+        "kind": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Severity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "kind",
+        "title",
+        "ref_id"
+      ],
+      "title": "TimelineEntry",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "entries": {
+      "items": {
+        "$ref": "#/definitions/TimelineEntry"
+      },
+      "maxItems": 500,
+      "title": "Entries",
+      "type": "array"
+    },
+    "subject_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "$ref": "#/definitions/ThreatSubjectType"
+    }
+  },
+  "required": [
+    "subject_type",
+    "subject_id"
+  ],
+  "title": "TimelineResponse",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
