@@ -46,7 +46,7 @@
       "title": "Actor Id"
     },
     "actor_type": {
-      "$ref": "#/definitions/ActorType"
+      "$ref": "#/$defs/ActorType"
     },
     "correlation_id": {
       "anyOf": [
@@ -123,7 +123,7 @@
       "type": "string"
     },
     "result": {
-      "$ref": "#/definitions/AuditResult"
+      "$ref": "#/$defs/AuditResult"
     },
     "tenant_id": {
       "anyOf": [

@@ -41,7 +41,7 @@
       "type": "string"
     },
     "status": {
-      "$ref": "#/definitions/TenantStatus"
+      "$ref": "#/$defs/TenantStatus"
     },
     "updated_at": {
       "format": "date-time",

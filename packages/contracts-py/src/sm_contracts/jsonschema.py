@@ -166,6 +166,6 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
 def export_all() -> dict[str, dict[str, Any]]:
     """Return `{name: json_schema}` for every registered contract model."""
     return {
-        name: model.model_json_schema(ref_template="#/definitions/{model}")
+        name: model.model_json_schema(ref_template="#/$defs/{model}")
         for name, model in SCHEMA_MODELS.items()
     }

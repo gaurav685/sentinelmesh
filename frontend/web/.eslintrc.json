@@ -1,0 +1,7 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "react/no-danger": "error",
+    "@next/next/no-html-link-for-pages": "off"
+  }
+}

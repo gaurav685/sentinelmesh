@@ -90,7 +90,7 @@
       "type": "string"
     },
     "latest_stage": {
-      "$ref": "#/definitions/AttackStage"
+      "$ref": "#/$defs/AttackStage"
     },
     "progression": {
       "maximum": 1.0,
@@ -111,7 +111,7 @@
       "type": "string"
     },
     "scoring_status": {
-      "$ref": "#/definitions/ScoringStatus"
+      "$ref": "#/$defs/ScoringStatus"
     },
     "stage_count": {
       "description": "Total stage rows (includes 'unknown').",
@@ -120,7 +120,7 @@
       "type": "integer"
     },
     "status": {
-      "$ref": "#/definitions/ChainStatus"
+      "$ref": "#/$defs/ChainStatus"
     },
     "subject_id": {
       "maxLength": 256,
@@ -129,7 +129,7 @@
       "type": "string"
     },
     "subject_type": {
-      "$ref": "#/definitions/ThreatSubjectType"
+      "$ref": "#/$defs/ThreatSubjectType"
     },
     "technique_ids": {
       "items": {

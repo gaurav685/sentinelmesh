@@ -308,3 +308,43 @@ jobs:
             echo "::error::ingestion-gateway started in production with the event bus disabled"
             exit 1
           fi
+
+  frontend:
+    name: frontend build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install contract tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "packages/contracts-py[dev]"
+          (cd packages/contracts-ts && npm ci)
+
+      - name: Generated TypeScript contracts are current
+        run: |
+          python scripts/gen_contracts.py
+          git diff --exit-status -- packages/contracts-ts/schemas packages/contracts-ts/src
+
+      - name: Contracts type-check
+        run: (cd packages/contracts-ts && npm run typecheck)
+
+      - name: Frontend install
+        run: (cd frontend/web && npm ci)
+
+      - name: Frontend lint
+        run: (cd frontend/web && npm run lint)
+
+      - name: Frontend unit tests
+        run: (cd frontend/web && npm run test)
+
+      - name: Frontend production build
+        run: (cd frontend/web && npm run build)

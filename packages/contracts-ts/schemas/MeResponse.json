@@ -53,7 +53,7 @@
           "type": "string"
         },
         "status": {
-          "$ref": "#/definitions/TenantStatus"
+          "$ref": "#/$defs/TenantStatus"
         },
         "updated_at": {
           "format": "date-time",
@@ -133,7 +133,7 @@
           "title": "Last Login At"
         },
         "status": {
-          "$ref": "#/definitions/UserStatus"
+          "$ref": "#/$defs/UserStatus"
         },
         "tenant_id": {
           "format": "uuid",
@@ -173,7 +173,7 @@
   "properties": {
     "permissions": {
       "items": {
-        "$ref": "#/definitions/PermissionCode"
+        "$ref": "#/$defs/PermissionCode"
       },
       "title": "Permissions",
       "type": "array"
@@ -187,10 +187,10 @@
       "type": "array"
     },
     "tenant": {
-      "$ref": "#/definitions/Tenant"
+      "$ref": "#/$defs/Tenant"
     },
     "user": {
-      "$ref": "#/definitions/User"
+      "$ref": "#/$defs/User"
     }
   },
   "required": [

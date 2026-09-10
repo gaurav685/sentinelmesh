@@ -35,7 +35,7 @@
       "type": "integer"
     },
     "kind": {
-      "$ref": "#/definitions/TiSourceKind"
+      "$ref": "#/$defs/TiSourceKind"
     },
     "last_poll_at": {
       "anyOf": [

@@ -26,7 +26,7 @@
   "description": "One result of the mapping API \u2014 a candidate technique for a behaviour.",
   "properties": {
     "confidence": {
-      "$ref": "#/definitions/MappingConfidence"
+      "$ref": "#/$defs/MappingConfidence"
     },
     "matrix_version": {
       "title": "Matrix Version",
@@ -43,7 +43,7 @@
       "type": "string"
     },
     "source": {
-      "$ref": "#/definitions/MappingSource"
+      "$ref": "#/$defs/MappingSource"
     },
     "tactic_id": {
       "anyOf": [

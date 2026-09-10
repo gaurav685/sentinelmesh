@@ -4,7 +4,7 @@
       "additionalProperties": false,
       "properties": {
         "code": {
-          "$ref": "#/definitions/ErrorCode"
+          "$ref": "#/$defs/ErrorCode"
         },
         "correlation_id": {
           "format": "uuid",
@@ -13,7 +13,7 @@
         },
         "details": {
           "items": {
-            "$ref": "#/definitions/ErrorDetail"
+            "$ref": "#/$defs/ErrorDetail"
           },
           "title": "Details",
           "type": "array"
@@ -85,7 +85,7 @@
   "additionalProperties": false,
   "properties": {
     "error": {
-      "$ref": "#/definitions/ErrorBody"
+      "$ref": "#/$defs/ErrorBody"
     }
   },
   "required": [

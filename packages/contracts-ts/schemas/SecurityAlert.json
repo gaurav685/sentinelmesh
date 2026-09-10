@@ -72,10 +72,10 @@
       "type": "string"
     },
     "severity": {
-      "$ref": "#/definitions/Severity"
+      "$ref": "#/$defs/Severity"
     },
     "status": {
-      "$ref": "#/definitions/AlertStatus"
+      "$ref": "#/$defs/AlertStatus"
     },
     "summary": {
       "default": "",

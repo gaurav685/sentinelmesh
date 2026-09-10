@@ -48,13 +48,13 @@
   "description": "`ti.updates` topic event (`EventType.ti_indicator_updated`).",
   "properties": {
     "action": {
-      "$ref": "#/definitions/TiUpdateAction"
+      "$ref": "#/$defs/TiUpdateAction"
     },
     "confidence": {
-      "$ref": "#/definitions/TiConfidence"
+      "$ref": "#/$defs/TiConfidence"
     },
     "freshness": {
-      "$ref": "#/definitions/IndicatorFreshness"
+      "$ref": "#/$defs/IndicatorFreshness"
     },
     "indicator_id": {
       "format": "uuid",
@@ -86,7 +86,7 @@
       "title": "Tenant Id"
     },
     "type": {
-      "$ref": "#/definitions/IndicatorType"
+      "$ref": "#/$defs/IndicatorType"
     },
     "value": {
       "title": "Value",

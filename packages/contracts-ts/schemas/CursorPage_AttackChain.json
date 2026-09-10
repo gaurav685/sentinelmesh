@@ -72,18 +72,18 @@
           "type": "string"
         },
         "scoring_status": {
-          "$ref": "#/definitions/ScoringStatus"
+          "$ref": "#/$defs/ScoringStatus"
         },
         "stages": {
           "items": {
-            "$ref": "#/definitions/ChainStageModel"
+            "$ref": "#/$defs/ChainStageModel"
           },
           "maxItems": 15,
           "title": "Stages",
           "type": "array"
         },
         "status": {
-          "$ref": "#/definitions/ChainStatus"
+          "$ref": "#/$defs/ChainStatus"
         },
         "subject_id": {
           "maxLength": 256,
@@ -92,7 +92,7 @@
           "type": "string"
         },
         "subject_type": {
-          "$ref": "#/definitions/ThreatSubjectType"
+          "$ref": "#/$defs/ThreatSubjectType"
         },
         "technique_ids": {
           "items": {
@@ -203,10 +203,10 @@
           "type": "number"
         },
         "max_severity": {
-          "$ref": "#/definitions/Severity"
+          "$ref": "#/$defs/Severity"
         },
         "stage": {
-          "$ref": "#/definitions/AttackStage"
+          "$ref": "#/$defs/AttackStage"
         },
         "stage_order": {
           "maximum": 13,
@@ -282,7 +282,7 @@
   "properties": {
     "items": {
       "items": {
-        "$ref": "#/definitions/AttackChainModel"
+        "$ref": "#/$defs/AttackChainModel"
       },
       "title": "Items",
       "type": "array"

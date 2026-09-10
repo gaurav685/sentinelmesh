@@ -1814,7 +1814,16 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 9 — ENTERPRISE SOC DASHBOARD. Unit 1 DONE — `api-gateway` SOC BFF.**
+**PHASE 9 — ENTERPRISE SOC DASHBOARD. Units 1–2 DONE.** Unit 1 (`api-gateway`
+SOC BFF) CI-green (run `34424869328`). Unit 2 (`frontend/web` Next.js scaffold +
+generated typed client + auth shell + `frontend` CI job): local gauntlet green —
+ruff / `mypy --strict` / 578 python unit + `gen_contracts --check`; contracts-ts
+typecheck; `frontend/web` `npm run lint` clean, `npm run test` 19 passed,
+`npm run build` OK (11 routes). `sm_contracts` `ref_template` fixed to `$defs`,
+generated TS committed as a single `src/index.ts`. **Commit Unit 2, push, confirm
+CI green (new `frontend` job).**
+
+**PHASE 9 — ENTERPRISE SOC DASHBOARD. Unit 1 details — `api-gateway` SOC BFF.**
 Tenant-scoped Postgres reads (`SqlSocRepository`: detections / alerts /
 threat-scores / summary / MITRE heatmap / entity timeline, keyset-paged) + minted-JWT
 proxies to `correlation-engine` / `graph-service` / `threat-intel-service` /

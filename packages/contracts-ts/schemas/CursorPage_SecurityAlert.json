@@ -60,10 +60,10 @@
           "type": "string"
         },
         "severity": {
-          "$ref": "#/definitions/Severity"
+          "$ref": "#/$defs/Severity"
         },
         "status": {
-          "$ref": "#/definitions/AlertStatus"
+          "$ref": "#/$defs/AlertStatus"
         },
         "summary": {
           "default": "",
@@ -119,7 +119,7 @@
   "properties": {
     "items": {
       "items": {
-        "$ref": "#/definitions/SecurityAlert"
+        "$ref": "#/$defs/SecurityAlert"
       },
       "title": "Items",
       "type": "array"

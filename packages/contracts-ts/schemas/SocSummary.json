@@ -15,7 +15,7 @@
           "type": "number"
         },
         "scoring_status": {
-          "$ref": "#/definitions/ScoringStatus"
+          "$ref": "#/$defs/ScoringStatus"
         },
         "subject_id": {
           "maxLength": 256,
@@ -24,7 +24,7 @@
           "type": "string"
         },
         "subject_type": {
-          "$ref": "#/definitions/ThreatSubjectType"
+          "$ref": "#/$defs/ThreatSubjectType"
         }
       },
       "required": [
@@ -91,7 +91,7 @@
     },
     "top_risk_subjects": {
       "items": {
-        "$ref": "#/definitions/RiskSubject"
+        "$ref": "#/$defs/RiskSubject"
       },
       "maxItems": 20,
       "title": "Top Risk Subjects",

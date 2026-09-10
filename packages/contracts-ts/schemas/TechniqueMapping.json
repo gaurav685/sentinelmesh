@@ -10,7 +10,7 @@
           "type": "object"
         },
         "kind": {
-          "$ref": "#/definitions/EvidenceKind"
+          "$ref": "#/$defs/EvidenceKind"
         },
         "provenance": {
           "description": "'<service>:<id>'.",
@@ -91,7 +91,7 @@
   "description": "A persisted subject\u2192technique mapping (Postgres `technique_mapping`).",
   "properties": {
     "confidence": {
-      "$ref": "#/definitions/MappingConfidence"
+      "$ref": "#/$defs/MappingConfidence"
     },
     "created_at": {
       "format": "date-time",
@@ -100,7 +100,7 @@
     },
     "evidence": {
       "items": {
-        "$ref": "#/definitions/EvidenceItem"
+        "$ref": "#/$defs/EvidenceItem"
       },
       "maxItems": 64,
       "title": "Evidence",
@@ -124,7 +124,7 @@
       "type": "string"
     },
     "source": {
-      "$ref": "#/definitions/MappingSource"
+      "$ref": "#/$defs/MappingSource"
     },
     "subject_id": {
       "format": "uuid",
@@ -132,7 +132,7 @@
       "type": "string"
     },
     "subject_type": {
-      "$ref": "#/definitions/MappingSubjectType"
+      "$ref": "#/$defs/MappingSubjectType"
     },
     "tactic_id": {
       "anyOf": [

@@ -5,11 +5,17 @@
   "description": "TypeScript types generated from SentinelMesh JSON Schema contracts. Do not hand-edit src/.",
   "type": "module",
   "main": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "generate": "python ../../scripts/gen_contracts.py",
-    "check": "python ../../scripts/gen_contracts.py --check"
+    "check": "python ../../scripts/gen_contracts.py --check",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "json-schema-to-typescript": "^15.0.3"
+    "json-schema-to-typescript": "^15.0.3",
+    "typescript": "^5.6.3"
   }
 }

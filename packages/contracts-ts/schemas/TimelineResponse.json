@@ -53,7 +53,7 @@
         "severity": {
           "anyOf": [
             {
-              "$ref": "#/definitions/Severity"
+              "$ref": "#/$defs/Severity"
             },
             {
               "type": "null"
@@ -83,7 +83,7 @@
   "properties": {
     "entries": {
       "items": {
-        "$ref": "#/definitions/TimelineEntry"
+        "$ref": "#/$defs/TimelineEntry"
       },
       "maxItems": 500,
       "title": "Entries",
@@ -96,7 +96,7 @@
       "type": "string"
     },
     "subject_type": {
-      "$ref": "#/definitions/ThreatSubjectType"
+      "$ref": "#/$defs/ThreatSubjectType"
     }
   },
   "required": [

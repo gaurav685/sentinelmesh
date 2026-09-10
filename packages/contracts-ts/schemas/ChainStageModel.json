@@ -69,10 +69,10 @@
       "type": "number"
     },
     "max_severity": {
-      "$ref": "#/definitions/Severity"
+      "$ref": "#/$defs/Severity"
     },
     "stage": {
-      "$ref": "#/definitions/AttackStage"
+      "$ref": "#/$defs/AttackStage"
     },
     "stage_order": {
       "maximum": 13,

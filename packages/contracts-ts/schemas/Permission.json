@@ -33,7 +33,7 @@
       "type": "string"
     },
     "code": {
-      "$ref": "#/definitions/PermissionCode"
+      "$ref": "#/$defs/PermissionCode"
     },
     "description": {
       "maxLength": 300,

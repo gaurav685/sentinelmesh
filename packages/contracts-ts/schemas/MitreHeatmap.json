@@ -46,7 +46,7 @@
   "properties": {
     "cells": {
       "items": {
-        "$ref": "#/definitions/MitreHeatmapCell"
+        "$ref": "#/$defs/MitreHeatmapCell"
       },
       "maxItems": 1000,
       "title": "Cells",

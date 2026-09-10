@@ -49,10 +49,10 @@
       "type": "string"
     },
     "op": {
-      "$ref": "#/definitions/GraphOp"
+      "$ref": "#/$defs/GraphOp"
     },
     "outcome": {
-      "$ref": "#/definitions/GraphMutationOutcome"
+      "$ref": "#/$defs/GraphMutationOutcome"
     },
     "raw_event_id": {
       "description": "Lineage \u2014 the source telemetry/detection event.",

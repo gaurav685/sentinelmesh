@@ -27,7 +27,7 @@
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "$ref": "#/definitions/EntityKind"
+          "$ref": "#/$defs/EntityKind"
         },
         "value": {
           "description": "Canonical identifier for the entity.",
@@ -81,7 +81,7 @@
     "actor": {
       "anyOf": [
         {
-          "$ref": "#/definitions/EntityRef"
+          "$ref": "#/$defs/EntityRef"
         },
         {
           "type": "null"
@@ -104,14 +104,14 @@
     },
     "entities": {
       "items": {
-        "$ref": "#/definitions/EntityRef"
+        "$ref": "#/$defs/EntityRef"
       },
       "maxItems": 64,
       "title": "Entities",
       "type": "array"
     },
     "kind": {
-      "$ref": "#/definitions/CanonicalKind"
+      "$ref": "#/$defs/CanonicalKind"
     },
     "occurred_at": {
       "format": "date-time",
@@ -138,12 +138,12 @@
       "type": "string"
     },
     "raw_event_type": {
-      "$ref": "#/definitions/EventType"
+      "$ref": "#/$defs/EventType"
     },
     "target": {
       "anyOf": [
         {
-          "$ref": "#/definitions/EntityRef"
+          "$ref": "#/$defs/EntityRef"
         },
         {
           "type": "null"
