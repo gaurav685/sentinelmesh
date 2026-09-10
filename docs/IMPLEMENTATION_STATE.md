@@ -7,8 +7,22 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 9 — Enterprise SOC Dashboard. Units 1–4 done; local gauntlet green;
-Unit 4 awaiting CI.** `frontend/web` (Next.js 15 App Router) ships every SOC
+**Phase 10 — AI Security Analyst + Multi-Agent Defense. IN PROGRESS — Unit 1
+(`packages/ai-py` / `sm_ai` — the untrusted-LLM boundary).** Provider-neutral
+message types, a `LlmProvider` protocol, a network-free `DeterministicAdapter`
+(the default with no credentials and what every test uses — `is_live=False`), a
+real `HttpLlmBoundary` for an Anthropic Messages-style API that raises
+`ProviderUnavailable` without an API key (never claimed as verified — no
+credentials exist), and an `LlmClient` that enforces a per-call prompt-token
+ceiling *before* any network I/O, a per-run `RunBudget`, a wall-clock timeout,
+cooperative cancellation, transient-only bounded retry, and a per-attempt
+`AuditEvent` (prompt sha256 + purpose + usage + outcome — never the raw prompt).
+Config `SM_LLM_*` + `SM_AGENT_*` ceilings in `sm_common`. **The LLM is not
+trusted; it never gains a privilege it was not already granted.**
+
+**Phase 9 — Enterprise SOC Dashboard. COMPLETE / CI-VERIFIED** (all five jobs
+incl. `frontend`, final run `34428106928`). Units 1–4 (`15f5d1c` / `790fdf5` /
+`dac8e50` / `3d8c401`). `frontend/web` (Next.js 15 App Router) ships every SOC
 view — dashboard, alerts + `incidents/[id]`, attack-chain list + `chains/[id]`,
 MITRE ATT&CK heatmap, risk heatmap, entity explorer + `entities/[id]` timeline,
 threat-intel indicators, and an interactive Cytoscape attack-graph explorer with
@@ -16,11 +30,9 @@ a detail panel and an accessible node/edge list fallback. Every view is typed
 from `@sentinelmesh/contracts` (generated — no backend shape re-declared), goes
 through `DataView` (loading / error / empty / ready), and labels demo/absent data
 honestly. Realtime is an honest client poll (`useResource` `refreshMs` +
-`LiveBadge` "updated Ns ago") — no WebSocket yet, documented. Frontend auth is
-display-only; `api-gateway` `require_permission` stays authoritative. Unit 4 also
-promoted the graph-query shapes to `sm_contracts.api.graph`. See the Phase 9 exit
-report below. **Next: confirm Unit 4 CI green → Phase 10 (AI Security Analyst +
-Multi-Agent Defense).**
+`LiveBadge`) — no WebSocket yet, documented. Frontend auth is display-only;
+`api-gateway` `require_permission` stays authoritative. See the Phase 9 exit
+report below.
 
 **Phase 8 — GNN + Temporal Intelligence. COMPLETE / CI-VERIFIED** (all four jobs,
 runs `34408045416` / `34408494057` / `34409131977` / `34410178417`). Units 1–4.
@@ -565,9 +577,10 @@ before Phase 2 is itself declared complete.
 
 ## Phase 9 exit report
 
-**State: COMPLETE — local gauntlet green; awaiting CI confirmation of Unit 4.**
-Units 1–4 commits `15f5d1c` / `790fdf5` / `dac8e50` / _(Unit 4 — this commit)_.
-Units 1–3 CI-verified (runs `34424869328` / `34426774409`).
+**State: COMPLETE / CI-VERIFIED (all five jobs incl. `frontend`, final run
+[`34428106928`](https://github.com/gaurav685/sentinelmesh/actions/runs/34428106928)).**
+Units 1–4 commits `15f5d1c` / `790fdf5` / `dac8e50` / `3d8c401`.
+Earlier unit runs `34424869328` / `34426774409`.
 
 **No attack activity is fabricated anywhere in the UI. Demo/absent data is
 labelled in plain language ("no ATT&CK catalog imported", "external provider
@@ -592,7 +605,7 @@ session is an httpOnly cookie.**
 - Python: `ruff check .` clean; `mypy --strict` over `packages/contracts-py/src` + `services/api-gateway/src` clean; **594 unit tests** + `gen_contracts.py --check` (JSON Schema up to date, no `contracts-ts` / `contracts-py` drift); `tests/contract/test_ci_config.py` 14 pass.
 - Real infra: `tests/integration/test_soc_reads_pg.py` **4 pass** against real PostgreSQL 16 (`SqlSocRepository` tenant-scoped reads). Neo4j-backed graph tests (`test_graph_intel_neo4j.py`, `test_graph_service_neo4j.py`) **skipped locally** — the fixture's 3 s bolt-connect probe times out under the Windows proactor loop; unchanged graph-service code, CI (Linux) is the confirmation.
 - `docker build -f deploy/docker/Dockerfile.app` builds; `docker run … python -c "import sm_api_gateway.app, sm_contracts"` OK.
-- **CI green on a clean runner for Units 1–3 (runs `34424869328` / `34426774409`, all five jobs incl. `frontend`); Unit 4 pending.**
+- **CI green on a clean runner — all five jobs (`static` / `unit` / `integration` / `image` / `frontend`), final run `34428106928`; earlier unit runs `34424869328` / `34426774409`.**
 
 ### Pre-output engineering review (Constitution §23)
 
@@ -625,7 +638,7 @@ session is an httpOnly cookie.**
 | no hardcoded fake backend responses | ✅ every view fetches the BFF; empty/absent data is labelled |
 | protected routes / server-authoritative authorization / safe token+session / XSS protections / no secrets in frontend / tenant-aware | ✅ httpOnly cookie + CSRF, `require_permission` server-side, `react/no-danger` error, CSP, tenant from `/me` |
 | tests: component / API-contract / authentication / authorization-UI / critical-flow / graph-interaction | ✅ 37 vitest tests |
-| **CI green on a clean runner** | ⏳ Units 1–3 green (`34424869328` / `34426774409`); Unit 4 pending |
+| **CI green on a clean runner** | ✅ **all five jobs — final run `34428106928`** (unit runs `34424869328` / `34426774409`) |
 
 ## Phase 8 exit report
 
@@ -1893,23 +1906,44 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 9 — ENTERPRISE SOC DASHBOARD. Units 1–4 DONE (Unit 4 awaiting CI).**
-Unit 1 (`api-gateway` SOC BFF) CI-green (run `34424869328`). Unit 2
-(`frontend/web` scaffold + generated typed client + auth shell + `frontend` CI
-job) committed `790fdf5`. Unit 3 (the SOC views + `git diff --quiet` CI fix)
-CI-green (run `34426774409`, all five jobs). Unit 4 (attack graph + realtime +
-polish + close): local gauntlet green — `frontend/web` lint clean, `npm run test`
-**37 pass**, `npm run build` OK (14 routes); ruff clean; `mypy --strict`
-(contracts-py + api-gateway) clean; **594 unit tests** + `gen_contracts --check`
-(no drift); `test_soc_reads_pg.py` **4 pass** real PostgreSQL; `Dockerfile.app`
-builds + imports. New: `sm_contracts.api.graph` (`GraphNode` / `GraphEdge` /
-`GraphNeighborhood` / `GraphPath`), BFF `/soc/graph/{neighbors,paths}` typed,
-`graph/page.tsx` Cytoscape explorer + list fallback, `useResource` `refreshMs`
-poll + `LiveBadge`, `AttackGraph` / `LiveBadge` / `graph/page` tests. Phase 9
-exit report + §23 review + `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED +
-`CONTRACTS.md` "Phase 9 closed" written. **Commit Unit 4, push, confirm CI green
-→ closes Phase 9; then start Phase 10 (AI Security Analyst + Multi-Agent Defense,
-prompt in memory `phase-8-9-10-11-prompts.md`).**
+**PHASE 9 — ENTERPRISE SOC DASHBOARD. CLOSED — CI-VERIFIED, all five jobs, final
+run `34428106928`** (unit runs `34424869328` / `34426774409`). Units 1–4
+(`15f5d1c` / `790fdf5` / `dac8e50` / `3d8c401`). SOC BFF + generated typed client
++ every SOC view + a Cytoscape attack-graph explorer with an accessible list
+fallback + honest-poll realtime. `sm_contracts.api.graph` promoted. Phase 9 exit
+report + §23 + `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED (P9 core;
+WebSocket / `notification-service` / cinematic replay / Playwright deferred) +
+`CONTRACTS.md` "Phase 9 closed".
+
+**PHASE 10 — AI SECURITY ANALYST + MULTI-AGENT DEFENSE. Unit 1 IN PROGRESS.**
+Planned units:
+1. `packages/ai-py` (`sm_ai`) — the untrusted-LLM boundary: provider-neutral
+   messages, `LlmProvider` protocol, `DeterministicAdapter` (default, network-free,
+   `is_live=False`), `HttpLlmBoundary` (Anthropic Messages shape; `ProviderUnavailable`
+   without a key; never verified), `LlmClient` (pre-flight per-call token ceiling,
+   `RunBudget`, timeout, cancellation, transient-only retry, `AuditEvent` per
+   attempt — prompt sha256 not raw). `SM_LLM_*` / `SM_AGENT_*` config. Tests:
+   determinism, budget rejection, retry-on-transient / no-retry-on-refused,
+   timeout, provider outage, boundary inert without key, audit emission.
+2. Tool framework + evidence/context builder — `Tool` (explicit args schema,
+   required `PermissionCode`, input + output validation, audit), `ToolRegistry`
+   (deny-by-default; an unknown/unauthorised tool call is rejected, the LLM asking
+   changes nothing), `EvidenceBuilder` (read-only, tenant-scoped; retrieved
+   content fenced as data with an injection scan; context-size sanity bound).
+3. `services/ai-analyst` — grounded incident summarization / triage / reasoning /
+   remediation *recommendations* (every claim → evidence ref; `LLM_UNAVAILABLE` →
+   deterministic template). Read API via `api-gateway`
+   `GET /api/v1/detections/{id}/explanation`. Prompt + response audited.
+4. Multi-agent orchestration (detection / threat-intel / response-orchestration
+   agents) + a controlled orchestrator (step cap, tool-call cap, wall-clock +
+   token ceilings, cancellation, failure isolation, no uncontrolled recursion).
+   The response agent *proposes*; execution stays behind `response_mode` /
+   `response_approval_required` — an LLM request is never sufficient. Phase 10
+   exit report + §23 + `REQUIREMENTS_TRACEABILITY` R14 / R29 / R30 / R31 +
+   `CONTRACTS.md`.
+
+Exit next action after Phase 10: **PHASE 11 — Threat Hunting + Natural Language
+Querying** (prompt not yet given — do NOT start speculatively).
 
 **PHASE 9 — ENTERPRISE SOC DASHBOARD. Unit 1 details — `api-gateway` SOC BFF.**
 Tenant-scoped Postgres reads (`SqlSocRepository`: detections / alerts /
