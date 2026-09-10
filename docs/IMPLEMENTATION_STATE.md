@@ -7,6 +7,19 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 12 — Simulation + Deception + Security Digital Twin. IN PROGRESS —
+Unit 1 (`sm_ml.twin` — the digital twin + blast radius + stress testing).**
+`build_twin(assets, relations, weaknesses) -> TwinModel` (frozen, sorted,
+validated — deterministic and standard-library). `attack_paths(twin, sources=,
+targets=, max_depth=)` (bounded, simple paths, ordered by feasibility),
+`blast_radius(twin, seeds=, max_hops=, min_weight=)` → `BlastRadiusReport`
+(reached set + per-hop + critical-assets-reached + a criticality-weighted score +
+amplifying weaknesses), `stress_test(twin, ..., controls=[DefensiveControl])` →
+which attack paths a set of controls (`block_relation_kind` / `isolate_asset` /
+`harden_asset`) would break, the residual risk, and the single most valuable
+control. **Scenario execution and blast-radius analysis run against this model,
+never against real systems.**
+
 **Phase 11 — Threat Hunting + Natural Language Querying. COMPLETE / CI-VERIFIED**
 (all five jobs, final run `34448406595`; unit runs `34446018571` /
 `34447606633`). Units 1-3 (`a9e4293` / `9cb52e1` / `9e07387`).
@@ -2148,8 +2161,39 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 11 — THREAT HUNTING + NATURAL LANGUAGE QUERYING. Units 1–2 done (Unit 2
-local green, awaiting CI).** Planned units:
+**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Unit 1 done — local
+gauntlet green, awaiting CI.** Everything synthetic, isolated, deterministic;
+scenarios run against a model, never real systems. Planned units:
+1. ✅ `sm_ml.twin` — `TwinModel` (`TwinAsset` / `TwinRelation` / `TwinWeakness`,
+   `build_twin` validates + freezes + sorts → deterministic, stdlib),
+   `attack_paths` (bounded simple paths, feasibility-ordered), `blast_radius` →
+   `BlastRadiusReport` (reached set, per-hop, critical-reached, criticality-
+   weighted score, amplifying weaknesses), `stress_test` + `DefensiveControl` →
+   which paths a control set breaks + residual risk + most-valuable control.
+   Local: ruff + `mypy --strict` clean, **706 unit tests** (11 new — order-
+   independent build, validation rejections, bounded/simple/ordered paths,
+   deterministic blast-radius scored by criticality, `min_weight` pruning,
+   stress-test path-breaking + best control, `apply_controls` immutability) +
+   `gen_contracts --check`. **Commit, push, confirm CI green.**
+2. `sm_ml.scenario` — `SyntheticEnvironment` (seeded, `synthetic=True`, never
+   real), `ScenarioSpec` (apt / ransomware / insider / brute_force), `run_scenario`
+   → a deterministic ordered list of synthetic telemetry events (each
+   `simulated=True`), `replay`, an isolation validator (a spec's targets must be
+   synthetic-env ids; no external/real targets).
+3. `services/simulation-service` — a scenario-run endpoint + a deception decoy
+   registry (`decoy` / `decoy_interaction`, migration `0007`; isolation
+   invariants: a `network_boundary` is required, never `production`, one-way
+   export, teardown, audit). Simulation events are fed to the pipeline labelled
+   `simulated`.
+4. `api-gateway` BFF + `frontend/web` (a simulation page badged "SIMULATION", a
+   blast-radius view, a deception page) + Phase 12 close (exit report + §23 +
+   `REQUIREMENTS_TRACEABILITY` R16 / R17 / R26 / R35 + `CONTRACTS.md`).
+
+Exit next action after Phase 12: **PHASE 13 — Memory + Predictive Intelligence**
+(prompt not yet given — do NOT start speculatively; the next session resumes
+here).
+
+**PHASE 11 — THREAT HUNTING + NATURAL LANGUAGE QUERYING. Units 1–3 done.** Planned units:
 1. ✅ **CI-VERIFIED (run `34446018571`).** `sm_contracts.api.hunt` — `QueryPlan`
    (closed schema: `HuntIntent` ∈
    {find_entity, list_related, path_between, detections_for, chains_for,
