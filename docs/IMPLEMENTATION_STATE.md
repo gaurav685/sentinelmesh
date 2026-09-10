@@ -7,8 +7,10 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 11 — Threat Hunting + Natural Language Querying. IN PROGRESS — Units 1–2
-done (local green, Unit 2 awaiting CI).** `raw LLM output → executed Cypher` is
+**Phase 11 — Threat Hunting + Natural Language Querying. Units 1–3 done — local
+gauntlet green; Unit 3 awaiting CI.** Unit 3: `frontend/web/app/(soc)/hunt` — an
+"Ask" NL mode and a "Quick query" structured form, both showing the **compiled
+`QueryPlan`** for transparency, with a "Pivot" action from a result row. `raw LLM output → executed Cypher` is
 impossible: `sm_contracts.QueryPlan` is a **closed schema**, `ai-analyst`'s NL
 planner only ever emits a `QueryPlan` (parsed into that model — never a query) or
 says the request is out of scope, and `graph-service` `hunt.py` `validate_plan`
@@ -603,6 +605,120 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 11 exit report
+
+**State: COMPLETE — local gauntlet green; Unit 3 awaiting CI.** Units 1-3 commits
+`a9e4293` / `9cb52e1` / _(Unit 3 — this commit)_. Units 1-2 CI-verified (runs
+`34446018571` / `34447606633`).
+
+**`raw LLM output → executed Cypher` is impossible. The pipeline is
+`natural language → QueryPlan (closed schema) → validation → authorization →
+one of a fixed set of parameterized Cypher templates → result → grounded
+explanation`. The LLM only ever produces a `QueryPlan` (parsed into the Pydantic
+model — never used as a query) or `{"unsupported": true}`. `graph-service`
+interpolates only an allow-listed node label, allow-listed relationship-type
+names, and a clamped integer depth; every entity value is a `$`-parameter; the
+tenant is `$tenant` from the verified token and `QueryPlan` has no tenant field.
+No live LLM has been called (deterministic adapter only, ADR-014) — with no key
+an NL hunt is `unsupported`, never guessed.**
+
+### Delivered (Units 1-3)
+
+| Area | State |
+|---|---|
+| Contracts + compiler (Unit 1) | `sm_contracts.api.hunt` — `QueryPlan` (`HuntIntent` ∈ {find_entity, list_related, path_between, detections_for, chains_for, indicator_sightings, technique_usage}, typed `EntitySelector`s, `rel_types` allow-list, `QueryLimits`), `NlHuntRequest`, `PlanResponse`, `HuntResult`. `graph-service` `hunt.py` — `validate_plan` (capability-set enforcement: selector count/type per intent, `rel_types` ⊆ `GRAPH_REL_TYPES`, `rel_types` only on `list_related`), `compile_plan` (one constant parameterized Cypher per intent; label/reltype/int-depth are the only interpolations, all allow-listed), `HuntRunner`. `POST /api/v1/graph/hunt` (internal JWT; a plan outside the set → 422). `SM_HUNT_MAX_ROWS` (200) / `SM_HUNT_MAX_DEPTH` (3), applied on top of the plan's limits. `HuntResult.cypher_fingerprint` (sha256 of the template) proves which fixed query ran. |
+| NL + orchestration + history (Unit 2) | `ai-analyst` `HuntPlanner` (`POST /api/v1/hunt/plan`) — the LLM's JSON is parsed into `QueryPlan`; non-JSON / invalid intent / no LLM → `PlanResponse(supported=false)`. `explain_hunt` + `POST /api/v1/hunt/explain` — grounded, cites the plan; deterministic baseline without an LLM. `api-gateway` `POST /api/v1/soc/hunt` (`require_permission(hunt:query)` + CSRF, tenant from the session `Principal`) — `body.plan` → run directly; `body.query` → `/hunt/plan` (unsupported → `SocHuntResponse(supported=false)`, **not executed**) → `/graph/hunt` → `/hunt/explain`. The NL text is never sent to `graph-service`. `hunt_query` history (`sm_common.db.HuntQueryRow` + migration `0006`, append-only, tenant-scoped; `SqlSocRepository.record_hunt`). `SocHuntRequest` / `SocHuntResponse` / `HuntExplainRequest`. |
+| Frontend hunt panel (Unit 3) | `frontend/web/app/(soc)/hunt` — an "Ask" NL mode (`{query}`) and a "Quick query" structured form (`{plan}`, no LLM), both showing the **compiled `QueryPlan`** in a `<details>` for transparency, the grounded explanation, a rows table, and a "Pivot" action (runs `list_related` on a result row's entity). Nav entry gated on `hunt:query`. `api.hunt(body, csrfToken)` typed helper; `contract.test.ts` fixture check for `SocHuntResponse`. |
+
+### Verification performed (local, 2026-09-10)
+
+- `ruff check` clean; `mypy --strict` over all 17 src trees (308 files) clean;
+  **694 unit tests** (`graph-service` hunt: 22; `ai-analyst` hunt: 10;
+  `api-gateway` `/soc/hunt`: 6) + `gen_contracts.py --check`.
+- `frontend/web`: `npm run lint` clean, `npm run build` OK (15 routes),
+  **41 vitest tests** (3 new hunt-panel: NL result + shows the plan, unsupported
+  reason shown and not pretended-run, quick structured plan).
+- Real infra: `tests/integration/test_migrations_pg.py` (0006 up + down against
+  real PostgreSQL 16); `tests/integration/test_hunt_neo4j.py` against real
+  Neo4j 5 — a hunt runs, is tenant-scoped, cross-tenant isolation holds (tenant B
+  cannot see tenant A's `web01`), a hallucinated entity → empty result.
+- `docker build -f deploy/docker/Dockerfile.app` builds; `sm_ai_analyst.hunt` +
+  `sm_common.db.HuntQueryRow` import in the image.
+- **CI green for Units 1-2** (`34446018571` / `34447606633`, all five jobs);
+  Unit 3 pending.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Never `raw LLM output → executed Cypher` (the phase's CRITICAL SECURITY
+  clause).** The LLM's only output path is `QueryPlan.model_validate(json)` — a
+  closed Pydantic schema. There is no code path that takes model text and runs
+  it. A test asserts the planner can only ever yield a `QueryPlan` or
+  `unsupported` even for a hostile NL string that makes the model emit Cypher.
+- **Only a predefined capability set.** `HuntIntent` is a 7-value `Literal`;
+  `validate_plan` rejects a wrong selector count/type per intent, an unknown
+  relationship type, and `rel_types` on the wrong intent. `compile_plan` has one
+  constant template string per intent — there is no template built from caller
+  input.
+- **Block writes / destructive / schema-mod queries.** Every template is
+  MATCH/WHERE/RETURN/LIMIT only; a unit test greps each compiled query for
+  `CREATE|MERGE|DELETE|SET|REMOVE|DROP|CALL` and asserts none. `Graph.run_read`
+  is used, not `run_write`.
+- **Block cross-tenant access.** `QueryPlan` has **no tenant field** (a test
+  asserts `"tenant" not in QueryPlan.model_fields`). The tenant is `$tenant` from
+  the verified internal token at every layer; the api-gateway route takes it from
+  the session `Principal`, never the body (a stray `tenant_id` in the body → 422).
+  Real-Neo4j test: tenant B's hunt for the same natural key returns 0 rows.
+- **Block unrestricted traversal / expensive queries.** `SM_HUNT_MAX_DEPTH` (3)
+  and `SM_HUNT_MAX_ROWS` (200) are applied on top of the `QueryPlan`'s own
+  `QueryLimits` (≤ 4 / ≤ 500) — `compile_plan` clamps `min(plan, server)`. A test
+  sets the plan to 4/500 and asserts the compiled query is `*1..3` and `cap=200`.
+- **Block data-exfiltration patterns.** `path_between` returns node ids +
+  properties along one shortest path (capped at length 3); the other intents
+  return a capped distinct node set. `_`-prefixed props and `uid` are stripped.
+  There is no intent that dumps a whole label or runs an unbounded scan.
+- **Injection.** A Cypher-injection string in a selector value
+  (`web01' }) DETACH DELETE (n) //`) is bound as `$v0` and never appears in the
+  query text (unit test). An injection string in the NL question can at most make
+  the planner return `unsupported`.
+- **Authorization + audit.** `/api/v1/soc/hunt` is `require_permission(hunt:query)`
+  (deny-by-default, metered + audited) + CSRF double-submit; `globex_admin` (no
+  `hunt:query`) → 403. Every hunt — supported or not — is written to `hunt_query`
+  (tenant, principal email, mode, NL text, resolved intent, row_count,
+  fingerprint; never the rows).
+- **Hallucinated entities.** A `find_entity` for a non-existent key is an honest
+  empty `HuntResult` (row_count 0), not an error and not a fabricated node
+  (real-Neo4j test).
+- **The plan is shown to the analyst.** The frontend renders the compiled
+  `QueryPlan` JSON so the operator sees exactly what structured query ran.
+
+### Deferred (deliberately)
+
+- **A live LLM provider.** NL planning needs the LLM; with no credentials
+  (ADR-014) an NL hunt is `unsupported`. The deterministic adapter is the only
+  tested path; the "Quick query" structured mode needs no LLM.
+- **Postgres/Neo4j full-text search, a `.../search` endpoint, saved queries.**
+  Entity lookup is by natural key (`find_entity`).
+- **A dedicated Neo4j read-only role.** The read-only templates + `run_read` are
+  the guarantee; a DB-level role is a hardening step for a real deployment.
+- **A cross-service integration test of the full `/soc/hunt` chain.** It needs
+  api-gateway + ai-analyst + graph-service up together; the orchestration is
+  covered by fakes, and each hop has its own real-infra test.
+- **`time_range` filtering.** The contract field exists; no template uses it yet.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| IOC hunting / entity search / graph pivots / advanced graph queries | ✅ 7 intents + the frontend "Pivot" action |
+| natural-language threat hunting; NL → intent → structured plan → validation → authorization → parameterized Cypher → result → explanation | ✅ the full pipeline; NL needs an LLM (deferred), structured mode does not |
+| never `raw LLM output → direct Cypher execution` | ✅ the LLM only ever produces a `QueryPlan`; asserted by tests |
+| only a predefined query-capability set | ✅ 7-value `HuntIntent` `Literal` + `validate_plan` |
+| block writes / destructive / schema-mod / cross-tenant / unrestricted traversal / exfiltration | ✅ read-only templates, no tenant field, dual depth/row caps, greps + real-Neo4j tests |
+| query validation / authorization | ✅ `validate_plan` → 422; `require_permission(hunt:query)` + CSRF |
+| result explanation | ✅ `/hunt/explain` grounded, cites the plan; deterministic baseline |
+| tests: injection / unauthorized / cross-tenant / expensive / malformed NL / hallucinated entities / plan-validation / parameterization | ✅ all covered |
+| **CI green on a clean runner** | ⏳ Units 1-2 green (`34446018571` / `34447606633`); Unit 3 pending |
 
 ## Phase 10 exit report
 
@@ -2059,15 +2175,22 @@ local green, awaiting CI).** Planned units:
    `SocHuntRequest` / `SocHuntResponse` / `HuntExplainRequest`. Local: ruff +
    `mypy --strict` clean (308 files), **694 unit tests** (28 new) + `gen_contracts
    --check`; real PG `test_migrations_pg.py` (0006 up/down) + real Neo4j
-   `test_hunt_neo4j.py`; `Dockerfile.app` builds + imports. **Commit, push,
-   confirm CI green.**
-3. `frontend/web` hunt panel — a "quick" structured lookup (form → `QueryPlan`
-   directly, no LLM) and an "ask" NL mode, both showing the compiled `QueryPlan`
-   for transparency; graph pivots from a result row. Phase 11 exit report + §23 +
-   `REQUIREMENTS_TRACEABILITY` R18 / R32 + `CONTRACTS.md`.
+   `test_hunt_neo4j.py`; `Dockerfile.app` builds + imports.
+   **CI-VERIFIED (run `34447606633`, all five jobs).**
+3. ✅ `frontend/web/app/(soc)/hunt` — an "Ask" NL mode (`{query}`) and a "Quick
+   query" structured form (`{plan}`, no LLM), both rendering the **compiled
+   `QueryPlan`** JSON for transparency, the grounded explanation, a rows table,
+   and a "Pivot" action (runs `list_related` on a result row's entity). Nav entry
+   gated on `hunt:query`. `api.hunt(body, csrfToken)` helper + `contract.test.ts`
+   `SocHuntResponse` fixture. Local: `npm run lint` clean, `npm run build` OK
+   (15 routes), **41 vitest tests** (3 new); ruff + `mypy --strict` unchanged
+   (Unit 3 is frontend-only), `gen_contracts --check`. Phase 11 exit report + §23
+   + `REQUIREMENTS_TRACEABILITY` R18 / R32 → IMPLEMENTED + `CONTRACTS.md` §7.1
+   IMPLEMENTED. **Commit, push, confirm CI green → closes Phase 11.**
 
 Exit next action after Phase 11: **PHASE 12 — Simulation + Deception + Digital
-Twin** (prompt not yet given — do NOT start speculatively).
+Twin** (prompt not yet given — do NOT start speculatively; the next session
+resumes here).
 
 **Phase 4 is COMPLETE and CI-VERIFIED** (Units 1–4; final run `34350607501`).
 

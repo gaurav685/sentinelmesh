@@ -362,7 +362,22 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** every hunt query authorized (`hunt:query` permission) + tenant-scoped + depth/row/time capped; hunt queries audited.
 - **Test:** authorization tests, tenant-isolation tests (hunt cannot see other tenant), query-cap tests.
 - **Verification method:** security + integration tests.
-- **Phase:** P4. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P4. **Status:** IMPLEMENTED (P11). `sm_contracts.QueryPlan` (closed
+  schema) → `graph-service` `hunt.py` `validate_plan` + `compile_plan` (one
+  constant parameterized Cypher template per intent; only a checked label /
+  checked relationship type / clamped int depth are ever interpolated; every
+  entity value is a `$`-param; `$tenant` from the verified token, no plan field
+  for it) → `POST /api/v1/graph/hunt`. `api-gateway` `POST /api/v1/soc/hunt`
+  (`require_permission(hunt:query)` + CSRF, tenant from the session `Principal`);
+  `hunt_query` (migration `0006`) is the append-only audit trail.
+  `frontend/web/app/(soc)/hunt` — an "Ask" NL mode and a "Quick query" structured
+  form, both showing the **compiled `QueryPlan`** for transparency, with a "Pivot"
+  action (runs `list_related` on a result row). **Deviations, all deliberate:**
+  no Postgres/Neo4j full-text search, no saved queries, no `.../search` endpoint —
+  entity lookup is by natural key via `find_entity`; the endpoint is
+  `/api/v1/soc/hunt` not `/api/v1/hunt/query`. Tests: plan-validation, Cypher-
+  injection-in-a-value stays a `$`-param, real-Neo4j tenant isolation +
+  cross-tenant + hallucinated-entity, `/soc/hunt` authz + CSRF + no-tenant-field.
 
 ### R19 — Knowledge Graph Layer
 - **Purpose:** Neo4j integration, persistent attack memory, historical attacker profiling, relationship-aware traversal, attack-path analytics.
@@ -602,7 +617,21 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** authorization on the `QueryPlan` (tenant, allowed intents, depth/row caps); unsupported → `unsupported_query`; every NL query audited.
 - **Test:** "no raw Cypher execution" test, `QueryPlan` validation tests, authorization tests, injection tests, tenant-isolation tests.
 - **Verification method:** security + contract tests; adversarial prompt fixtures.
-- **Phase:** P6. **Status:** ARCHITECTURE DEFINED. Constraint **RESOLVED** (ADR-015).
+- **Phase:** P6. **Status:** IMPLEMENTED (P11). `ai-analyst` `HuntPlanner`
+  (`POST /api/v1/hunt/plan`) — the LLM emits **only** a `QueryPlan`, parsed into
+  the closed `sm_contracts.QueryPlan` model; non-JSON / invalid intent / no LLM →
+  `PlanResponse(supported=false)`. **The LLM output is never used as a query in
+  any form.** `graph-service` `hunt.py` is the deterministic compiler
+  (parameterized templates, allow-listed labels/rel-types, `$tenant` from the
+  token). `api-gateway` `POST /api/v1/soc/hunt` orchestrates plan → compile →
+  execute → grounded explain; `hunt_query` (`0006`) is the audit trail. Constraint
+  **RESOLVED** (ADR-015). **Deviations:** endpoint is `/api/v1/soc/hunt` (not
+  `/api/v1/hunt/nl`); no dedicated Neo4j read-only role (the driver + the fixed
+  read-only templates are the guarantee); no live LLM has been called
+  (deterministic adapter only, ADR-014) — with no key an NL hunt is `unsupported`.
+  Tests: "the model's output can only ever become a `QueryPlan` or `unsupported`",
+  plan-validation, injection-in-NL, injection-in-a-selector-value stays a
+  `$`-param, real-Neo4j tenant isolation.
 
 ### R33 — Attack Storytelling Engine
 - **Purpose:** cinematic attack narratives, breach replay, executive walkthroughs — grounded in actual evidence; simulations clearly labeled.
