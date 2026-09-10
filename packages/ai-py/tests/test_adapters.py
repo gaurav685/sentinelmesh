@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
+
 from sm_ai.adapters import DeterministicAdapter, HttpLlmBoundary, ScriptedReply
 from sm_ai.errors import ProviderRefused, ProviderUnavailable
 from sm_ai.messages import FinishReason, LlmResponse

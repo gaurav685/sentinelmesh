@@ -6,7 +6,6 @@ from uuid import UUID
 
 from sm_ai.messages import FinishReason, LlmMessage, LlmRequest, LlmResponse, MessageRole, TokenUsage
 from sm_ai.provider import ProviderInfo
-
 from sm_contracts import PermissionCode
 
 __all__ = ["FakePrincipal", "ScriptedProvider", "make_request", "user_msg"]

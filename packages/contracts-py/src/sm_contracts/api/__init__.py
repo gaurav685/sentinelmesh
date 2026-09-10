@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from .analyst import (
+    AnalystModelInfo,
+    EvidenceRef,
+    ExplainRequest,
+    Explanation,
+)
 from .auth import LoginRequest, LoginResponse, LogoutResponse, MeResponse
 from .graph import GraphEdge, GraphNeighborhood, GraphNode, GraphPath
 from .health import DepStatus, HealthResponse, MetaResponse, ReadyResponse
@@ -17,9 +23,13 @@ from .soc import (
 from .users import CreateUserRequest, GrantRoleRequest, RoleSummary, UserResponse
 
 __all__ = [
+    "AnalystModelInfo",
     "CreateUserRequest",
     "CursorPage",
     "DepStatus",
+    "EvidenceRef",
+    "ExplainRequest",
+    "Explanation",
     "GrantRoleRequest",
     "GraphEdge",
     "GraphNeighborhood",

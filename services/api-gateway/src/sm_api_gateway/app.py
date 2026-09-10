@@ -68,6 +68,7 @@ def build_services(settings: AppSettings) -> Services:
         graph_url=settings.graph_service_url,
         ti_url=settings.ti_service_url,
         mitre_url=settings.mitre_service_url,
+        ai_analyst_url=settings.ai_analyst_url,
     )
     return Services(
         settings=settings,

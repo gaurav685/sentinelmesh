@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from sm_ai.sanitize import FENCE_END, FENCE_START, fence_untrusted, scan_for_injection
 
 

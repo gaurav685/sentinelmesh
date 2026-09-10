@@ -283,7 +283,22 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-4; retrieved content = data not instructions; prompt + response audited.
 - **Test:** grounding tests (assert every summary claim has an evidence ref), injection tests, fallback tests, recorded-fixture LLM tests.
 - **Verification method:** contract + grounding unit tests; manual review of sample explanations (labeled as review, not metric).
-- **Phase:** P6. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P6. **Status:** IMPLEMENTED (P10, Unit 3). `services/ai-analyst`
+  (`sm_ai_analyst`, port 8010, HTTP-only). `IncidentAnalyst.explain` builds an
+  evidence bundle (every telemetry-/third-party-derived item fenced as data +
+  injection-scanned), runs `sm_ai.build_grounded_messages` + `sm_ai.LlmClient`,
+  and **validates that every `[ref]` the summary cites is a real evidence ref**
+  (one repair turn). `sm_contracts.Explanation` per §7.2. `api-gateway`
+  `GET /api/v1/soc/detections/{id}/explanation`. **Deviations, all deliberate:**
+  no live LLM has been called (no credentials, ADR-014) — `HttpLlmBoundary` is
+  written to the Anthropic Messages shape but never executed; with no key the
+  analyst returns a **deterministic factual template** (`degraded=true`). It does
+  **not** consume `detections` / `attack_chains` for pre-generation (on-demand
+  only) and does **not** persist to a Postgres `explanation` table yet.
+  `recommendations` are a fixed vetted per-subject list, never model-authored.
+  Tests: 15 (grounding kept, ungrounded / unknown-ref fallback, injection flagged
+  but answered, provider-outage → template, context rejected, route authz + 404 +
+  503). No Playwright / no live-provider fixture.
 
 ### R15 — Predictive Threat Engine
 - **Purpose:** forecast attack progression, threat-trajectory modeling, predict next attacker action, forecast lateral movement, early-compromise prediction.

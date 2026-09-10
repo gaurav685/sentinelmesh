@@ -129,6 +129,14 @@ class FakeInternalClient:
     async def mitre_heatmap(self, tenant_id: UUID) -> Any:
         return await self._answer("mitre_heatmap", tenant_id)
 
+    async def explain(self, tenant_id: UUID, payload: Any) -> Any:
+        self.calls.append(("explain", tenant_id))
+        if self.fail:
+            from sm_common.errors import DependencyUnavailable
+
+            raise DependencyUnavailable("ai-analyst unreachable")
+        return self.responses.get("explain")
+
     async def mitre_techniques(self, tenant_id: UUID) -> Any:
         return await self._answer("mitre_techniques", tenant_id)
 

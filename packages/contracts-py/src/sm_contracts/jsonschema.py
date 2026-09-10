@@ -14,6 +14,8 @@ from pydantic import BaseModel
 from .api import (
     CreateUserRequest,
     CursorPage,
+    ExplainRequest,
+    Explanation,
     GrantRoleRequest,
     GraphNeighborhood,
     GraphPath,
@@ -141,6 +143,8 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "TimelineResponse": TimelineResponse,
     "GraphNeighborhood": GraphNeighborhood,
     "GraphPath": GraphPath,
+    "ExplainRequest": ExplainRequest,
+    "Explanation": Explanation,
     "CursorPage_Detection": DetectionPage,
     "CursorPage_SecurityAlert": AlertPage,
     "CursorPage_AttackChain": ChainPage,
