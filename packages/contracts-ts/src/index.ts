@@ -1086,6 +1086,35 @@ export type TenantId23 = string;
  */
 export type TraceId11 = string | null;
 export type RoleId1 = string;
+export type Dst = string;
+export type Src = string;
+export type Type = string;
+export type Depth = number;
+/**
+ * @maxItems 20000
+ */
+export type Edges = GraphEdge[];
+export type Id7 = string;
+/**
+ * @maxItems 32
+ */
+export type Labels = string[];
+/**
+ * @maxItems 5000
+ */
+export type Nodes = GraphNode[];
+export type RootId = string;
+export type Truncated = boolean;
+/**
+ * @maxItems 64
+ */
+export type Edges1 = GraphEdge[];
+export type Found = boolean;
+export type Length = number | null;
+/**
+ * @maxItems 64
+ */
+export type Nodes1 = GraphNode[];
 export type Service = string;
 export type Status = "ok";
 export type Version1 = string;
@@ -1128,7 +1157,7 @@ export type Email2 = string;
  * OIDC `sub` for federated users; null for local-only users.
  */
 export type ExternalSubject = string | null;
-export type Id7 = string;
+export type Id8 = string;
 export type LastLoginAt = string | null;
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -1159,7 +1188,7 @@ export type Permissions1 = PermissionCode[];
  */
 export type Roles = string[];
 export type CreatedAt8 = string;
-export type Id8 = string;
+export type Id9 = string;
 export type Name3 = string;
 /**
  * URL-safe stable identifier, unique across the platform (3-40 chars, no leading/trailing hyphen).
@@ -1186,7 +1215,7 @@ export type Cells = MitreHeatmapCell[];
 export type MatrixVersion2 = string | null;
 export type Action2 = string;
 export type Description3 = string;
-export type Id9 = string;
+export type Id10 = string;
 export type ResourceType1 = string;
 export type Dependencies = DepStatus[];
 export type Ready = boolean;
@@ -1195,7 +1224,7 @@ export type Score6 = number;
 export type SubjectId4 = string;
 export type CreatedAt9 = string;
 export type Description4 = string;
-export type Id10 = string;
+export type Id11 = string;
 export type IsSystem = boolean;
 export type Name5 = string;
 export type TenantId25 = string | null;
@@ -1203,11 +1232,11 @@ export type UpdatedAt9 = string;
 export type PermissionId = string;
 export type RoleId2 = string;
 export type Description5 = string;
-export type Id11 = string;
+export type Id12 = string;
 export type IsSystem1 = boolean;
 export type Name6 = string;
 export type CreatedAt10 = string;
-export type Id12 = string;
+export type Id13 = string;
 export type LastSeenAt = string | null;
 export type Name7 = string;
 /**
@@ -1235,7 +1264,7 @@ export type CreatedAt11 = string;
  * @maxItems 64
  */
 export type Evidence1 = EvidenceItem[];
-export type Id13 = string;
+export type Id14 = string;
 export type MatrixVersion3 = string;
 export type Rationale = string;
 export type SubjectId5 = string;
@@ -1260,7 +1289,7 @@ export type Aliases = string[];
 export type CreatedAt12 = string;
 export type Description6 = string;
 export type FirstSeen5 = string | null;
-export type Id14 = string;
+export type Id15 = string;
 export type LastSeen5 = string | null;
 export type Name9 = string;
 export type Source3 = string;
@@ -1269,14 +1298,14 @@ export type ActorId4 = string | null;
 export type CreatedAt13 = string;
 export type Description7 = string;
 export type FirstSeen6 = string | null;
-export type Id15 = string;
+export type Id16 = string;
 export type LastSeen6 = string | null;
 export type Name10 = string;
 export type TenantId28 = string;
 export type UpdatedAt13 = string;
 export type CreatedAt14 = string;
 export type Enabled = boolean;
-export type Id16 = string;
+export type Id17 = string;
 export type IndicatorCount = number;
 export type LastPollAt = string | null;
 export type LastPollStatus = string | null;
@@ -1302,7 +1331,7 @@ export type Email3 = string;
  * OIDC `sub` for federated users; null for local-only users.
  */
 export type ExternalSubject1 = string | null;
-export type Id17 = string;
+export type Id18 = string;
 export type LastLoginAt1 = string | null;
 export type TenantId29 = string;
 export type UpdatedAt15 = string;
@@ -2264,6 +2293,59 @@ export interface GrantRoleRequest {
   role_id: RoleId1;
 }
 /**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "GraphEdge".
+ */
+export interface GraphEdge {
+  dst: Dst;
+  properties?: Properties;
+  src: Src;
+  type: Type;
+}
+export interface Properties {
+  [k: string]: unknown;
+}
+/**
+ * A bounded, tenant-scoped neighbourhood around one root node.
+ *
+ * `truncated` is true when the server row cap was hit — the view is partial and
+ * the UI must say so rather than implying the entity has no other neighbours.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "GraphNeighborhood".
+ */
+export interface GraphNeighborhood {
+  depth: Depth;
+  edges?: Edges;
+  nodes?: Nodes;
+  root_id: RootId;
+  truncated?: Truncated;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "GraphNode".
+ */
+export interface GraphNode {
+  id: Id7;
+  labels?: Labels;
+  properties?: Properties1;
+}
+export interface Properties1 {
+  [k: string]: unknown;
+}
+/**
+ * The shortest path between two nodes, or `found=False` when there is none.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "GraphPath".
+ */
+export interface GraphPath {
+  edges?: Edges1;
+  found: Found;
+  length?: Length;
+  nodes?: Nodes1;
+}
+/**
  * `GET /healthz` — liveness. The process is up and can serve.
  *
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -2311,7 +2393,7 @@ export interface User2 {
   display_name: DisplayName1;
   email: Email2;
   external_subject?: ExternalSubject;
-  id: Id7;
+  id: Id8;
   last_login_at?: LastLoginAt;
   status: UserStatus;
   tenant_id: TenantId24;
@@ -2344,7 +2426,7 @@ export interface MeResponse {
  */
 export interface Tenant {
   created_at: CreatedAt8;
-  id: Id8;
+  id: Id9;
   name: Name3;
   settings?: Settings;
   slug: Slug;
@@ -2394,7 +2476,7 @@ export interface Permission {
   action: Action2;
   code: PermissionCode;
   description: Description3;
-  id: Id9;
+  id: Id10;
   resource_type: ResourceType1;
 }
 /**
@@ -2431,7 +2513,7 @@ export interface RiskSubject {
 export interface Role {
   created_at: CreatedAt9;
   description: Description4;
-  id: Id10;
+  id: Id11;
   is_system: IsSystem;
   name: Name5;
   tenant_id?: TenantId25;
@@ -2451,7 +2533,7 @@ export interface RolePermission {
  */
 export interface RoleSummary {
   description: Description5;
-  id: Id11;
+  id: Id12;
   is_system: IsSystem1;
   name: Name6;
 }
@@ -2467,7 +2549,7 @@ export interface RoleSummary {
  */
 export interface Sensor {
   created_at: CreatedAt10;
-  id: Id12;
+  id: Id13;
   last_seen_at?: LastSeenAt;
   name: Name7;
   status: SensorStatus;
@@ -2503,7 +2585,7 @@ export interface TechniqueMapping {
   confidence: MappingConfidence;
   created_at: CreatedAt11;
   evidence?: Evidence1;
-  id: Id13;
+  id: Id14;
   matrix_version: MatrixVersion3;
   rationale: Rationale;
   source: MappingSource;
@@ -2540,7 +2622,7 @@ export interface ThreatActor {
   created_at: CreatedAt12;
   description?: Description6;
   first_seen?: FirstSeen5;
-  id: Id14;
+  id: Id15;
   last_seen?: LastSeen5;
   name: Name9;
   source: Source3;
@@ -2555,7 +2637,7 @@ export interface TiCampaign {
   created_at: CreatedAt13;
   description?: Description7;
   first_seen?: FirstSeen6;
-  id: Id15;
+  id: Id16;
   last_seen?: LastSeen6;
   name: Name10;
   tenant_id: TenantId28;
@@ -2568,7 +2650,7 @@ export interface TiCampaign {
 export interface TiSource {
   created_at: CreatedAt14;
   enabled: Enabled;
-  id: Id16;
+  id: Id17;
   indicator_count?: IndicatorCount;
   kind: TiSourceKind;
   last_poll_at?: LastPollAt;
@@ -2616,7 +2698,7 @@ export interface UserResponse {
   display_name: DisplayName2;
   email: Email3;
   external_subject?: ExternalSubject1;
-  id: Id17;
+  id: Id18;
   last_login_at?: LastLoginAt1;
   status: UserStatus;
   tenant_id: TenantId29;

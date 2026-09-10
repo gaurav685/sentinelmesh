@@ -22,10 +22,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from sm_common.errors import NotFound
+from sm_common.errors import DependencyUnavailable, NotFound
 from sm_contracts import (
     CursorPage,
     Detection,
+    GraphNeighborhood,
+    GraphPath,
     MitreHeatmap,
     PermissionCode,
     SecurityAlert,
@@ -189,18 +191,27 @@ async def chain(
 
 
 # ---- graph (proxy: graph-service) -------------------------
-@router.get("/graph/neighbors")
+@router.get("/graph/neighbors", response_model=GraphNeighborhood)
 async def graph_neighbors(
     label: str = Query(...),
     key: str = Query(...),
     depth: int = Query(default=1, ge=1, le=6),
     principal: Principal = Depends(_hunt),
     client: InternalServiceClient = Depends(get_internal_client),
-) -> Any:
-    return await client.graph_neighbors(principal.tenant_id, label=label, key=key, depth=depth)
+) -> GraphNeighborhood:
+    raw = await client.graph_neighbors(principal.tenant_id, label=label, key=key, depth=depth)
+    if not isinstance(raw, dict):
+        raise DependencyUnavailable("graph-service returned an unexpected response")
+    return GraphNeighborhood(
+        root_id=raw.get("root_id") or key,
+        depth=raw.get("depth", depth),
+        nodes=raw.get("nodes", []),
+        edges=raw.get("edges", []),
+        truncated=bool(raw.get("truncated", False)),
+    )
 
 
-@router.get("/graph/paths")
+@router.get("/graph/paths", response_model=GraphPath)
 async def graph_paths(
     src_label: str = Query(...),
     src_key: str = Query(...),
@@ -209,10 +220,18 @@ async def graph_paths(
     max_depth: int = Query(default=4, ge=1, le=8),
     principal: Principal = Depends(_hunt),
     client: InternalServiceClient = Depends(get_internal_client),
-) -> Any:
-    return await client.graph_paths(
+) -> GraphPath:
+    raw = await client.graph_paths(
         principal.tenant_id, src_label=src_label, src_key=src_key,
         dst_label=dst_label, dst_key=dst_key, max_depth=max_depth,
+    )
+    if not isinstance(raw, dict):
+        raise DependencyUnavailable("graph-service returned an unexpected response")
+    return GraphPath(
+        found=bool(raw.get("found", False)),
+        length=raw.get("length"),
+        nodes=raw.get("nodes", []),
+        edges=raw.get("edges", []),
     )
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .auth import LoginRequest, LoginResponse, LogoutResponse, MeResponse
+from .graph import GraphEdge, GraphNeighborhood, GraphNode, GraphPath
 from .health import DepStatus, HealthResponse, MetaResponse, ReadyResponse
 from .pagination import CursorPage
 from .soc import (
@@ -20,6 +21,10 @@ __all__ = [
     "CursorPage",
     "DepStatus",
     "GrantRoleRequest",
+    "GraphEdge",
+    "GraphNeighborhood",
+    "GraphNode",
+    "GraphPath",
     "HealthResponse",
     "LoginRequest",
     "LoginResponse",

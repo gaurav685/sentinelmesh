@@ -5,10 +5,17 @@ import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { ErrorState, Loading } from "@/components/states";
 import { Severity } from "@/components/Severity";
+import { LiveBadge } from "@/components/LiveBadge";
+
+const REFRESH_MS = 20_000;
 
 export default function DashboardPage() {
-  const summary = useResource((signal) => api.socSummary(signal));
-  const alerts = useResource((signal) => api.alerts({ limit: 8, status: "open" }, signal));
+  const summary = useResource((signal) => api.socSummary(signal), [], { refreshMs: REFRESH_MS });
+  const alerts = useResource(
+    (signal) => api.alerts({ limit: 8, status: "open" }, signal),
+    [],
+    { refreshMs: REFRESH_MS },
+  );
 
   if (summary.loading) return <Loading label="Loading the dashboard…" />;
   if (summary.error) return <ErrorState error={summary.error} onRetry={summary.reload} />;
@@ -18,7 +25,17 @@ export default function DashboardPage() {
 
   return (
     <div className="grid">
-      <h1>Overview</h1>
+      <div className="page-head">
+        <h1>Overview</h1>
+        <LiveBadge
+          updatedAt={summary.updatedAt}
+          refreshMs={REFRESH_MS}
+          onRefresh={() => {
+            summary.reload();
+            alerts.reload();
+          }}
+        />
+      </div>
 
       <div className="grid grid--metrics">
         <div className="panel">

@@ -128,3 +128,32 @@ def test_chain_detail_404_when_the_service_returns_none(client: TestClient, fixt
     fixture.services.internal_client.responses["chain"] = None
     do_login("acme", fixture.acme_analyst.email)
     assert client.get(f"/api/v1/soc/chains/{uuid.uuid4()}").status_code == 404
+
+
+def test_graph_neighbors_returns_a_typed_neighbourhood(client: TestClient, fixture, do_login) -> None:
+    fixture.services.internal_client.responses["graph_neighbors"] = {
+        "depth": 2,
+        "nodes": [{"id": "h-1", "labels": ["Host"], "properties": {"name": "web01"}}],
+        "edges": [{"src": "h-1", "dst": "h-1", "type": "SELF", "properties": {}}],
+        "truncated": True,
+    }
+    do_login("acme", fixture.acme_analyst.email)
+    r = client.get(
+        "/api/v1/soc/graph/neighbors", params={"label": "Host", "key": "web01", "depth": 2}
+    )
+    assert r.status_code == 200
+    body = r.json()
+    # graph-service did not send a root_id; the BFF fills it from the requested key
+    assert body["root_id"] == "web01"
+    assert body["truncated"] is True
+    assert body["depth"] == 2
+    assert body["nodes"][0]["id"] == "h-1"
+
+
+def test_graph_neighbors_503_when_the_service_answers_with_a_non_object(
+    client: TestClient, fixture, do_login
+) -> None:
+    fixture.services.internal_client.responses["graph_neighbors"] = ["not", "an", "object"]
+    do_login("acme", fixture.acme_analyst.email)
+    r = client.get("/api/v1/soc/graph/neighbors", params={"label": "Host", "key": "web01"})
+    assert r.status_code == 503
