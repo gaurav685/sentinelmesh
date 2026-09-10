@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from .agent import (
+    AgentFinding,
+    AgentRunRequest,
+    AgentRunResult,
+    ProposedActionOut,
+)
 from .analyst import (
     AnalystModelInfo,
     EvidenceRef,
@@ -23,6 +29,9 @@ from .soc import (
 from .users import CreateUserRequest, GrantRoleRequest, RoleSummary, UserResponse
 
 __all__ = [
+    "AgentFinding",
+    "AgentRunRequest",
+    "AgentRunResult",
     "AnalystModelInfo",
     "CreateUserRequest",
     "CursorPage",
@@ -43,6 +52,7 @@ __all__ = [
     "MetaResponse",
     "MitreHeatmap",
     "MitreHeatmapCell",
+    "ProposedActionOut",
     "ReadyResponse",
     "RiskSubject",
     "RoleSummary",

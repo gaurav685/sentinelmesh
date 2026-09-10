@@ -12,6 +12,8 @@ from typing import Any
 from pydantic import BaseModel
 
 from .api import (
+    AgentRunRequest,
+    AgentRunResult,
     CreateUserRequest,
     CursorPage,
     ExplainRequest,
@@ -145,6 +147,8 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "GraphPath": GraphPath,
     "ExplainRequest": ExplainRequest,
     "Explanation": Explanation,
+    "AgentRunRequest": AgentRunRequest,
+    "AgentRunResult": AgentRunResult,
     "CursorPage_Detection": DetectionPage,
     "CursorPage_SecurityAlert": AlertPage,
     "CursorPage_AttackChain": ChainPage,

@@ -11,11 +11,12 @@ from sm_common.errors import Unauthenticated
 from sm_common.observability import Metrics
 from sm_common.security import InternalPrincipal, verify_internal_token
 
+from .agents import AgentRunner
 from .analyst import IncidentAnalyst
 from .metrics import AnalystMetrics
 from .version import SERVICE_NAME
 
-__all__ = ["Services", "get_analyst", "get_principal", "get_services"]
+__all__ = ["Services", "get_agent_runner", "get_analyst", "get_principal", "get_services"]
 
 
 @dataclass
@@ -24,6 +25,7 @@ class Services:
     metrics: Metrics
     analyst_metrics: AnalystMetrics
     analyst: IncidentAnalyst
+    agent_runner: AgentRunner
     #: True when a real provider key is configured; False = template-only.
     llm_live_capable: bool
 
@@ -35,6 +37,10 @@ def get_services(request: Request) -> Services:
 
 def get_analyst(services: Services = Depends(get_services)) -> IncidentAnalyst:
     return services.analyst
+
+
+def get_agent_runner(services: Services = Depends(get_services)) -> AgentRunner:
+    return services.agent_runner
 
 
 def get_principal(

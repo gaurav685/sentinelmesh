@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from sm_ai_analyst.agents import AgentRunner
 from sm_ai_analyst.analyst import IncidentAnalyst
 from sm_ai_analyst.app import create_app
 from sm_ai_analyst.deps import Services
@@ -18,16 +19,18 @@ from .conftest import build_settings, canned_client, make_request, token
 def client() -> Any:
     base = build_metrics("ai-analyst")
     am = AnalystMetrics(base, "ai-analyst")
+    settings = build_settings()
     analyst = IncidentAnalyst(
         canned_client("Repeated failed logins [det-1] indicate brute force [T1110]."),
         model="test-model",
         max_output_tokens=400,
     )
     services = Services(
-        settings=build_settings(),
+        settings=settings,
         metrics=base,
         analyst_metrics=am,
         analyst=analyst,
+        agent_runner=AgentRunner(None, model="test-model", settings=settings),
         llm_live_capable=False,
     )
     with TestClient(create_app(services=services)) as c:

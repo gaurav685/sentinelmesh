@@ -36,6 +36,18 @@ never claims a live-provider result it did not get.
 - The LLM output can only ever become `summary` text; `recommendations` are a
   fixed per-subject list, so an injection cannot turn them into instructions.
 
+## Multi-agent defense (`POST /api/v1/agents/run`)
+
+Runs a named defense agent (`detection-agent` / `threat-intel-agent` /
+`response-orchestration-agent`) over supplied evidence. The agent has a **tool
+allow-list** and one registered tool (`search_evidence`, which searches the
+provided bundle and needs no permission); any other tool it asks for is refused.
+`run_agent` bounds it with `SM_AGENT_MAX_STEPS` / `SM_AGENT_MAX_TOOL_CALLS` /
+`SM_AGENT_WALL_CLOCK_TIMEOUT_S` / `SM_AGENT_MAX_LLM_TOKENS_PER_RUN`. An agent
+**cannot spawn another agent** and **cannot execute** anything. The response
+agent emits proposals; `sm_ai.action_gate` decides — never `allowed` under the
+shipped `SM_RESPONSE_MODE=suggest_only`. No LLM key → `status="failed"`.
+
 ## Config
 
 `SM_LLM_DEFAULT_PROVIDER`, `SM_LLM_DEFAULT_MODEL`, `SM_LLM_API_KEY`,

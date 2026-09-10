@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Any, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel, ValidationError
@@ -32,9 +32,6 @@ __all__ = [
     "ToolOutcome",
     "ToolPrincipal",
 ]
-
-ArgsT = TypeVar("ArgsT", bound=BaseModel)
-
 
 class ToolPrincipal(Protocol):
     """The minimal view of the caller a tool needs. The AI service adapts its
@@ -78,17 +75,21 @@ class Tool(Protocol):
 
 
 @dataclass
-class FunctionTool(Generic[ArgsT]):
-    """Wrap an async function as a `Tool`."""
+class FunctionTool:
+    """Wrap an async function as a `Tool`.
+
+    `handler` receives an instance of `args_model` (the registry validates the
+    raw arguments before calling `run`).
+    """
 
     name: str
     description: str
-    args_model: type[ArgsT]
-    handler: Callable[[ArgsT, ToolContext], Awaitable[ToolOutcome]]
+    args_model: type[BaseModel]
+    handler: Callable[[Any, ToolContext], Awaitable[ToolOutcome]]
     required_permission: PermissionCode | None = None
     result_model: type[BaseModel] | None = None
 
-    def parse_args(self, raw: dict[str, Any]) -> ArgsT:
+    def parse_args(self, raw: dict[str, Any]) -> BaseModel:
         try:
             return self.args_model.model_validate(raw)
         except ValidationError as exc:

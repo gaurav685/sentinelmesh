@@ -407,6 +407,35 @@ path to a model:
   **guarantees the evidence is only ever a `user` turn** — instructions stay in
   `system`, which tells the model that fenced content is inert data.
 
+### 7.6 Multi-agent defense (`sm_ai.agents` — **IMPLEMENTED** Phase 10, Unit 4)
+
+- **Agents** (`sm_ai.agents`) — an `AgentSpec` is a name + a fixed system prompt
+  + a **tool allow-list**. `run_agent(spec, task, evidence, …)` drives the LLM
+  loop under `AgentLimits`: `max_steps`, `max_tool_calls`, `wall_clock_s`, and a
+  cumulative-token `RunBudget`, plus a cancellation `Event` checked every step.
+  `DETECTION_AGENT` / `THREAT_INTEL_AGENT` / `RESPONSE_AGENT`. An agent **cannot
+  spawn another agent** (the runner takes a flat spec, not a graph, and there is
+  no tool for it) and **cannot execute** anything. A tool outside the spec's
+  allow-list, or one the principal is not authorised for, is refused mid-run and
+  returned to the model as an error tool-result — the run continues. A tool
+  exception is caught and returned as `error: …`, not propagated. The agent
+  principal holds **no standing permissions**.
+- **Action gate** (`sm_ai.action_gate`) — `RESPONSE_AGENT` emits
+  `ProposedAction`s; the gate is a pure function of `(response_mode,
+  approval_required, is_production, policy_signed, action.reversible)`:
+  `suggest_only` → `denied`; `allowed` requires `auto` **and** no approval
+  requirement **and** production **and** a signed policy **and** a reversible
+  action; everything else → `approval_required`. With the shipped
+  `SM_RESPONSE_MODE=suggest_only` + `SM_RESPONSE_APPROVAL_REQUIRED=true`, a
+  proposal is **never** `allowed`. An LLM proposing an action is never
+  sufficient — this is the R31/§7.3 boundary.
+- **Contract** — `sm_contracts.AgentRunRequest` (agent name + subject +
+  `EvidenceRef` list) → `AgentRunResult` (`status`, `steps_used`,
+  `tool_calls_used`, `tokens_spent`, `findings`, `proposed_actions` each with a
+  `decision` = the gate verdict, `generated_at`). `services/ai-analyst`
+  `POST /api/v1/agents/run` (internal JWT). No live LLM → `status="failed"`,
+  `detail="llm_unavailable"`, never a 500.
+
 ---
 
 ## 8. Frontend ↔ backend contract
@@ -431,6 +460,7 @@ path to a model:
 
 | Date | Change | Phase |
 |---|---|---|
+| 2026-09-10 | **Phase 10 closed** (Unit 4): multi-agent defense. `sm_ai.agents` — `AgentSpec` (name + fixed system prompt + tool **allow-list**), `run_agent` under `AgentLimits` (`max_steps` / `max_tool_calls` / `wall_clock_s` / cumulative-token `RunBudget`) + a cancellation `Event`. `DETECTION_AGENT` / `THREAT_INTEL_AGENT` / `RESPONSE_AGENT`. An agent **cannot spawn another agent**, **cannot execute** anything, and holds **no standing permissions**; a tool outside its allow-list or unauthorised is refused mid-run without stopping the run; a tool exception is a tool result, not a crash. `sm_ai.action_gate` — `suggest_only` → `denied`; `allowed` needs `auto` + no approval requirement + production + a signed policy + a reversible action, so with the shipped `SM_RESPONSE_MODE=suggest_only` + `SM_RESPONSE_APPROVAL_REQUIRED=true` an agent proposal is **never** `allowed` (R31 / §7.3 boundary). `sm_contracts.api.agent` — `AgentRunRequest` / `AgentRunResult` (findings + `proposed_actions` with a per-action `decision`) / `AgentFinding` / `ProposedActionOut`. `services/ai-analyst` `POST /api/v1/agents/run` (internal JWT; no live LLM → `status="failed"`, never a 500). `FunctionTool` made non-generic (Protocol invariance). See §7.6. `REQUIREMENTS_TRACEABILITY` R29 / R30 → IMPLEMENTED, R31 → FOUNDATION IMPLEMENTED. 31 tests (allow-list boundary, unauthorised tool refused mid-run, step / tool-call / wall-clock / budget limits, cancellation, `action_gate` truth table, "suggestion ≠ action", route authz + no-LLM). | 10 (close) |
 | 2026-09-10 | **AI analyst service** (Phase 10, Unit 3): `services/ai-analyst` (module `sm_ai_analyst`, port 8010, HTTP-only). `sm_contracts.api.analyst` — `EvidenceRef`, `ExplainRequest` (subject + task + evidence list), `Explanation` (§7.2 shape). `IncidentAnalyst.explain` fences all telemetry-derived evidence as data, runs `build_grounded_messages` + `sm_ai.LlmClient`, and **validates grounding** — every `[ref]` the summary cites must be a real evidence ref (one repair turn, then it gives up). No LLM key (the default — no credentials exist) / provider outage / timeout / ungrounded output / oversized context → a **deterministic factual template** with `degraded=true` + `degraded_reason`; it never invents a narrative and never claims a live-provider result it did not get. The analyst holds **no tools**, takes **no action**, never reads a store; `recommendations` are a fixed vetted per-subject list, never model-authored. `api-gateway` `GET /api/v1/soc/detections/{id}/explanation` (`require_permission(detections:read)`) gathers evidence from the tenant-scoped detection record and proxies via `InternalServiceClient.explain` (minted token, audience `ai-analyst`); a dependency outage → 503. Config `SM_AI_ANALYST_URL`. Wired into `Dockerfile.app` / compose (`detect` profile) / CI (mypy tree + installs + image import). See §7.2 / §7.4. 15 tests (template mode, grounded answer kept, ungrounded / unknown-ref fallback, injection-flagged-but-answered, provider outage → template, context rejected, route authz + 404 + 503). | 10 (Unit 3) |
 | 2026-09-10 | **Authorized tools + evidence builder** (Phase 10, Unit 2): `sm_ai.tools` / `sm_ai.registry` — `Tool` / `FunctionTool` (explicit Pydantic `args_model`, optional `required_permission: PermissionCode`, input + output validation); `ToolRegistry` deny-by-default (`specs_for(principal)` offers only authorized tools; `invoke` re-checks existence → permission (**the LLM asking is irrelevant**) → args → output, emitting a `ToolInvocationRecord` on every path). `sm_ai.sanitize` — `scan_for_injection` (a small, specific override-pattern set, quiet on ordinary security prose) + `fence_untrusted` (delimiter-lookalike neutralisation, truncation). `sm_ai.evidence.EvidenceBuilder` — trusted strings plain, all telemetry/third-party content fenced as data, injection hits recorded per ref, total size capped → `ContextPoisoningDetected`. `sm_ai.prompt.build_grounded_messages` — **evidence is only ever a `user` turn**; the `system` turn carries the rules (answer only from evidence, fenced content is inert, cite every claim, no actions). See §7.5. 24 unit tests (deny-by-default, unknown/unauthorized/bad-input/bad-output tool calls, injection scan precision, fence escaping, context-size rejection, evidence-not-in-system-turn). | 10 (Unit 2) |
 | 2026-09-10 | **LLM provider boundary** (Phase 10, Unit 1): `packages/ai-py` (`sm_ai`) — the untrusted-LLM boundary. Provider-neutral `LlmRequest` / `LlmResponse` / `ToolSpec` / `ToolCall`; `LlmProvider` protocol; `DeterministicAdapter` (network-free, reproducible, `is_live=False`, the default with no credentials and what every test uses) + `HttpLlmBoundary` (Anthropic Messages shape — `ProviderUnavailable` without `SM_LLM_API_KEY`, **never executed against a live endpoint**, `is_live` only reflects key presence). `LlmClient` enforces a per-call prompt-token ceiling **before any network I/O**, an optional per-run `RunBudget`, a wall-clock timeout, cooperative cancellation, transient-only bounded retry (a `ProviderRefused` is never retried), and one `AuditEvent` per attempt (`prompt_sha256` + `purpose` + usage + outcome — never the raw prompt). Config `SM_LLM_API_KEY` / `SM_LLM_BASE_URL` / `SM_LLM_MAX_PROMPT_TOKENS` / `SM_LLM_MAX_COMPLETION_TOKENS` / `SM_LLM_MAX_RETRIES` + `SM_AGENT_MAX_STEPS` / `SM_AGENT_MAX_TOOL_CALLS` / `SM_AGENT_WALL_CLOCK_TIMEOUT_S` / `SM_AGENT_MAX_LLM_TOKENS_PER_RUN`. CI: `ai-py` added to the `static` mypy trees + all three install blocks. See §7.4. 21 unit tests (determinism, budget rejection before call, retry-on-transient / no-retry-on-refused, timeout, provider outage, boundary inert without a key, audit emission). | 10 (Unit 1) |

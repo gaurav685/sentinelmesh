@@ -18,6 +18,18 @@ did not already hold.
 from __future__ import annotations
 
 from .adapters import DeterministicAdapter, HttpLlmBoundary, ScriptedReply
+from .agents import (
+    DETECTION_AGENT,
+    RESPONSE_AGENT,
+    THREAT_INTEL_AGENT,
+    AgentLimits,
+    AgentReport,
+    AgentSpec,
+    Finding,
+    ProposedAction,
+    action_gate,
+    run_agent,
+)
 from .client import AuditEvent, LlmClient
 from .errors import (
     AiError,
@@ -53,6 +65,12 @@ from .tools import FunctionTool, Tool, ToolContext, ToolOutcome, ToolPrincipal
 
 __all__ = [
     "ANALYST_SYSTEM_RULES",
+    "DETECTION_AGENT",
+    "RESPONSE_AGENT",
+    "THREAT_INTEL_AGENT",
+    "AgentLimits",
+    "AgentReport",
+    "AgentSpec",
     "AiError",
     "AuditEvent",
     "ContextPoisoningDetected",
@@ -60,6 +78,7 @@ __all__ = [
     "EvidenceBuilder",
     "EvidenceBundle",
     "EvidenceItem",
+    "Finding",
     "FinishReason",
     "FunctionTool",
     "HttpLlmBoundary",
@@ -71,6 +90,7 @@ __all__ = [
     "MessageRole",
     "OutputValidationError",
     "PromptInjectionDetected",
+    "ProposedAction",
     "ProviderInfo",
     "ProviderRefused",
     "ProviderTimeout",
@@ -91,9 +111,11 @@ __all__ = [
     "ToolRegistry",
     "ToolSpec",
     "UnknownToolError",
+    "action_gate",
     "build_grounded_messages",
     "estimate_message_tokens",
     "estimate_tokens",
     "fence_untrusted",
+    "run_agent",
     "scan_for_injection",
 ]
