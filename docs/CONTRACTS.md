@@ -244,6 +244,24 @@ Every entity above is justified by a numbered requirement in
   time-limited (`SM_NEO4J_QUERY_TIMEOUT_MS`). `_`-prefixed props and `uid` are
   stripped from responses. No caller supplies raw Cypher. Response models
   (`EntityResponse` / `NeighborsResponse` / `PathResponse`) are DRAFT, service-local.
+- **Threat-hunting query path (`POST /api/v1/graph/hunt`, **IMPLEMENTED** Phase 11
+  Unit 1):** the caller sends a `sm_contracts.QueryPlan` — a **closed schema**: a
+  `HuntIntent` ∈ {`find_entity`, `list_related`, `path_between`, `detections_for`,
+  `chains_for`, `indicator_sightings`, `technique_usage`} over typed
+  `EntitySelector`s + `QueryLimits`. `graph-service` `hunt.py` `validate_plan`
+  rejects anything outside the capability set (wrong selector count/type for the
+  intent, an unknown `rel_type`, `rel_types` on a non-`list_related` intent) →
+  422. `compile_plan` maps the intent to **one constant parameterized Cypher
+  template**; the only interpolations are a node label (checked against
+  `GRAPH_NODE_LABELS`), relationship-type names (checked against
+  `GRAPH_REL_TYPES`), and an integer depth clamped to `SM_HUNT_MAX_DEPTH` (3).
+  Every entity value the caller supplied is a `$`-parameter — it never reaches
+  the query text. The tenant is `$tenant` from the verified token — `QueryPlan`
+  has **no tenant field**, so a plan cannot widen scope. Read-only, row-capped by
+  `SM_HUNT_MAX_ROWS` (200) on top of the plan's own limit. `HuntResult.cypher_fingerprint`
+  is the sha256 of the template text (not the params) — it proves which of the
+  fixed queries ran and leaks nothing. A non-existent (hallucinated) entity is an
+  honest empty result, not an error.
 
 ---
 
@@ -460,6 +478,7 @@ path to a model:
 
 | Date | Change | Phase |
 |---|---|---|
+| 2026-09-10 | **Hunt query plan + deterministic compiler** (Phase 11, Unit 1): `sm_contracts.api.hunt` — `QueryPlan` (**closed schema**: `HuntIntent` ∈ {find_entity, list_related, path_between, detections_for, chains_for, indicator_sightings, technique_usage}, typed `EntitySelector`s, a `rel_types` allow-list, `QueryLimits`), `NlHuntRequest`, `PlanResponse` (`supported` + optional `plan` + `unsupported_reason`), `HuntResult` (rows + `cypher_fingerprint` + `explanation`). `graph-service` `hunt.py` — `validate_plan` (capability-set enforcement), `compile_plan` (intent → one constant parameterized Cypher template; label/reltype/int-depth are the only interpolations, all allow-listed; every value is a `$` param; `$tenant` from the token, no plan field for it), `HuntRunner`. `POST /api/v1/graph/hunt` (internal JWT; a plan outside the set → 422). `SM_HUNT_MAX_ROWS` (200) / `SM_HUNT_MAX_DEPTH` (3), applied on top of the plan's own limits. See §5. Real-Neo4j `test_hunt_neo4j.py` (tenant-scoped, cross-tenant isolation, hallucinated entity → empty). 17 unit tests. | 11 (Unit 1) |
 | 2026-09-10 | **Phase 10 CI-verified** — final run `34432159191`, all five jobs (unit runs `34429226626` / `34429715242` / `34430968254`). | 10 (close) |
 | 2026-09-10 | **Phase 10 closed** (Unit 4): multi-agent defense. `sm_ai.agents` — `AgentSpec` (name + fixed system prompt + tool **allow-list**), `run_agent` under `AgentLimits` (`max_steps` / `max_tool_calls` / `wall_clock_s` / cumulative-token `RunBudget`) + a cancellation `Event`. `DETECTION_AGENT` / `THREAT_INTEL_AGENT` / `RESPONSE_AGENT`. An agent **cannot spawn another agent**, **cannot execute** anything, and holds **no standing permissions**; a tool outside its allow-list or unauthorised is refused mid-run without stopping the run; a tool exception is a tool result, not a crash. `sm_ai.action_gate` — `suggest_only` → `denied`; `allowed` needs `auto` + no approval requirement + production + a signed policy + a reversible action, so with the shipped `SM_RESPONSE_MODE=suggest_only` + `SM_RESPONSE_APPROVAL_REQUIRED=true` an agent proposal is **never** `allowed` (R31 / §7.3 boundary). `sm_contracts.api.agent` — `AgentRunRequest` / `AgentRunResult` (findings + `proposed_actions` with a per-action `decision`) / `AgentFinding` / `ProposedActionOut`. `services/ai-analyst` `POST /api/v1/agents/run` (internal JWT; no live LLM → `status="failed"`, never a 500). `FunctionTool` made non-generic (Protocol invariance). See §7.6. `REQUIREMENTS_TRACEABILITY` R29 / R30 → IMPLEMENTED, R31 → FOUNDATION IMPLEMENTED. 31 tests (allow-list boundary, unauthorised tool refused mid-run, step / tool-call / wall-clock / budget limits, cancellation, `action_gate` truth table, "suggestion ≠ action", route authz + no-LLM). | 10 (close) |
 | 2026-09-10 | **AI analyst service** (Phase 10, Unit 3): `services/ai-analyst` (module `sm_ai_analyst`, port 8010, HTTP-only). `sm_contracts.api.analyst` — `EvidenceRef`, `ExplainRequest` (subject + task + evidence list), `Explanation` (§7.2 shape). `IncidentAnalyst.explain` fences all telemetry-derived evidence as data, runs `build_grounded_messages` + `sm_ai.LlmClient`, and **validates grounding** — every `[ref]` the summary cites must be a real evidence ref (one repair turn, then it gives up). No LLM key (the default — no credentials exist) / provider outage / timeout / ungrounded output / oversized context → a **deterministic factual template** with `degraded=true` + `degraded_reason`; it never invents a narrative and never claims a live-provider result it did not get. The analyst holds **no tools**, takes **no action**, never reads a store; `recommendations` are a fixed vetted per-subject list, never model-authored. `api-gateway` `GET /api/v1/soc/detections/{id}/explanation` (`require_permission(detections:read)`) gathers evidence from the tenant-scoped detection record and proxies via `InternalServiceClient.explain` (minted token, audience `ai-analyst`); a dependency outage → 503. Config `SM_AI_ANALYST_URL`. Wired into `Dockerfile.app` / compose (`detect` profile) / CI (mypy tree + installs + image import). See §7.2 / §7.4. 15 tests (template mode, grounded answer kept, ungrounded / unknown-ref fallback, injection-flagged-but-answered, provider outage → template, context rejected, route authz + 404 + 503). | 10 (Unit 3) |

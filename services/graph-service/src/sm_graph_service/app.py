@@ -31,6 +31,7 @@ from sm_common.observability import build_metrics, configure_tracing, shutdown_t
 
 from .deps import Services
 from .engine import GraphEngine
+from .hunt import HuntRunner
 from .metrics import GraphMetrics
 from .repository import GraphRepository
 from .routes import graph as graph_routes
@@ -53,6 +54,9 @@ def build_services(settings: AppSettings) -> Services:
         max_rows=settings.neo4j_query_max_rows,
         max_depth=settings.neo4j_traversal_max_depth,
     )
+    hunt_runner = HuntRunner(
+        graph, max_rows=settings.hunt_max_rows, max_depth=settings.hunt_max_depth
+    )
     producer = EventBusProducer.from_settings(settings, metrics=base_metrics)
     group = settings.kafka_consumer_group or DEFAULT_CONSUMER_GROUP
     consumer = EventBusConsumer.from_settings(
@@ -69,8 +73,8 @@ def build_services(settings: AppSettings) -> Services:
     )
     return Services(
         settings=settings, metrics=base_metrics, graph_metrics=graph_metrics,
-        graph=graph, repository=repository, producer=producer, consumer=consumer,
-        engine=engine, processor=processor,
+        graph=graph, repository=repository, hunt_runner=hunt_runner,
+        producer=producer, consumer=consumer, engine=engine, processor=processor,
     )
 
 

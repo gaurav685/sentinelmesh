@@ -17,6 +17,14 @@ from .analyst import (
 from .auth import LoginRequest, LoginResponse, LogoutResponse, MeResponse
 from .graph import GraphEdge, GraphNeighborhood, GraphNode, GraphPath
 from .health import DepStatus, HealthResponse, MetaResponse, ReadyResponse
+from .hunt import (
+    EntitySelector,
+    HuntResult,
+    NlHuntRequest,
+    PlanResponse,
+    QueryLimits,
+    QueryPlan,
+)
 from .pagination import CursorPage
 from .soc import (
     MitreHeatmap,
@@ -36,6 +44,7 @@ __all__ = [
     "CreateUserRequest",
     "CursorPage",
     "DepStatus",
+    "EntitySelector",
     "EvidenceRef",
     "ExplainRequest",
     "Explanation",
@@ -45,6 +54,7 @@ __all__ = [
     "GraphNode",
     "GraphPath",
     "HealthResponse",
+    "HuntResult",
     "LoginRequest",
     "LoginResponse",
     "LogoutResponse",
@@ -52,7 +62,11 @@ __all__ = [
     "MetaResponse",
     "MitreHeatmap",
     "MitreHeatmapCell",
+    "NlHuntRequest",
+    "PlanResponse",
     "ProposedActionOut",
+    "QueryLimits",
+    "QueryPlan",
     "ReadyResponse",
     "RiskSubject",
     "RoleSummary",

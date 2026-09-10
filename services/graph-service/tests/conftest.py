@@ -217,6 +217,7 @@ def app_client() -> AsyncIterator[Any]:
     from sm_common.bus import RecordProcessor
     from sm_graph_service.app import create_app
     from sm_graph_service.deps import Services
+    from sm_graph_service.hunt import HuntRunner
     from sm_graph_service.repository import GraphRepository
 
     base = build_metrics("graph-service")
@@ -232,6 +233,7 @@ def app_client() -> AsyncIterator[Any]:
     services = Services(
         settings=build_settings(), metrics=base, graph_metrics=gm, graph=graph,  # type: ignore[arg-type]
         repository=GraphRepository(graph, max_rows=1000, max_depth=8),  # type: ignore[arg-type]
+        hunt_runner=HuntRunner(graph, max_rows=200, max_depth=3),  # type: ignore[arg-type]
         producer=producer, consumer=FakeConsumer(), engine=engine, processor=processor,
     )
     app = create_app(services=services)

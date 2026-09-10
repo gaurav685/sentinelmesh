@@ -58,6 +58,64 @@ def test_entity_404_when_missing(app_client: Any) -> None:
     assert r.status_code == 404
 
 
+# ---- hunt ----------------------------------------------------------------
+def _plan(intent: str, *selectors: tuple[str, str], **kw: Any) -> dict[str, Any]:
+    return {
+        "intent": intent,
+        "selectors": [{"type": t, "value": v} for t, v in selectors],
+        **kw,
+    }
+
+
+def test_hunt_requires_a_bearer_token(app_client: Any) -> None:
+    r = app_client.post("/api/v1/graph/hunt", json=_plan("find_entity", ("host", "web01")))
+    assert r.status_code == 401
+
+
+def test_hunt_runs_a_validated_plan_scoped_to_the_token_tenant(app_client: Any) -> None:
+    app_client.fake_graph.read_plan = [
+        [{"id": "n1", "labels": ["Host"], "props": {"host_id": "web01", "uid": "z"}}]
+    ]
+    r = app_client.post(
+        "/api/v1/graph/hunt",
+        json=_plan("find_entity", ("host", "web01")),
+        headers=_auth(),
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["intent"] == "find_entity"
+    assert body["rows"][0]["properties"] == {"host_id": "web01"}
+    assert body["cypher_fingerprint"]
+    cypher, params = app_client.fake_graph.reads[-1]
+    assert params["tenant"] == str(TENANT)
+    assert "web01" not in cypher and params["v0"] == "web01"
+
+
+def test_hunt_rejects_a_plan_outside_the_capability_set(app_client: Any) -> None:
+    r = app_client.post(
+        "/api/v1/graph/hunt",
+        json=_plan("path_between", ("host", "web01")),  # needs 2 selectors
+        headers=_auth(),
+    )
+    assert r.status_code == 422
+
+
+def test_hunt_rejects_an_unknown_intent_at_the_schema(app_client: Any) -> None:
+    r = app_client.post(
+        "/api/v1/graph/hunt",
+        json=_plan("delete_everything", ("host", "web01")),
+        headers=_auth(),
+    )
+    assert r.status_code == 422
+
+
+def test_hunt_rejects_a_stray_tenant_field_in_the_body(app_client: Any) -> None:
+    body = _plan("find_entity", ("host", "web01"))
+    body["tenant_id"] = str(uuid.uuid4())  # SmBaseModel extra=forbid
+    r = app_client.post("/api/v1/graph/hunt", json=body, headers=_auth())
+    assert r.status_code == 422
+
+
 def test_bad_label_is_a_422(app_client: Any) -> None:
     r = app_client.get(
         "/api/v1/graph/entity", params={"label": ":Wormhole", "key": "x"}, headers=_auth()

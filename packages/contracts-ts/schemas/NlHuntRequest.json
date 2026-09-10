@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A natural-language hunt. `api-gateway` sends this to `ai-analyst`, which\nreturns a `QueryPlan` or `unsupported`.",
+  "properties": {
+    "max_rows": {
+      "default": 100,
+      "maximum": 500,
+      "minimum": 1,
+      "title": "Max Rows",
+      "type": "integer"
+    },
+    "query": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Query",
+      "type": "string"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "NlHuntRequest",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
