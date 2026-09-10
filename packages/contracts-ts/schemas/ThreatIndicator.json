@@ -47,7 +47,7 @@
           "type": "string"
         },
         "source_kind": {
-          "$ref": "#/definitions/TiSourceKind"
+          "$ref": "#/$defs/TiSourceKind"
         }
       },
       "required": [
@@ -95,7 +95,7 @@
       "title": "Actor Id"
     },
     "confidence": {
-      "$ref": "#/definitions/TiConfidence"
+      "$ref": "#/$defs/TiConfidence"
     },
     "created_at": {
       "format": "date-time",
@@ -121,7 +121,7 @@
       "type": "string"
     },
     "freshness": {
-      "$ref": "#/definitions/IndicatorFreshness"
+      "$ref": "#/$defs/IndicatorFreshness"
     },
     "id": {
       "format": "uuid",
@@ -134,7 +134,7 @@
       "type": "string"
     },
     "provenance": {
-      "$ref": "#/definitions/Provenance"
+      "$ref": "#/$defs/Provenance"
     },
     "reputation": {
       "description": "Rule-derived, 1 = most malicious.",
@@ -172,7 +172,7 @@
       "title": "Tenant Id"
     },
     "type": {
-      "$ref": "#/definitions/IndicatorType"
+      "$ref": "#/$defs/IndicatorType"
     },
     "updated_at": {
       "format": "date-time",

@@ -87,18 +87,42 @@ def _maybe_generate_ts() -> None:
         )
         return
     TS_DIR.mkdir(parents=True, exist_ok=True)
+    for old in TS_DIR.glob("*.ts"):
+        old.unlink()
+
+    # One combined `$defs`-only schema -> one file. json2ts emits an interface per
+    # def and de-dupes nested shapes, so there are no name collisions and the
+    # frontend imports everything from `@sentinelmesh/contracts`.
+    defs: dict[str, object] = {}
     for schema_file in sorted(SCHEMA_DIR.glob("*.json")):
-        out_file = TS_DIR / f"{schema_file.stem}.ts"
-        subprocess.run(
-            [str(j2t), "-i", str(schema_file), "-o", str(out_file), "--additionalProperties", "false"],
-            check=True,
-        )
-    index = TS_DIR / "index.ts"
-    index.write_text(
-        "".join(f'export * from "./{p.stem}";\n' for p in sorted(SCHEMA_DIR.glob("*.json"))),
+        doc = json.loads(schema_file.read_text(encoding="utf-8"))
+        for k, v in doc.pop("$defs", {}).items():
+            defs.setdefault(k, v)
+        for noise in ("x-sentinelmesh-contracts-version", "$schema"):
+            doc.pop(noise, None)
+        defs[schema_file.stem] = doc
+
+    combined = TS_DIR.parent / "schemas" / "_combined.schema.json"
+    combined.write_text(
+        json.dumps(
+            {"$schema": "https://json-schema.org/draft/2020-12/schema",
+             "title": "SentinelMeshContracts", "$defs": defs},
+            indent=2, sort_keys=True,
+        ),
         encoding="utf-8",
     )
-    print(f"wrote TypeScript types to {TS_DIR.relative_to(REPO_ROOT)}")
+    out_file = TS_DIR / "index.ts"
+    subprocess.run(
+        [
+            str(j2t), "-i", str(combined), "-o", str(out_file),
+            "--additionalProperties", "false",
+            "--maxItems", "-1",             # keep `T[]`, never expand maxItems into a tuple union
+            "--unreachableDefinitions",     # emit every $def, not just what the root references
+        ],
+        check=True,
+    )
+    combined.unlink()
+    print(f"wrote TypeScript types to {out_file.relative_to(REPO_ROOT)}")
 
 
 def main() -> int:

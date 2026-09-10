@@ -28,7 +28,7 @@
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "$ref": "#/definitions/EntityKind"
+          "$ref": "#/$defs/EntityKind"
         },
         "value": {
           "description": "Canonical identifier for the entity.",
@@ -99,11 +99,11 @@
       "type": "string"
     },
     "detector": {
-      "$ref": "#/definitions/DetectorKind"
+      "$ref": "#/$defs/DetectorKind"
     },
     "entities": {
       "items": {
-        "$ref": "#/definitions/EntityRef"
+        "$ref": "#/$defs/EntityRef"
       },
       "maxItems": 64,
       "title": "Entities",
@@ -155,10 +155,10 @@
       "type": "number"
     },
     "scoring_status": {
-      "$ref": "#/definitions/ScoringStatus"
+      "$ref": "#/$defs/ScoringStatus"
     },
     "severity": {
-      "$ref": "#/definitions/Severity"
+      "$ref": "#/$defs/Severity"
     },
     "subject_id": {
       "anyOf": [
@@ -177,7 +177,7 @@
     "subject_type": {
       "anyOf": [
         {
-          "$ref": "#/definitions/ThreatSubjectType"
+          "$ref": "#/$defs/ThreatSubjectType"
         },
         {
           "type": "null"

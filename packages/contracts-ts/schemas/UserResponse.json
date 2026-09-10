@@ -63,7 +63,7 @@
       "title": "Last Login At"
     },
     "status": {
-      "$ref": "#/definitions/UserStatus"
+      "$ref": "#/$defs/UserStatus"
     },
     "tenant_id": {
       "format": "uuid",

@@ -18,7 +18,7 @@
   "additionalProperties": false,
   "properties": {
     "action": {
-      "$ref": "#/definitions/FileAction"
+      "$ref": "#/$defs/FileAction"
     },
     "hash_sha256": {
       "anyOf": [

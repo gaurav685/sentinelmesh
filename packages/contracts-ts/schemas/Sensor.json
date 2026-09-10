@@ -56,7 +56,7 @@
       "type": "string"
     },
     "status": {
-      "$ref": "#/definitions/SensorStatus"
+      "$ref": "#/$defs/SensorStatus"
     },
     "tenant_id": {
       "format": "uuid",
@@ -64,7 +64,7 @@
       "type": "string"
     },
     "type": {
-      "$ref": "#/definitions/SensorType"
+      "$ref": "#/$defs/SensorType"
     },
     "updated_at": {
       "format": "date-time",

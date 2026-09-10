@@ -52,7 +52,7 @@
       "type": "string"
     },
     "outcome": {
-      "$ref": "#/definitions/AuthOutcome"
+      "$ref": "#/$defs/AuthOutcome"
     },
     "principal": {
       "description": "user@domain or username as seen.",

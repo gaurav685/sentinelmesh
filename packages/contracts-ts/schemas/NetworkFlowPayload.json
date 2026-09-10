@@ -41,7 +41,7 @@
       "type": "integer"
     },
     "direction": {
-      "$ref": "#/definitions/Direction",
+      "$ref": "#/$defs/Direction",
       "default": "unknown"
     },
     "dst_host": {

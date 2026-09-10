@@ -53,7 +53,7 @@
   "properties": {
     "dependencies": {
       "items": {
-        "$ref": "#/definitions/DepStatus"
+        "$ref": "#/$defs/DepStatus"
       },
       "title": "Dependencies",
       "type": "array"

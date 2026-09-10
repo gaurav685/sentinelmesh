@@ -43,7 +43,7 @@
           "type": "number"
         },
         "scoring_status": {
-          "$ref": "#/definitions/ScoringStatus"
+          "$ref": "#/$defs/ScoringStatus"
         },
         "subject_id": {
           "maxLength": 256,
@@ -52,7 +52,7 @@
           "type": "string"
         },
         "subject_type": {
-          "$ref": "#/definitions/ThreatSubjectType"
+          "$ref": "#/$defs/ThreatSubjectType"
         },
         "tenant_id": {
           "format": "uuid",
@@ -103,7 +103,7 @@
   "properties": {
     "items": {
       "items": {
-        "$ref": "#/definitions/ThreatScore"
+        "$ref": "#/$defs/ThreatScore"
       },
       "title": "Items",
       "type": "array"

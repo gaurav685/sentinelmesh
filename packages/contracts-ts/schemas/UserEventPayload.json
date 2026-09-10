@@ -19,7 +19,7 @@
   "additionalProperties": false,
   "properties": {
     "action": {
-      "$ref": "#/definitions/UserEventAction"
+      "$ref": "#/$defs/UserEventAction"
     },
     "actor_id": {
       "anyOf": [

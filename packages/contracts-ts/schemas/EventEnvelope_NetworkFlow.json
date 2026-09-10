@@ -40,7 +40,7 @@
           "title": "Site"
         },
         "type": {
-          "$ref": "#/definitions/SourceType"
+          "$ref": "#/$defs/SourceType"
         }
       },
       "required": [
@@ -101,7 +101,7 @@
           "type": "integer"
         },
         "direction": {
-          "$ref": "#/definitions/Direction",
+          "$ref": "#/$defs/Direction",
           "default": "unknown"
         },
         "dst_host": {
@@ -256,7 +256,7 @@
       "type": "string"
     },
     "event_type": {
-      "$ref": "#/definitions/EventType"
+      "$ref": "#/$defs/EventType"
     },
     "event_version": {
       "description": "Schema version of `payload`.",
@@ -290,7 +290,7 @@
       "type": "string"
     },
     "payload": {
-      "$ref": "#/definitions/NetworkFlowPayload"
+      "$ref": "#/$defs/NetworkFlowPayload"
     },
     "producer": {
       "description": "`<service>@<semver>`, e.g. ingestion-gateway@0.1.0",
@@ -298,7 +298,7 @@
       "type": "string"
     },
     "source": {
-      "$ref": "#/definitions/EventSource"
+      "$ref": "#/$defs/EventSource"
     },
     "tenant_id": {
       "description": "Set from the authenticated producer context, never trusted from input.",
