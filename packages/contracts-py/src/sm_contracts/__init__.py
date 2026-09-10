@@ -12,6 +12,9 @@ Import surface is intentionally flat for consumers:
 from __future__ import annotations
 
 from .api import (
+    AgentFinding,
+    AgentRunRequest,
+    AgentRunResult,
     AnalystModelInfo,
     CreateUserRequest,
     CursorPage,
@@ -32,6 +35,7 @@ from .api import (
     MetaResponse,
     MitreHeatmap,
     MitreHeatmapCell,
+    ProposedActionOut,
     ReadyResponse,
     RiskSubject,
     RoleSummary,
@@ -356,4 +360,9 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "ExplainRequest",
     "Explanation",
     "AnalystModelInfo",
+    # multi-agent defense (Phase 10)
+    "AgentRunRequest",
+    "AgentRunResult",
+    "AgentFinding",
+    "ProposedActionOut",
 ]

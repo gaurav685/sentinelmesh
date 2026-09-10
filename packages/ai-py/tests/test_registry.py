@@ -25,7 +25,7 @@ def _ctx(principal: FakePrincipal) -> ToolContext:
     return ToolContext(principal=principal, correlation_id="corr-1")
 
 
-def _lookup_tool(**overrides: object) -> FunctionTool[_Args]:
+def _lookup_tool(**overrides: object) -> FunctionTool:
     async def handler(args: _Args, ctx: ToolContext) -> ToolOutcome:
         return ToolOutcome(ok=True, content=f"{args.entity}: 3 hits", data={"count": 3})
 

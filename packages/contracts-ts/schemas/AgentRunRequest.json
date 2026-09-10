@@ -1,0 +1,100 @@
+{
+  "$defs": {
+    "EvidenceRef": {
+      "additionalProperties": false,
+      "description": "One piece of platform-gathered evidence. `trusted` is `True` only for\nstrings SentinelMesh itself produced (a rule id, a numeric score, a catalog\ntechnique id); everything telemetry- or third-party-derived is `False` and is\nfenced as data before it reaches the model.",
+      "properties": {
+        "content": {
+          "maxLength": 20000,
+          "minLength": 1,
+          "title": "Content",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 48,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "provenance": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Provenance",
+          "type": "string"
+        },
+        "ref": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Ref",
+          "type": "string"
+        },
+        "trusted": {
+          "default": false,
+          "title": "Trusted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "ref",
+        "provenance",
+        "content"
+      ],
+      "title": "EvidenceRef",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "enum": [
+        "detection-agent",
+        "threat-intel-agent",
+        "response-orchestration-agent"
+      ],
+      "title": "Agent",
+      "type": "string"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceRef"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Evidence",
+      "type": "array"
+    },
+    "subject_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "enum": [
+        "detection",
+        "attack_chain",
+        "incident"
+      ],
+      "title": "Subject Type",
+      "type": "string"
+    },
+    "task": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Task",
+      "type": "string"
+    }
+  },
+  "required": [
+    "agent",
+    "subject_type",
+    "subject_id",
+    "task",
+    "evidence"
+  ],
+  "title": "AgentRunRequest",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

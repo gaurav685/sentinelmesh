@@ -20,10 +20,11 @@ from sm_common.fastapi import (
 from sm_common.logging import configure_logging, get_logger
 from sm_common.observability import build_metrics, configure_tracing
 
+from .agents import AgentRunner
 from .analyst import IncidentAnalyst
 from .deps import Services
 from .metrics import AnalystMetrics
-from .routes import explain, health, metrics
+from .routes import agents, explain, health, metrics
 from .version import SERVICE_NAME, SERVICE_VERSION
 
 __all__ = ["build_services", "create_app"]
@@ -67,12 +68,11 @@ def build_services(settings: AppSettings) -> Services:
             audit_sink=_llm_audit,
         )
 
+    model = settings.llm_default_model or "unset"
     analyst = IncidentAnalyst(
-        llm,
-        model=settings.llm_default_model or "unset",
-        max_output_tokens=settings.llm_max_output_tokens,
-        audit=_analyst_event,
+        llm, model=model, max_output_tokens=settings.llm_max_output_tokens, audit=_analyst_event
     )
+    agent_runner = AgentRunner(llm, model=model, settings=settings)
     _log.info(
         "service_start",
         service=SERVICE_NAME,
@@ -85,6 +85,7 @@ def build_services(settings: AppSettings) -> Services:
         metrics=base_metrics,
         analyst_metrics=analyst_metrics,
         analyst=analyst,
+        agent_runner=agent_runner,
         llm_live_capable=live_capable,
     )
 
@@ -110,4 +111,5 @@ def create_app(
     app.include_router(health.router)
     app.include_router(metrics.router)
     app.include_router(explain.router)
+    app.include_router(agents.router)
     return app
