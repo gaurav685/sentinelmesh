@@ -6,19 +6,25 @@ import { api } from "@/lib/api";
 import { useResource } from "@/lib/useResource";
 import { EmptyState, ErrorState, Loading } from "@/components/states";
 import { Severity } from "@/components/Severity";
+import { LiveBadge } from "@/components/LiveBadge";
 
 const STATUSES = ["", "open", "acknowledged", "closed"];
+const REFRESH_MS = 30_000;
 
 export default function AlertsPage() {
   const [status, setStatus] = useState("open");
   const res = useResource(
     (signal) => api.alerts({ limit: 100, status: status || undefined }, signal),
     [status],
+    { refreshMs: REFRESH_MS },
   );
 
   return (
     <div className="grid">
-      <h1>Alerts</h1>
+      <div className="page-head">
+        <h1>Alerts</h1>
+        <LiveBadge updatedAt={res.updatedAt} refreshMs={REFRESH_MS} onRefresh={res.reload} />
+      </div>
       <div className="panel">
         <label className="field" style={{ maxWidth: 220 }}>
           <span>Status</span>

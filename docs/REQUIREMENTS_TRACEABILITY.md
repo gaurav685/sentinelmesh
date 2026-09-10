@@ -253,7 +253,21 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-2; tenant-locked subscriptions; CSP; no direct datastore access.
 - **Test:** component tests, Playwright e2e (login → graph loads → live update), WS auth tests.
 - **Verification method:** Playwright e2e against docker-compose stack.
-- **Phase:** P4. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P4. **Status:** IMPLEMENTED (P9). `frontend/web` (Next.js 15 App
+  Router) ships the SOC dashboard, alerts / incidents, attack-chain list + detail,
+  MITRE ATT&CK heatmap, risk heatmap, entity explorer + timeline, threat-intel
+  view, and an interactive Cytoscape attack-graph explorer with a node/edge detail
+  panel and an accessible list fallback. Every view is typed from
+  `@sentinelmesh/contracts` (generated), has loading / error / empty states, and
+  labels demo/absent data honestly. **Deviations from the P4 architecture, all
+  deliberate:** realtime is an honest client **poll** with a "last updated"
+  indicator, not a WebSocket — `api-gateway` exposes no push channel for the
+  Kafka-borne `graph.events` / `detections` topics yet, and `notification-service`
+  is not built (later phase); "cinematic replay" is not implemented (the
+  `sm_ml.temporal` replay engine from P8 is the backend foundation). Route guard
+  is redirect-only in the browser; **authorization stays server-authoritative**
+  in `api-gateway` (`require_permission`). Tests: 37 vitest component / API-contract
+  / auth-flow / graph-interaction tests; no Playwright yet.
 
 ### R14 — Alert Explanation Engine
 - **Purpose:** human-readable explanations, root-cause summaries, attack-path interpretation, analyst-focused reasoning — grounded in system evidence.
@@ -454,7 +468,14 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-2; CSP, sanitized rendering of analyst/LLM text, a11y (WCAG AA target).
 - **Test:** component tests, a11y checks (axe), visual regression (optional), performance budget checks.
 - **Verification method:** CI a11y + component tests; Lighthouse budget (informational).
-- **Phase:** P4 (core), P8 (polish). **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P4 (core), P8 (polish). **Status:** IMPLEMENTED (P9, core). Dark
+  enterprise SOC shell (tenant-aware nav filtered by permission for display),
+  responsive layouts, `prefers-reduced-motion` respected, severity encoded as
+  colour + text + shape (WCAG 1.4.1), skip link, `role="status"` / `role="alert"`
+  live regions, keyboard-operable graph via the list fallback. CSP + security
+  headers in `next.config.mjs`; `react/no-danger` is an ESLint error; no secret in
+  the bundle; session is an httpOnly cookie. **Deferred:** axe automation in CI,
+  visual regression, Lighthouse budget checks.
 
 ### R26 — Demo Scenario Engine
 - **Purpose:** investor-ready demos, interactive breach simulations, live hosted demo environments — synthetic, deterministic, reproducible, clearly labeled.

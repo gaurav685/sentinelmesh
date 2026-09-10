@@ -15,6 +15,8 @@ import type {
   CursorPageSecurityAlert,
   Detection,
   ErrorResponse,
+  GraphNeighborhood,
+  GraphPath,
   MeResponse,
   MitreHeatmap,
   SecurityAlert,
@@ -168,5 +170,16 @@ export const api = {
   graphNeighbors: (
     query: { label: string; key: string; depth?: number },
     signal?: AbortSignal,
-  ) => apiFetch<unknown>("/soc/graph/neighbors", { query, signal }),
+  ) => apiFetch<GraphNeighborhood>("/soc/graph/neighbors", { query, signal }),
+
+  graphPaths: (
+    query: {
+      src_label: string;
+      src_key: string;
+      dst_label: string;
+      dst_key: string;
+      max_depth?: number;
+    },
+    signal?: AbortSignal,
+  ) => apiFetch<GraphPath>("/soc/graph/paths", { query, signal }),
 };

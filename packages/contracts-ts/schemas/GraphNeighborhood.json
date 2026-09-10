@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "GraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "dst": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Dst",
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "title": "Properties",
+          "type": "object"
+        },
+        "src": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Src",
+          "type": "string"
+        },
+        "type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "src",
+        "dst",
+        "type"
+      ],
+      "title": "GraphEdge",
+      "type": "object"
+    },
+    "GraphNode": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Labels",
+          "type": "array"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "title": "Properties",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "GraphNode",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A bounded, tenant-scoped neighbourhood around one root node.\n\n`truncated` is true when the server row cap was hit \u2014 the view is partial and\nthe UI must say so rather than implying the entity has no other neighbours.",
+  "properties": {
+    "depth": {
+      "maximum": 8,
+      "minimum": 1,
+      "title": "Depth",
+      "type": "integer"
+    },
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/GraphEdge"
+      },
+      "maxItems": 20000,
+      "title": "Edges",
+      "type": "array"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/GraphNode"
+      },
+      "maxItems": 5000,
+      "title": "Nodes",
+      "type": "array"
+    },
+    "root_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Root Id",
+      "type": "string"
+    },
+    "truncated": {
+      "default": false,
+      "title": "Truncated",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "root_id",
+    "depth"
+  ],
+  "title": "GraphNeighborhood",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

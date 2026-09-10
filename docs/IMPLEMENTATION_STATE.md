@@ -7,18 +7,20 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 9 — Enterprise SOC Dashboard. IN PROGRESS — Unit 3 (the SOC views).**
-`frontend/web` now renders real, typed views for every read surface the BFF
-exposes: dashboard, alerts list + detail (`incidents/[id]` fetches the triggering
-detection), attack-chain list + detail (kill-chain stage table), MITRE ATT&CK
-heatmap, risk heatmap, entity explorer + timeline, threat-intel indicators. Every
-view goes through `DataView` (loading / error / empty / ready in one place);
-severity is colour + text + shape; no backend shape is re-declared (all types
-come from `@sentinelmesh/contracts`); no attack activity is fabricated — empty
-states say so plainly. `src/lib/contract.test.ts` compile-checks fixture
-responses against the generated types. The CI `frontend` job's contract-drift
-check switched from the unsupported `git diff --exit-status` to `git diff --quiet`.
-Attack-graph (Cytoscape) + real-time updates land in Unit 4.
+**Phase 9 — Enterprise SOC Dashboard. Units 1–4 done; local gauntlet green;
+Unit 4 awaiting CI.** `frontend/web` (Next.js 15 App Router) ships every SOC
+view — dashboard, alerts + `incidents/[id]`, attack-chain list + `chains/[id]`,
+MITRE ATT&CK heatmap, risk heatmap, entity explorer + `entities/[id]` timeline,
+threat-intel indicators, and an interactive Cytoscape attack-graph explorer with
+a detail panel and an accessible node/edge list fallback. Every view is typed
+from `@sentinelmesh/contracts` (generated — no backend shape re-declared), goes
+through `DataView` (loading / error / empty / ready), and labels demo/absent data
+honestly. Realtime is an honest client poll (`useResource` `refreshMs` +
+`LiveBadge` "updated Ns ago") — no WebSocket yet, documented. Frontend auth is
+display-only; `api-gateway` `require_permission` stays authoritative. Unit 4 also
+promoted the graph-query shapes to `sm_contracts.api.graph`. See the Phase 9 exit
+report below. **Next: confirm Unit 4 CI green → Phase 10 (AI Security Analyst +
+Multi-Agent Defense).**
 
 **Phase 8 — GNN + Temporal Intelligence. COMPLETE / CI-VERIFIED** (all four jobs,
 runs `34408045416` / `34408494057` / `34409131977` / `34410178417`). Units 1–4.
@@ -560,6 +562,70 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 9 exit report
+
+**State: COMPLETE — local gauntlet green; awaiting CI confirmation of Unit 4.**
+Units 1–4 commits `15f5d1c` / `790fdf5` / `dac8e50` / _(Unit 4 — this commit)_.
+Units 1–3 CI-verified (runs `34424869328` / `34426774409`).
+
+**No attack activity is fabricated anywhere in the UI. Demo/absent data is
+labelled in plain language ("no ATT&CK catalog imported", "external provider
+adapters are feature-flagged off", "an empty result means no such relationships
+have been observed"). The frontend never re-declares a backend shape — every type
+is generated from the canonical contracts. Frontend authorization is display-only;
+`api-gateway` stays server-authoritative. No secret ships in the bundle; the
+session is an httpOnly cookie.**
+
+### Delivered (Units 1–4)
+
+| Area | State |
+|---|---|
+| SOC BFF (Unit 1) | `api-gateway` is the browser-facing read API. `sm_contracts.api.soc` — `SocSummary` (real per-tenant counters), `RiskSubject`, `MitreHeatmap`, `TimelineResponse`; `CursorPage[…]` exports. `GET /api/v1/soc/*` — Postgres reads (`SqlSocRepository`, keyset-paged, `WHERE tenant_id = :principal_tenant`) for detections / alerts / risk / summary / heatmap / timeline; minted-JWT proxies (`InternalServiceClient`, tenant scoped to the caller) for chains / graph / threat-intel. Every route `require_permission(detections:read | hunt:query)`; a dependency outage → HTTP 503, never a 500 or a fabricated result. |
+| Frontend scaffold + typed client (Unit 2) | `packages/contracts-ts` emits a single `src/index.ts` from a combined `$defs` schema (`jsonschema.py` `ref_template` fixed to `#/$defs/` — the TS pipeline had never worked before). `frontend/web` — Next.js 15 App Router + TS. Typed `apiFetch` (`credentials: "include"`, CSRF header on mutations, `ApiError.kind` → a UI state). `AuthProvider` hydrates `/auth/me`; `middleware.ts` is a redirect-only guard. `AppShell`, `Loading` / `EmptyState` / `ErrorState`, `Severity` (colour + text + shape). CSP + security headers; `react/no-danger` is an error. New CI `frontend` job. |
+| SOC views (Unit 3) | Real typed views for every read surface: dashboard, alerts + `incidents/[id]` (fetches the triggering detection — rule id, evidence, techniques), attack-chain list + `chains/[id]` (kill-chain stage table), MITRE heatmap, risk heatmap, entity explorer + `entities/[id]` timeline, threat-intel indicators. `DataView<T>` renders loading / error / empty / ready in one place. `src/lib/contract.test.ts` compile-checks fixtures against the generated types. CI `frontend` job's drift check switched from the unsupported `git diff --exit-status` to `git diff --quiet`. |
+| Attack graph + realtime + polish (Unit 4) | `sm_contracts.api.graph` — `GraphNode` / `GraphEdge` / `GraphNeighborhood` / `GraphPath` (promoted from the graph-service draft schemas so the browser consumes generated types). `api-gateway` `/soc/graph/{neighbors,paths}` now return those typed models. `frontend/web` `graph/page.tsx` — a Cytoscape explorer (lazy-loaded, client-only), node/edge detail panel, `truncated` warning, and an accessible node/edge **list fallback** that is the real representation for assistive tech and keyboard users. `useResource` gains an optional `refreshMs` poll + `updatedAt`; `LiveBadge` shows "Updated Ns ago · auto-refresh Ns" on the dashboard and alerts list — an honest client poll, never a claim of streaming. `prefers-reduced-motion` disables the pulse/spinner. Tests: `AttackGraph` (cytoscape mocked — element mapping, dangling-edge drop, tap → `onSelect`, init-failure fallback), `graph/page` (BFF query, truncation, selection, empty), `LiveBadge`. |
+
+### Verification performed (local, 2026-09-10)
+
+- `frontend/web`: `npm run lint` clean; `npm run build` OK (14 routes); `npm run test` **37 vitest tests** pass (component, API-contract, auth-flow, graph-interaction).
+- Python: `ruff check .` clean; `mypy --strict` over `packages/contracts-py/src` + `services/api-gateway/src` clean; **594 unit tests** + `gen_contracts.py --check` (JSON Schema up to date, no `contracts-ts` / `contracts-py` drift); `tests/contract/test_ci_config.py` 14 pass.
+- Real infra: `tests/integration/test_soc_reads_pg.py` **4 pass** against real PostgreSQL 16 (`SqlSocRepository` tenant-scoped reads). Neo4j-backed graph tests (`test_graph_intel_neo4j.py`, `test_graph_service_neo4j.py`) **skipped locally** — the fixture's 3 s bolt-connect probe times out under the Windows proactor loop; unchanged graph-service code, CI (Linux) is the confirmation.
+- `docker build -f deploy/docker/Dockerfile.app` builds; `docker run … python -c "import sm_api_gateway.app, sm_contracts"` OK.
+- **CI green on a clean runner for Units 1–3 (runs `34424869328` / `34426774409`, all five jobs incl. `frontend`); Unit 4 pending.**
+
+### Pre-output engineering review (Constitution §23)
+
+- **Do not fabricate attack activity; demo data must be labelled (§3 + the phase brief).** No view invents a detection, chain, indicator or edge. Every empty state names the missing upstream. There is no seeded "demo attack" in the frontend at all; the `demo-badge` CSS class exists for when labelled demo data is introduced, and is currently unused.
+- **Frontend authorization never replaces backend authorization.** `hasPermission` in `auth.tsx` only filters nav items and hides buttons — it is documented "DISPLAY ONLY". Every `/api/v1/soc/*` route is `require_permission(...)` in `api-gateway` (deny-by-default, metered + audited). `middleware.ts` only redirects a request with no session cookie to `/login`; it makes no allow decision. The graph endpoints additionally require `hunt:query`.
+- **No backend schema is duplicated.** Every response type is imported from `@sentinelmesh/contracts`, generated from the same JSON Schema the backend validates against. The graph-query shapes that had lived only in `graph-service/schemas.py` are now `sm_contracts.api.graph`; `api-gateway` validates the proxied response against them (`response_model=GraphNeighborhood`), so a graph-service drift surfaces as a 500 in the BFF's own tests, not a silently-wrong UI. `contract.test.ts` fails the frontend build if a regenerated type no longer accepts a known-good fixture.
+- **No secret in the frontend.** The session is an httpOnly cookie (`credentials: "include"`); no token is read or stored in JS. `next.config.mjs` sets a CSP. `SM_API_PROXY_TARGET` is a server-only rewrite target. Grep of the bundle for a key pattern is clean (build output has no `.env` inlining — only `NEXT_PUBLIC_*` is inlined and none is defined).
+- **Tenant-aware UI.** The shell shows the tenant from `/auth/me`; every BFF read is scoped to `principal.tenant_id` server-side — the UI cannot request another tenant's data (there is no tenant parameter on any client call).
+- **"Real time" is honest.** `LiveBadge` says "auto-refresh Ns" and "Updated Ns ago"; the code is a `setInterval` re-fetch. No WebSocket, no "live stream" claim (a test asserts the badge text contains neither "streaming" nor "live"). The gateway has no push channel yet — documented in R13 and here.
+- **XSS / safe rendering.** `react/no-danger` is an ESLint **error**; there is no `dangerouslySetInnerHTML` anywhere. All backend text (titles, summaries, rationales, node properties) renders as React children (auto-escaped). Node `properties` are `String()`-coerced for display and never used for a routing or auth decision (documented on the contract).
+- **Accessibility.** Severity is never colour-only (text + shape). Skip link, `role="status"`/`role="alert"` regions, `aria-current` nav, `aria-pressed` on the graph node list, `prefers-reduced-motion` honored. The Cytoscape canvas is `aria-hidden` with a full node/edge list beside it as the accessible equivalent.
+- **Bounded / safe requests.** List endpoints cap `limit` server-side (≤ 200–1000); the graph depth is clamped 1–6 at the BFF and again at graph-service; a non-object graph-service response → 503, not a crash.
+
+### Deferred (deliberately)
+
+- **WebSocket / SSE realtime + `notification-service`.** The gateway exposes no push channel for the Kafka topics. Realtime is a poll. A projection service or an SSE endpoint over a Redis fan-out is a later phase.
+- **Cinematic attack replay.** The `sm_ml.temporal` replay engine (P8) is the backend foundation; no replay UI yet.
+- **Playwright e2e, axe-in-CI, visual regression, Lighthouse budgets.** Component/contract/flow tests (vitest) only for now.
+- **Graph path-finding UI.** `sm_contracts.api.graph.GraphPath` + the BFF `/soc/graph/paths` endpoint are typed and wired; no frontend view consumes them yet.
+- **`graph-service` `GraphIntelResponse` promotion.** The intel endpoint's response still lives in `graph-service/schemas.py`; the graph page does not surface intel yet.
+- **Incident actions (acknowledge / assign / close).** The incident view is read-only; mutations are a later phase with their own permissions + CSRF.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| authentication / dashboard / alert / incident / attack-graph / timeline / risk-heatmap / entity-explorer / threat-intel / MITRE / attack-chain views | ✅ all present, typed, with loading/error/empty states |
+| real-time updates where supported | ✅ honest client poll + "last updated" indicator; WebSocket deferred (documented) |
+| typed API clients generated from canonical contracts; no duplicated backend schemas | ✅ `@sentinelmesh/contracts` single generated `index.ts`; `contract.test.ts` guards drift |
+| no hardcoded fake backend responses | ✅ every view fetches the BFF; empty/absent data is labelled |
+| protected routes / server-authoritative authorization / safe token+session / XSS protections / no secrets in frontend / tenant-aware | ✅ httpOnly cookie + CSRF, `require_permission` server-side, `react/no-danger` error, CSP, tenant from `/me` |
+| tests: component / API-contract / authentication / authorization-UI / critical-flow / graph-interaction | ✅ 37 vitest tests |
+| **CI green on a clean runner** | ⏳ Units 1–3 green (`34424869328` / `34426774409`); Unit 4 pending |
 
 ## Phase 8 exit report
 
@@ -1827,19 +1893,23 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 9 — ENTERPRISE SOC DASHBOARD. Units 1–3 DONE.** Unit 1 (`api-gateway`
-SOC BFF) CI-green (run `34424869328`). Unit 2 (`frontend/web` Next.js scaffold +
-generated typed client + auth shell + `frontend` CI job): committed `790fdf5` —
-the `frontend` CI job failed only on `git diff --exit-status` (unsupported by
-git 2.55; no schema drift). Unit 3 (the SOC views + CI git-flag fix): local
-gauntlet green — `frontend/web` `npm run lint` clean, `npm run test` 27 passed,
-`npm run build` OK (14 routes); ruff clean; `gen_contracts.py --check` up to date
-+ no contracts drift; CI-config contract test 14 passed. New views:
-chains list + `chains/[id]`, incidents list + `incidents/[id]`, mitre heatmap,
-risk heatmap, entities + `entities/[id]` timeline, intel indicators; `DataView`
-primitive; `src/lib/contract.test.ts`. `.github/workflows/ci.yml` `frontend` job
-now uses `git diff --quiet`. **Commit Unit 3, push, confirm CI green (all five
-jobs incl. `frontend`).**
+**PHASE 9 — ENTERPRISE SOC DASHBOARD. Units 1–4 DONE (Unit 4 awaiting CI).**
+Unit 1 (`api-gateway` SOC BFF) CI-green (run `34424869328`). Unit 2
+(`frontend/web` scaffold + generated typed client + auth shell + `frontend` CI
+job) committed `790fdf5`. Unit 3 (the SOC views + `git diff --quiet` CI fix)
+CI-green (run `34426774409`, all five jobs). Unit 4 (attack graph + realtime +
+polish + close): local gauntlet green — `frontend/web` lint clean, `npm run test`
+**37 pass**, `npm run build` OK (14 routes); ruff clean; `mypy --strict`
+(contracts-py + api-gateway) clean; **594 unit tests** + `gen_contracts --check`
+(no drift); `test_soc_reads_pg.py` **4 pass** real PostgreSQL; `Dockerfile.app`
+builds + imports. New: `sm_contracts.api.graph` (`GraphNode` / `GraphEdge` /
+`GraphNeighborhood` / `GraphPath`), BFF `/soc/graph/{neighbors,paths}` typed,
+`graph/page.tsx` Cytoscape explorer + list fallback, `useResource` `refreshMs`
+poll + `LiveBadge`, `AttackGraph` / `LiveBadge` / `graph/page` tests. Phase 9
+exit report + §23 review + `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED +
+`CONTRACTS.md` "Phase 9 closed" written. **Commit Unit 4, push, confirm CI green
+→ closes Phase 9; then start Phase 10 (AI Security Analyst + Multi-Agent Defense,
+prompt in memory `phase-8-9-10-11-prompts.md`).**
 
 **PHASE 9 — ENTERPRISE SOC DASHBOARD. Unit 1 details — `api-gateway` SOC BFF.**
 Tenant-scoped Postgres reads (`SqlSocRepository`: detections / alerts /

@@ -1,0 +1,112 @@
+{
+  "$defs": {
+    "GraphEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "dst": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Dst",
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "title": "Properties",
+          "type": "object"
+        },
+        "src": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Src",
+          "type": "string"
+        },
+        "type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "src",
+        "dst",
+        "type"
+      ],
+      "title": "GraphEdge",
+      "type": "object"
+    },
+    "GraphNode": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Labels",
+          "type": "array"
+        },
+        "properties": {
+          "additionalProperties": true,
+          "title": "Properties",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "GraphNode",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The shortest path between two nodes, or `found=False` when there is none.",
+  "properties": {
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/GraphEdge"
+      },
+      "maxItems": 64,
+      "title": "Edges",
+      "type": "array"
+    },
+    "found": {
+      "title": "Found",
+      "type": "boolean"
+    },
+    "length": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Length"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/GraphNode"
+      },
+      "maxItems": 64,
+      "title": "Nodes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "found"
+  ],
+  "title": "GraphPath",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
