@@ -7,10 +7,12 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 11 — Threat Hunting + Natural Language Querying. Units 1–3 done — local
-gauntlet green; Unit 3 awaiting CI.** Unit 3: `frontend/web/app/(soc)/hunt` — an
-"Ask" NL mode and a "Quick query" structured form, both showing the **compiled
-`QueryPlan`** for transparency, with a "Pivot" action from a result row. `raw LLM output → executed Cypher` is
+**Phase 11 — Threat Hunting + Natural Language Querying. COMPLETE / CI-VERIFIED**
+(all five jobs, final run `34448406595`; unit runs `34446018571` /
+`34447606633`). Units 1-3 (`a9e4293` / `9cb52e1` / `9e07387`).
+`frontend/web/app/(soc)/hunt` — an "Ask" NL mode and a "Quick query" structured
+form, both showing the **compiled `QueryPlan`** for transparency, with a "Pivot"
+action from a result row. `raw LLM output → executed Cypher` is
 impossible: `sm_contracts.QueryPlan` is a **closed schema**, `ai-analyst`'s NL
 planner only ever emits a `QueryPlan` (parsed into that model — never a query) or
 says the request is out of scope, and `graph-service` `hunt.py` `validate_plan`
@@ -26,6 +28,9 @@ never executed) → `graph-service` `/graph/hunt` → `ai-analyst` `/hunt/explai
 (grounded, best-effort). Every hunt recorded to `hunt_query` (migration `0006`,
 append-only, tenant-scoped — stores what was asked + the answer shape, never the
 result rows).
+
+**Next: PHASE 12 — Simulation + Deception + Digital Twin (prompt not yet given —
+do NOT start speculatively).**
 
 **Phase 10 — AI Security Analyst + Multi-Agent Defense. COMPLETE / CI-VERIFIED**
 (all five jobs, final run `34432159191`; unit runs `34429226626` / `34429715242`
@@ -608,9 +613,10 @@ before Phase 2 is itself declared complete.
 
 ## Phase 11 exit report
 
-**State: COMPLETE — local gauntlet green; Unit 3 awaiting CI.** Units 1-3 commits
-`a9e4293` / `9cb52e1` / _(Unit 3 — this commit)_. Units 1-2 CI-verified (runs
-`34446018571` / `34447606633`).
+**State: COMPLETE / CI-VERIFIED (all five jobs, final run
+[`34448406595`](https://github.com/gaurav685/sentinelmesh/actions/runs/34448406595)).**
+Units 1-3 commits `a9e4293` / `9cb52e1` / `9e07387`.
+Earlier unit runs `34446018571` / `34447606633`.
 
 **`raw LLM output → executed Cypher` is impossible. The pipeline is
 `natural language → QueryPlan (closed schema) → validation → authorization →
@@ -645,8 +651,8 @@ an NL hunt is `unsupported`, never guessed.**
   cannot see tenant A's `web01`), a hallucinated entity → empty result.
 - `docker build -f deploy/docker/Dockerfile.app` builds; `sm_ai_analyst.hunt` +
   `sm_common.db.HuntQueryRow` import in the image.
-- **CI green for Units 1-2** (`34446018571` / `34447606633`, all five jobs);
-  Unit 3 pending.
+- **CI green on a clean runner — all five jobs, final run `34448406595`**
+  (earlier unit runs `34446018571` / `34447606633`).
 
 ### Pre-output engineering review (Constitution §23)
 
@@ -718,7 +724,7 @@ an NL hunt is `unsupported`, never guessed.**
 | query validation / authorization | ✅ `validate_plan` → 422; `require_permission(hunt:query)` + CSRF |
 | result explanation | ✅ `/hunt/explain` grounded, cites the plan; deterministic baseline |
 | tests: injection / unauthorized / cross-tenant / expensive / malformed NL / hallucinated entities / plan-validation / parameterization | ✅ all covered |
-| **CI green on a clean runner** | ⏳ Units 1-2 green (`34446018571` / `34447606633`); Unit 3 pending |
+| **CI green on a clean runner** | ✅ **all five jobs — final run `34448406595`** (unit runs `34446018571` / `34447606633`) |
 
 ## Phase 10 exit report
 
@@ -2186,7 +2192,9 @@ local green, awaiting CI).** Planned units:
    (15 routes), **41 vitest tests** (3 new); ruff + `mypy --strict` unchanged
    (Unit 3 is frontend-only), `gen_contracts --check`. Phase 11 exit report + §23
    + `REQUIREMENTS_TRACEABILITY` R18 / R32 → IMPLEMENTED + `CONTRACTS.md` §7.1
-   IMPLEMENTED. **Commit, push, confirm CI green → closes Phase 11.**
+   IMPLEMENTED.
+
+**PHASE 11 is CLOSED — CI-VERIFIED, final run `34448406595` (all five jobs).**
 
 Exit next action after Phase 11: **PHASE 12 — Simulation + Deception + Digital
 Twin** (prompt not yet given — do NOT start speculatively; the next session
