@@ -550,10 +550,12 @@ before Phase 2 is itself declared complete.
 
 ## Phase 8 exit report
 
-**State: COMPLETE — full local gauntlet green (ruff, `mypy --strict` over 14 src
-trees, unit tests + `gen_contracts --check`, real-infra integration against
-PostgreSQL 16 + Redis 7 + Neo4j 5, `Dockerfile.app` build). CI run pending — this
-section takes the run id once all four jobs are green on a clean runner.**
+**State: COMPLETE / CI-VERIFIED (all four jobs, runs
+[`34408045416`](https://github.com/gaurav685/sentinelmesh/actions/runs/34408045416)
+/ `34408494057` / `34409131977` /
+[`34410178417`](https://github.com/gaurav685/sentinelmesh/actions/runs/34410178417))
+against real PostgreSQL 16 + Redis 7 + Redpanda + Neo4j 5. Units 1–4 commits
+`7de7a1f` / `356f11f` / `7ab38e5` / `41182f3`.**
 
 **No accuracy / AUC / precision / recall / F1 number is produced or stored
 anywhere. No dataset and no trained GNN weights ship (ADR-024). Every graph-model
@@ -610,7 +612,7 @@ always yields the same output.**
 | do not fabricate metrics | ✅ `NOT VERIFIED` everywhere; fixture metrics labelled a plumbing check |
 | model-load failure → fail safely + observable error + degraded behaviour + no crash of unrelated services | ✅ `MODEL_UNAVAILABLE` 503 / `PipelineSkipped` / structural fallback; unit + integration |
 | tests: graph preprocessing / feature generation / deterministic inference / model loading / malformed features / temporal ordering / replay / cross-session stitching | ✅ `test_graph_construct` / `test_graph_models` / `test_temporal` / `test_pipeline` / `test_infer_graph` / `test_intel` / `test_graph_intel_neo4j` |
-| **CI green on a clean runner** | ⏳ run pending — updated here when green |
+| **CI green on a clean runner** | ✅ **all four jobs — runs `34408045416` / `34408494057` / `34409131977` / `34410178417`** |
 
 ## Phase 7 exit report
 
@@ -1812,7 +1814,20 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. Units 1–4 DONE.** Unit 1 (`sm_ml.graph`)
+**PHASE 9 — ENTERPRISE SOC DASHBOARD. IN PROGRESS — Unit 1 (`api-gateway` SOC BFF).**
+`api-gateway` becomes the browser-facing BFF: tenant-scoped Postgres reads for
+detections / alerts / threat-scores / summary / MITRE heatmap / entity timeline
+(`SqlSocRepository`), and minted-JWT proxies to `correlation-engine` (chains),
+`graph-service` (graph + intel), `threat-intel-service`, `mitre-service`
+(`InternalServiceClient`). Every route is `require_permission(detections_read)` /
+`hunt_query`, tenant from the session `Principal`. `sm_contracts.api.soc`
+(`SocSummary` / `RiskSubject` / `MitreHeatmap*` / `TimelineResponse`) +
+`CursorPage[…]` schema exports for the generated TS client. `SM_GRAPH_SERVICE_URL`
+config.
+
+**PHASE 8 — GNN + TEMPORAL INTELLIGENCE. COMPLETE / CI-VERIFIED** (all four jobs,
+runs `34408045416` / `34408494057` / `34409131977` / `34410178417`). Units 1–4.
+Unit 1 (`sm_ml.graph`)
 CI-green (run `34408045416`); Unit 2 (`sm_ml.temporal`) CI-green (run
 `34408494057`); Unit 3 (`services/ml-training`) CI-green (run `34409131977`).
 Unit 4 (serving + intel + close): `ml-inference` `POST /api/v1/infer/graph/{model}`
