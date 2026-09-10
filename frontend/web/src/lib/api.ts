@@ -10,6 +10,7 @@
  */
 
 import type {
+  AttackChainModel,
   CursorPageDetection,
   CursorPageSecurityAlert,
   Detection,
@@ -18,9 +19,20 @@ import type {
   MitreHeatmap,
   SecurityAlert,
   SocSummary,
+  ThreatIndicator,
   ThreatScore,
   TimelineResponse,
 } from "@sentinelmesh/contracts";
+
+export interface ChainListEnvelope {
+  count: number;
+  chains: AttackChainModel[];
+}
+
+export interface IndicatorListEnvelope {
+  count: number;
+  indicators: ThreatIndicator[];
+}
 
 const BASE = "/api/v1";
 
@@ -145,9 +157,13 @@ export const api = {
   chains: (
     query: { status?: string; min_score?: number; limit?: number } = {},
     signal?: AbortSignal,
-  ) => apiFetch<unknown>("/soc/chains", { query, signal }),
+  ) => apiFetch<ChainListEnvelope>("/soc/chains", { query, signal }),
 
-  chain: (id: string, signal?: AbortSignal) => apiFetch<unknown>(`/soc/chains/${id}`, { signal }),
+  chain: (id: string, signal?: AbortSignal) =>
+    apiFetch<AttackChainModel>(`/soc/chains/${id}`, { signal }),
+
+  tiIndicators: (query: { type?: string; limit?: number } = {}, signal?: AbortSignal) =>
+    apiFetch<IndicatorListEnvelope>("/soc/ti/indicators", { query, signal }),
 
   graphNeighbors: (
     query: { label: string; key: string; depth?: number },
