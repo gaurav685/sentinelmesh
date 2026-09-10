@@ -348,6 +348,32 @@ explanation (returns `insufficient_evidence`).
 `mode=auto` invalid outside production + signed policy + allow-listed `type`.
 Action without `rollback_plan` cannot be `auto`.
 
+### 7.4 LLM provider boundary (`sm_ai` — **IMPLEMENTED** Phase 10, Unit 1)
+
+The LLM is an **untrusted** component. `packages/ai-py` (`sm_ai`) is the only
+path to a model:
+
+- **Messages** (`sm_ai.messages`) — provider-neutral `LlmRequest` /
+  `LlmResponse` / `ToolSpec` / `ToolCall` / `TokenUsage`. `LlmResponse.from_live_provider`
+  is `True` **only** when an adapter actually reached a remote provider; nothing
+  in SentinelMesh may describe output as "verified against a live LLM" off a
+  `False`.
+- **Providers** (`sm_ai.provider` / `sm_ai.adapters`) — `LlmProvider` protocol;
+  `DeterministicAdapter` (network-free, reproducible, the default with no
+  credentials and what every test uses); `HttpLlmBoundary` (Anthropic Messages
+  API shape — raises `ProviderUnavailable` with no `SM_LLM_API_KEY`, never
+  executed against a live endpoint in this project).
+- **Client** (`sm_ai.client.LlmClient`) — the only entry point the analyst /
+  agents use. Enforces a per-call prompt-token ceiling **before** any network
+  I/O (`SM_LLM_MAX_PROMPT_TOKENS`), an optional per-run `RunBudget`
+  (`SM_AGENT_MAX_LLM_TOKENS_PER_RUN`), a wall-clock timeout
+  (`SM_LLM_REQUEST_TIMEOUT_S`), cooperative cancellation, transient-only bounded
+  retry (`SM_LLM_MAX_RETRIES` — a `ProviderRefused` is never retried), and one
+  `AuditEvent` per attempt carrying `prompt_sha256` + `purpose` + usage +
+  outcome — **never the raw prompt**.
+- Orchestration ceilings for later units: `SM_AGENT_MAX_STEPS` /
+  `SM_AGENT_MAX_TOOL_CALLS` / `SM_AGENT_WALL_CLOCK_TIMEOUT_S`.
+
 ---
 
 ## 8. Frontend ↔ backend contract
@@ -372,6 +398,7 @@ Action without `rollback_plan` cannot be `auto`.
 
 | Date | Change | Phase |
 |---|---|---|
+| 2026-09-10 | **LLM provider boundary** (Phase 10, Unit 1): `packages/ai-py` (`sm_ai`) — the untrusted-LLM boundary. Provider-neutral `LlmRequest` / `LlmResponse` / `ToolSpec` / `ToolCall`; `LlmProvider` protocol; `DeterministicAdapter` (network-free, reproducible, `is_live=False`, the default with no credentials and what every test uses) + `HttpLlmBoundary` (Anthropic Messages shape — `ProviderUnavailable` without `SM_LLM_API_KEY`, **never executed against a live endpoint**, `is_live` only reflects key presence). `LlmClient` enforces a per-call prompt-token ceiling **before any network I/O**, an optional per-run `RunBudget`, a wall-clock timeout, cooperative cancellation, transient-only bounded retry (a `ProviderRefused` is never retried), and one `AuditEvent` per attempt (`prompt_sha256` + `purpose` + usage + outcome — never the raw prompt). Config `SM_LLM_API_KEY` / `SM_LLM_BASE_URL` / `SM_LLM_MAX_PROMPT_TOKENS` / `SM_LLM_MAX_COMPLETION_TOKENS` / `SM_LLM_MAX_RETRIES` + `SM_AGENT_MAX_STEPS` / `SM_AGENT_MAX_TOOL_CALLS` / `SM_AGENT_WALL_CLOCK_TIMEOUT_S` / `SM_AGENT_MAX_LLM_TOKENS_PER_RUN`. CI: `ai-py` added to the `static` mypy trees + all three install blocks. See §7.4. 21 unit tests (determinism, budget rejection before call, retry-on-transient / no-retry-on-refused, timeout, provider outage, boundary inert without a key, audit emission). | 10 (Unit 1) |
 | 2026-09-10 | **Phase 9 closed** (Unit 4): attack graph + realtime + polish. `sm_contracts.api.graph` — `GraphNode` / `GraphEdge` / `GraphNeighborhood` / `GraphPath` promoted from the `graph-service` draft schemas so the browser consumes generated types; `properties` is display-only and documented as never used for an auth/routing decision. `api-gateway` `GET /api/v1/soc/graph/{neighbors,paths}` now `response_model` these (a graph-service drift → the BFF's own tests fail, not a silently-wrong UI); a non-object upstream response → 503. `frontend/web`: `graph/page.tsx` is a Cytoscape explorer (lazy-loaded client-only, `aria-hidden` canvas) with a node/edge **detail panel** and an accessible node/edge **list fallback** that is the real representation for assistive tech + keyboard; a `truncated` neighbourhood is flagged. `useResource` gains an optional `refreshMs` poll + `updatedAt`; `LiveBadge` ("Updated Ns ago · auto-refresh Ns") on the dashboard + alerts list — an honest poll, a test asserts the text says neither "streaming" nor "live". `prefers-reduced-motion` disables animation. `cytoscape` + `@types/cytoscape` added to `frontend/web`. Tests: `AttackGraph` (cytoscape mocked), `graph/page`, `LiveBadge` — 37 vitest total. Phase 9 exit report + §23 review in `IMPLEMENTATION_STATE.md`; `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED (P9 core; WebSocket realtime, `notification-service`, cinematic replay, Playwright/axe-in-CI deliberately deferred). | 9 (close) |
 | 2026-09-10 | **SOC views** (Phase 9, Unit 3): `frontend/web` renders real, typed views for every read surface the BFF exposes — dashboard, alerts list + `incidents/[id]` (which also fetches the triggering detection: rule id, evidence, ATT&CK techniques), attack-chain list + `chains/[id]` (kill-chain stage table with per-stage detection count + max severity), MITRE ATT&CK heatmap, risk heatmap, entity explorer + `entities/[id]` timeline, threat-intel indicators. A single `DataView<T>` primitive renders the loading / error / empty / ready branches so no view can forget one; severity is colour + text + shape everywhere. **No backend shape is re-declared** — every type is imported from `@sentinelmesh/contracts`, and optional generated array fields are guarded (`(x ?? [])`) under `noUncheckedIndexedAccess`. **No attack activity is fabricated** — empty states name the missing upstream (e.g. "Mappings appear once mitre-service has processed detections against an imported ATT&CK catalog"). `src/lib/contract.test.ts` compile-checks fixture responses against the generated types, so a regenerated contract that the fixture no longer satisfies fails the build. The CI `frontend` job's contract-drift check switched from `git diff --exit-status` (rejected by git 2.55) to `git diff --quiet`. `npm run build` OK (14 routes); 27 frontend unit tests. | 9 (Unit 3) |
 | 2026-09-10 | **frontend/web scaffold** (Phase 9, Unit 2): `packages/contracts-ts` now emits a **single** `src/index.ts` from a combined `$defs` schema (`--unreachableDefinitions`), with a real `tsconfig.json` + `typecheck` script — the generated TS types are committed and the frontend imports `@sentinelmesh/contracts`, never re-declaring a backend shape. `jsonschema.py` `ref_template` fixed to `#/$defs/{model}` (the old `#/definitions/` never resolved). `frontend/web` — Next.js 15 App Router + TS, minimal deps. Typed `apiFetch` client (`credentials: "include"`, CSRF header on mutations, `ApiError.kind` maps status → a UI state; no token in JS). `AuthProvider` hydrates `/api/v1/auth/me` — `hasPermission` gates **display only**, never authorization. `middleware.ts` is a redirect-only route guard. `AppShell` (tenant-aware nav filtered by permission), `Loading` / `EmptyState` / `ErrorState` primitives, `Severity` (colour + text + shape, WCAG 1.4.1), a `Placeholder` for not-yet-wired views (honest empty state, never fabricated activity). Dashboard + alerts list are real; the rest are placeholders for Unit 3. CSP + security headers in `next.config.mjs`; `react/no-danger` is an error. New CI `frontend` job: contracts `npm ci` + `gen_contracts.py` + `git diff --exit-status` (types current) + contracts typecheck + `frontend/web` `npm ci` / lint / vitest / `next build`. 19 frontend unit tests. | 9 (Unit 2) |

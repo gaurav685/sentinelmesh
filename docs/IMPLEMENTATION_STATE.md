@@ -1915,16 +1915,17 @@ report + §23 + `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED (P9 core;
 WebSocket / `notification-service` / cinematic replay / Playwright deferred) +
 `CONTRACTS.md` "Phase 9 closed".
 
-**PHASE 10 — AI SECURITY ANALYST + MULTI-AGENT DEFENSE. Unit 1 IN PROGRESS.**
-Planned units:
-1. `packages/ai-py` (`sm_ai`) — the untrusted-LLM boundary: provider-neutral
+**PHASE 10 — AI SECURITY ANALYST + MULTI-AGENT DEFENSE. Unit 1 DONE — local
+gauntlet green, awaiting CI.**
+1. ✅ `packages/ai-py` (`sm_ai`) — the untrusted-LLM boundary: provider-neutral
    messages, `LlmProvider` protocol, `DeterministicAdapter` (default, network-free,
    `is_live=False`), `HttpLlmBoundary` (Anthropic Messages shape; `ProviderUnavailable`
    without a key; never verified), `LlmClient` (pre-flight per-call token ceiling,
    `RunBudget`, timeout, cancellation, transient-only retry, `AuditEvent` per
-   attempt — prompt sha256 not raw). `SM_LLM_*` / `SM_AGENT_*` config. Tests:
-   determinism, budget rejection, retry-on-transient / no-retry-on-refused,
-   timeout, provider outage, boundary inert without key, audit emission.
+   attempt — prompt sha256 not raw). `SM_LLM_*` / `SM_AGENT_*` config; `ai-py`
+   added to CI (static mypy + 3 install blocks). Local: ruff clean, `mypy --strict`
+   clean, **601 unit tests** (21 new) + `gen_contracts --check`, `Dockerfile.app`
+   builds. **Commit, push, confirm CI green.**
 2. Tool framework + evidence/context builder — `Tool` (explicit args schema,
    required `PermissionCode`, input + output validation, audit), `ToolRegistry`
    (deny-by-default; an unknown/unauthorised tool call is rejected, the LLM asking

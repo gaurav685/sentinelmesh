@@ -50,6 +50,7 @@ jobs:
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
                       -e "packages/ml-py[dev]" \
+                      -e "packages/ai-py[dev]" \
                       -e "services/api-gateway[dev]" \
                       -e "services/ingestion-gateway[dev]" \
                       -e "services/normalization-engine[dev]" \
@@ -72,6 +73,7 @@ jobs:
             packages/contracts-py/src/sm_contracts \
             packages/common-py/src/sm_common \
             packages/ml-py/src/sm_ml \
+            packages/ai-py/src/sm_ai \
             services/api-gateway/src/sm_api_gateway \
             services/ingestion-gateway/src/sm_ingestion_gateway \
             services/normalization-engine/src/sm_normalization_engine \
@@ -104,6 +106,7 @@ jobs:
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
                       -e "packages/ml-py[dev]" \
+                      -e "packages/ai-py[dev]" \
                       -e "services/api-gateway[dev]" \
                       -e "services/ingestion-gateway[dev]" \
                       -e "services/normalization-engine[dev]" \
@@ -201,6 +204,7 @@ jobs:
           pip install -e "packages/contracts-py[dev]" \
                       -e "packages/common-py[dev]" \
                       -e "packages/ml-py[dev]" \
+                      -e "packages/ai-py[dev]" \
                       -e "services/api-gateway[dev]" \
                       -e "services/ingestion-gateway[dev]" \
                       -e "services/normalization-engine[dev]" \

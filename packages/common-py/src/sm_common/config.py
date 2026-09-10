@@ -142,11 +142,29 @@ class AppSettings(BaseSettings):
     internal_jwt_signing_key: SecretStr = SecretStr("")
     internal_jwt_ttl_seconds: int = Field(default=300, ge=30, le=3600)
 
-    # ---- llm (declared now; unused until Phase 6) -----------------
-    llm_default_provider: Literal["anthropic", "openai", "local"] = "anthropic"
+    # ---- llm (Phase 10 — the AI analyst / agent layer) -----------
+    # The provider boundary. With no API key the real adapters raise
+    # `ProviderUnavailable` and the AI layer degrades to deterministic templates
+    # — a live provider is NEVER assumed. Tests use the deterministic adapter.
+    llm_default_provider: Literal["anthropic", "openai", "local", "deterministic"] = "anthropic"
     llm_default_model: str | None = None
-    llm_request_timeout_s: int = Field(default=60, ge=1)
+    # A single generic credential + base URL for the active provider. The real
+    # HTTP adapter is inert (ProviderUnavailable) when the key is unset.
+    llm_api_key: str | None = None
+    llm_base_url: str | None = None
+    llm_request_timeout_s: int = Field(default=60, ge=1, le=600)
     llm_tool_mode: LlmToolMode = LlmToolMode.constrained
+    # Hard ceilings for a single LLM call (defence against runaway cost / context
+    # stuffing). The client rejects a request over the prompt ceiling before any
+    # network I/O.
+    llm_max_prompt_tokens: int = Field(default=24_000, ge=256, le=400_000)
+    llm_max_output_tokens: int = Field(default=2_048, ge=16, le=32_000)
+    llm_max_retries: int = Field(default=2, ge=0, le=5)
+    # Orchestration limits (defence against uncontrolled recursive agents).
+    agent_max_steps: int = Field(default=12, ge=1, le=100)
+    agent_max_tool_calls: int = Field(default=24, ge=1, le=200)
+    agent_wall_clock_timeout_s: int = Field(default=120, ge=5, le=1800)
+    agent_max_llm_tokens_per_run: int = Field(default=60_000, ge=1_000, le=2_000_000)
 
     # ---- http hardening --------------------------------------------
     http_max_body_bytes: int = Field(default=1_048_576, ge=1)
