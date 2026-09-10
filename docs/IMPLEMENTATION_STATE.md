@@ -7,37 +7,29 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 10 — AI Security Analyst + Multi-Agent Defense. Units 1–4 done — local
-gauntlet green; Unit 4 awaiting CI.** Unit 4 (`sm_ai.agents` + `services/ai-analyst`
-`POST /api/v1/agents/run`): `AgentSpec` (name + fixed system prompt + tool
-allow-list), `run_agent` under `AgentLimits` (step / tool-call / wall-clock /
-token caps) + a cancellation `Event`; `DETECTION_AGENT` / `THREAT_INTEL_AGENT` /
-`RESPONSE_AGENT`. An agent cannot spawn another agent, cannot execute anything,
-and holds no standing permissions; an unauthorised or out-of-allow-list tool call
-is refused mid-run without stopping it; a tool exception is a tool result, not a
-crash. `RESPONSE_AGENT` proposes actions; `action_gate` returns `denied` under
-the shipped `SM_RESPONSE_MODE=suggest_only`, never `allowed`. See the Phase 10
-exit report below. Unit 1 CI-verified (`34429226626`): the untrusted-LLM boundary
-(`packages/ai-py` / `sm_ai`) — provider-neutral messages, `LlmProvider`,
-network-free `DeterministicAdapter` (default, `is_live=False`), `HttpLlmBoundary`
-(inert without an API key; never verified), `LlmClient` (per-call token ceiling
-before any network I/O, per-run `RunBudget`, timeout, cancellation, transient-only
-retry, `AuditEvent` per attempt — prompt sha256 not raw). Unit 2 CI-verified
-(`34429715242`): the authorized tool framework (`Tool` / `ToolRegistry` — deny-by-
-default; an unauthorized or unknown tool call is rejected regardless of the LLM
-asking; input + output validation; every invocation audited), the injection
-scanner + untrusted-content fence, `EvidenceBuilder`, `build_grounded_messages`
-(evidence never in the system turn). Unit 3 (local green, awaiting CI):
-`services/ai-analyst` (port 8010, HTTP-only) — grounded incident summarization /
-triage / reasoning / remediation *recommendations*. Answers only from the
-evidence `api-gateway` gathered; every summary sentence must cite a real evidence
-`[ref]` (one repair attempt, then it falls back); no LLM key / provider outage /
-ungrounded output → a deterministic factual template with `degraded=true`. Holds
-**no tools**, takes **no action**; `recommendations` are a fixed vetted per-subject
-list, never model-authored. `sm_contracts` `ExplainRequest` / `Explanation` /
-`EvidenceRef`; `api-gateway` `GET /api/v1/soc/detections/{id}/explanation` gathers
-the evidence and proxies. **The LLM is not trusted; it never gains a privilege it
-was not already granted.**
+**Phase 10 — AI Security Analyst + Multi-Agent Defense. COMPLETE / CI-VERIFIED**
+(all five jobs, final run `34432159191`; unit runs `34429226626` / `34429715242`
+/ `34430968254`). Units 1-4 (`90cc856` / `5b06de9` / `5f14fb3` / `908148b`).
+`packages/ai-py` (`sm_ai`) is the untrusted-LLM boundary: provider-neutral
+messages + `LlmProvider` (`DeterministicAdapter` default / `HttpLlmBoundary`
+inert without a key, never called live), `LlmClient` (per-call token ceiling
+before any network I/O, per-run `RunBudget`, timeout, cancellation,
+transient-only retry, `AuditEvent` per attempt — prompt sha256 not raw),
+`ToolRegistry` (deny-by-default; an unauthorised or unknown tool call is rejected
+regardless of the LLM asking; input + output validation; audited), the injection
+scanner + `fence_untrusted`, `EvidenceBuilder`, `build_grounded_messages`
+(evidence never in the system turn), and `sm_ai.agents` (`AgentSpec` + tool
+allow-list; `run_agent` under `AgentLimits` + a cancel `Event`; an agent cannot
+spawn another agent, cannot execute, holds no standing permissions; `action_gate`
+returns `denied` under the shipped `SM_RESPONSE_MODE=suggest_only`, never
+`allowed`). `services/ai-analyst` (port 8010, HTTP-only) — grounded `Explanation`
+(every claim cites an evidence ref; degraded template fallback) via
+`GET /api/v1/soc/detections/{id}/explanation`, and `POST /api/v1/agents/run`.
+See the Phase 10 exit report below. **The LLM is not trusted; it never gains a
+privilege it was not already granted. No live LLM provider has been called.**
+
+**Next: PHASE 11 — Threat Hunting + Natural Language Querying (prompt not yet
+given — do NOT start speculatively).**
 
 **Phase 9 — Enterprise SOC Dashboard. COMPLETE / CI-VERIFIED** (all five jobs
 incl. `frontend`, final run `34428106928`). Units 1–4 (`15f5d1c` / `790fdf5` /
@@ -596,9 +588,10 @@ before Phase 2 is itself declared complete.
 
 ## Phase 10 exit report
 
-**State: COMPLETE — local gauntlet green; Unit 4 awaiting CI.** Units 1-4 commits
-`90cc856` / `5b06de9` / `5f14fb3` / _(Unit 4 — this commit)_. Units 1-3 CI-verified
-(runs `34429226626` / `34429715242` / `34430968254`).
+**State: COMPLETE / CI-VERIFIED (all five jobs, final run
+[`34432159191`](https://github.com/gaurav685/sentinelmesh/actions/runs/34432159191)).**
+Units 1-4 commits `90cc856` / `5b06de9` / `5f14fb3` / `908148b`.
+Earlier unit runs `34429226626` / `34429715242` / `34430968254`.
 
 **The LLM is treated as untrusted throughout. It never gains a privilege it was
 not already granted: every tool call goes through a deny-by-default
@@ -631,8 +624,8 @@ deterministic templates / `status=failed`, never a fabricated narrative.**
   through).
 - `docker build -f deploy/docker/Dockerfile.app` builds; `sm_ai` + `sm_ai_analyst`
   import in the image.
-- **CI green for Units 1-3** (`34429226626` / `34429715242` / `34430968254`, all
-  five jobs); Unit 4 pending.
+- **CI green on a clean runner — all five jobs, final run `34432159191`**
+  (earlier unit runs `34429226626` / `34429715242` / `34430968254`).
 
 ### Pre-output engineering review (Constitution §23)
 
@@ -711,7 +704,7 @@ deterministic templates / `status=failed`, never a fabricated narrative.**
 | controlled orchestration; timeouts / token limits / cancellation / retry / failure isolation; no uncontrolled recursion | OK `AgentLimits` + `RunBudget` + cancel `Event`; each limit tested; agents cannot spawn agents |
 | never claim live provider verification unless verified | OK `from_live_provider` False everywhere; docs say so |
 | tests: prompt injection, unauthorized tool call, malformed tool input, evidence grounding, LLM timeout, provider outage, audit logging | OK covered |
-| **CI green on a clean runner** | pending Unit 4 (Units 1-3: `34429226626` / `34429715242` / `34430968254`) |
+| **CI green on a clean runner** | OK **all five jobs — final run `34432159191`** (unit runs `34429226626` / `34429715242` / `34430968254`) |
 
 ## Phase 9 exit report
 
@@ -2088,7 +2081,8 @@ local gauntlet green, awaiting CI).**
    → 503. `SM_AI_ANALYST_URL`. `ai-analyst` wired into `Dockerfile.app` / compose
    (`detect` profile, port 8010) / CI (mypy tree + 3 installs + image import).
    **CI-VERIFIED (run `34430968254`).**
-4. ✅ Multi-agent orchestration — `sm_ai.agents`: `AgentSpec` (name + fixed
+4. ✅ **CI-VERIFIED (run `34432159191`) — closes Phase 10.** Multi-agent
+   orchestration — `sm_ai.agents`: `AgentSpec` (name + fixed
    system prompt + tool allow-list), `run_agent` under `AgentLimits`
    (`max_steps` / `max_tool_calls` / `wall_clock_s` / cumulative-token
    `RunBudget`) + a cancellation `Event`. `DETECTION_AGENT` / `THREAT_INTEL_AGENT`
@@ -2106,11 +2100,13 @@ local gauntlet green, awaiting CI).**
    `Dockerfile.app` builds + imports. Phase 10 exit report + §23 +
    `REQUIREMENTS_TRACEABILITY` R14 / R29 / R30 / R31 → IMPLEMENTED (with the
    no-live-provider / no-orchestrator-service / no-execution deviations spelled
-   out) + `CONTRACTS.md` §7.4 / §7.5 / §7.6. **Commit, push, confirm CI green →
-   closes Phase 10.**
+   out) + `CONTRACTS.md` §7.4 / §7.5 / §7.6.
+
+**PHASE 10 is CLOSED — CI-VERIFIED, final run `34432159191` (all five jobs).**
 
 Exit next action after Phase 10: **PHASE 11 — Threat Hunting + Natural Language
-Querying** (prompt not yet given — do NOT start speculatively).
+Querying** (prompt not yet given — do NOT start speculatively; the next session
+resumes here).
 
 **PHASE 9 — ENTERPRISE SOC DASHBOARD. Unit 1 details — `api-gateway` SOC BFF.**
 Tenant-scoped Postgres reads (`SqlSocRepository`: detections / alerts /
