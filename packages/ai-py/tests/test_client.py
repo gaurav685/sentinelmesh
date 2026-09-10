@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 
 import pytest
+
 from sm_ai.client import AuditEvent, LlmClient
 from sm_ai.errors import (
     ProviderRefused,

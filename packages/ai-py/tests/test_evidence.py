@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from sm_ai.errors import ContextPoisoningDetected
 from sm_ai.evidence import EvidenceBuilder
 from sm_ai.sanitize import FENCE_START

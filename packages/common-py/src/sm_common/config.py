@@ -193,6 +193,7 @@ class AppSettings(BaseSettings):
     ti_service_url: str = "http://localhost:8007"
     mitre_service_url: str = "http://localhost:8008"
     graph_service_url: str = "http://localhost:8004"
+    ai_analyst_url: str = "http://localhost:8010"
     # normalization-engine calls threat-intel-service to tag canonical events.
     ti_enrichment_enabled: bool = False
 

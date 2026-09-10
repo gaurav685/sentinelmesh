@@ -26,6 +26,9 @@ from sm_common.errors import DependencyUnavailable, NotFound
 from sm_contracts import (
     CursorPage,
     Detection,
+    EvidenceRef,
+    ExplainRequest,
+    Explanation,
     GraphNeighborhood,
     GraphPath,
     MitreHeatmap,
@@ -92,6 +95,78 @@ async def detection(
     if found is None:
         raise NotFound("detection not found")
     return found
+
+
+@router.get("/detections/{detection_id}/explanation", response_model=Explanation)
+async def detection_explanation(
+    detection_id: UUID,
+    task: str = Query(default="summarize"),
+    principal: Principal = Depends(_read),
+    repo: SocRepository = Depends(get_soc_repository),
+    client: InternalServiceClient = Depends(get_internal_client),
+) -> Explanation:
+    """Gather the evidence for a detection (tenant-scoped, read-only) and ask
+    `ai-analyst` to explain it. The analyst answers only from this evidence."""
+    found = await repo.get_detection(principal.tenant_id, detection_id)
+    if found is None:
+        raise NotFound("detection not found")
+    request = _explain_request_for_detection(found, task)
+    raw = await client.explain(principal.tenant_id, request.model_dump(mode="json"))
+    if not isinstance(raw, dict):
+        raise DependencyUnavailable("ai-analyst returned an unexpected response")
+    return Explanation.model_validate(raw)
+
+
+def _explain_request_for_detection(det: Detection, task: str) -> ExplainRequest:
+    did = str(det.id)
+    evidence: list[EvidenceRef] = [
+        EvidenceRef(
+            kind="detection",
+            ref=did,
+            provenance=f"detection-engine:{did}",
+            content=f"{det.title}. {det.description}".strip(),
+        ),
+        EvidenceRef(
+            kind="detection_meta",
+            ref=f"{did}:meta",
+            provenance=f"detection-engine:{did}",
+            content=(
+                f"detector={det.detector} rule_id={det.rule_id or 'n/a'} "
+                f"severity={det.severity} score={det.score:.2f} status={det.status} "
+                f"first_seen={det.first_seen.isoformat()} last_seen={det.last_seen.isoformat()}"
+            ),
+            trusted=True,
+        ),
+    ]
+    for i, ent in enumerate(det.entities[:20]):
+        evidence.append(
+            EvidenceRef(
+                kind="entity",
+                ref=f"{did}:e{i}",
+                provenance=f"detection-engine:{did}",
+                content=f"{ent.kind.value}={ent.value}",
+            )
+        )
+    for tech in det.technique_ids[:20]:
+        evidence.append(
+            EvidenceRef(
+                kind="technique",
+                ref=tech,
+                provenance="detection-engine:rule",
+                content=f"ATT&CK technique {tech} (named by the detection rule)",
+                trusted=True,
+            )
+        )
+    allowed = {"summarize", "triage", "reason", "remediate"}
+    safe_task = task if task in allowed else "summarize"
+    return ExplainRequest.model_validate(
+        {
+            "subject_type": "detection",
+            "subject_id": did,
+            "task": safe_task,
+            "evidence": [e.model_dump() for e in evidence],
+        }
+    )
 
 
 # ---- alerts / incidents --------------------------------------

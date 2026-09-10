@@ -7,21 +7,28 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 10 — AI Security Analyst + Multi-Agent Defense. IN PROGRESS — Units 1–2
-done (`packages/ai-py` / `sm_ai`).** Unit 1 CI-verified (run `34429226626`): the
-untrusted-LLM boundary — provider-neutral messages, `LlmProvider` protocol,
+**Phase 10 — AI Security Analyst + Multi-Agent Defense. IN PROGRESS — Units 1–3
+done.** Unit 1 CI-verified (`34429226626`): the untrusted-LLM boundary
+(`packages/ai-py` / `sm_ai`) — provider-neutral messages, `LlmProvider`,
 network-free `DeterministicAdapter` (default, `is_live=False`), `HttpLlmBoundary`
 (inert without an API key; never verified), `LlmClient` (per-call token ceiling
 before any network I/O, per-run `RunBudget`, timeout, cancellation, transient-only
-retry, `AuditEvent` per attempt — prompt sha256 not raw). Unit 2 (local green,
-awaiting CI): the authorized tool framework (`Tool` / `ToolRegistry` — deny-by-
-default, an unauthorized or unknown tool call is rejected regardless of the LLM
+retry, `AuditEvent` per attempt — prompt sha256 not raw). Unit 2 CI-verified
+(`34429715242`): the authorized tool framework (`Tool` / `ToolRegistry` — deny-by-
+default; an unauthorized or unknown tool call is rejected regardless of the LLM
 asking; input + output validation; every invocation audited), the injection
-scanner + untrusted-content fence, the `EvidenceBuilder` (fences all
-telemetry-derived content as data, caps context size), and
-`build_grounded_messages` (evidence never in the system turn). `SM_LLM_*` /
-`SM_AGENT_*` config in `sm_common`. **The LLM is not trusted; it never gains a
-privilege it was not already granted.**
+scanner + untrusted-content fence, `EvidenceBuilder`, `build_grounded_messages`
+(evidence never in the system turn). Unit 3 (local green, awaiting CI):
+`services/ai-analyst` (port 8010, HTTP-only) — grounded incident summarization /
+triage / reasoning / remediation *recommendations*. Answers only from the
+evidence `api-gateway` gathered; every summary sentence must cite a real evidence
+`[ref]` (one repair attempt, then it falls back); no LLM key / provider outage /
+ungrounded output → a deterministic factual template with `degraded=true`. Holds
+**no tools**, takes **no action**; `recommendations` are a fixed vetted per-subject
+list, never model-authored. `sm_contracts` `ExplainRequest` / `Explanation` /
+`EvidenceRef`; `api-gateway` `GET /api/v1/soc/detections/{id}/explanation` gathers
+the evidence and proxies. **The LLM is not trusted; it never gains a privilege it
+was not already granted.**
 
 **Phase 9 — Enterprise SOC Dashboard. COMPLETE / CI-VERIFIED** (all five jobs
 incl. `frontend`, final run `34428106928`). Units 1–4 (`15f5d1c` / `790fdf5` /
@@ -1918,36 +1925,43 @@ report + §23 + `REQUIREMENTS_TRACEABILITY` R13 / R25 → IMPLEMENTED (P9 core;
 WebSocket / `notification-service` / cinematic replay / Playwright deferred) +
 `CONTRACTS.md` "Phase 9 closed".
 
-**PHASE 10 — AI SECURITY ANALYST + MULTI-AGENT DEFENSE. Unit 2 DONE — local
-gauntlet green, awaiting CI.**
-1. ✅ **CI-VERIFIED (run `34429226626`, all five jobs).** `packages/ai-py`
-   (`sm_ai`) — the untrusted-LLM boundary: provider-neutral messages, `LlmProvider`
-   protocol, `DeterministicAdapter` (default, network-free, `is_live=False`),
+**PHASE 10 — AI SECURITY ANALYST + MULTI-AGENT DEFENSE. Units 1–3 DONE (Unit 3
+local gauntlet green, awaiting CI).**
+1. ✅ **CI-VERIFIED (run `34429226626`).** `packages/ai-py` (`sm_ai`) — the
+   untrusted-LLM boundary: provider-neutral messages, `LlmProvider`,
+   `DeterministicAdapter` (default, network-free, `is_live=False`),
    `HttpLlmBoundary` (Anthropic Messages shape; `ProviderUnavailable` without a
    key; never verified), `LlmClient` (pre-flight per-call token ceiling,
    `RunBudget`, timeout, cancellation, transient-only retry, `AuditEvent` per
-   attempt — prompt sha256 not raw). `SM_LLM_*` / `SM_AGENT_*` config; `ai-py`
-   added to CI (static mypy + 3 install blocks).
-2. ✅ **Tool framework + evidence/context builder** (`sm_ai.tools` / `.registry`
-   / `.sanitize` / `.evidence` / `.prompt`). `Tool` / `FunctionTool` (explicit
-   Pydantic `args_model` — the model only sees its JSON Schema; optional
-   `required_permission`; input + output validation). `ToolRegistry` — deny-by-
+   attempt — prompt sha256 not raw). `SM_LLM_*` / `SM_AGENT_*` config.
+2. ✅ **CI-VERIFIED (run `34429715242`).** Tool framework + evidence/context
+   builder (`sm_ai.tools` / `.registry` / `.sanitize` / `.evidence` / `.prompt`).
+   `Tool` / `FunctionTool` (explicit Pydantic `args_model`; optional
+   `required_permission`; input + output validation). `ToolRegistry` deny-by-
    default: `specs_for(principal)` offers only authorized tools; `invoke`
-   re-checks the tool exists → `has_permission` (**the LLM asking is irrelevant**)
-   → args schema → runs → validates output → emits a `ToolInvocationRecord` for
-   every path. `scan_for_injection` (small, specific override-pattern set — quiet
-   on ordinary security prose) + `fence_untrusted` (delimiter-lookalikes
-   neutralised, truncation). `EvidenceBuilder` — trusted strings render plainly,
-   everything telemetry-/third-party-derived is fenced as data, injection hits
-   recorded per ref, total size capped → `ContextPoisoningDetected`.
-   `build_grounded_messages` **guarantees evidence never lands in the system
-   turn**. Local: ruff + `mypy --strict` clean, **625 unit tests** (24 new),
-   `gen_contracts --check`, `Dockerfile.app` builds. **Commit, push, confirm CI
-   green.**
-3. `services/ai-analyst` — grounded incident summarization / triage / reasoning /
-   remediation *recommendations* (every claim → evidence ref; `LLM_UNAVAILABLE` →
-   deterministic template). Read API via `api-gateway`
-   `GET /api/v1/detections/{id}/explanation`. Prompt + response audited.
+   re-checks existence → `has_permission` (**the LLM asking is irrelevant**) →
+   args → output, emitting a `ToolInvocationRecord` on every path.
+   `scan_for_injection` + `fence_untrusted`. `EvidenceBuilder` (trusted plain,
+   everything else fenced as data, size cap → `ContextPoisoningDetected`).
+   `build_grounded_messages` **keeps evidence out of the system turn**.
+3. ✅ `services/ai-analyst` (port 8010, HTTP-only, no DB / no Kafka) — grounded
+   incident summarization / triage / reasoning / remediation *recommendations*.
+   `IncidentAnalyst.explain` builds the evidence bundle, runs
+   `build_grounded_messages` + `LlmClient`, **validates every `[ref]` the summary
+   cites is a real evidence ref** (one repair attempt), else falls back. No LLM
+   key / provider outage / ungrounded output / oversized context → a
+   deterministic factual template with `degraded=true` + a `degraded_reason`.
+   Holds **no tools**, takes **no action**; `recommendations` are a fixed vetted
+   per-subject list, never model-authored. `sm_contracts` `ExplainRequest` /
+   `Explanation` / `EvidenceRef`. `api-gateway`
+   `GET /api/v1/soc/detections/{id}/explanation` gathers the evidence
+   (tenant-scoped, from the detection record) and proxies via
+   `InternalServiceClient.explain` (audience `ai-analyst`); a dependency outage
+   → 503. `SM_AI_ANALYST_URL`. `ai-analyst` wired into `Dockerfile.app` / compose
+   (`detect` profile, port 8010) / CI (mypy tree + 3 installs + image import).
+   Local: ruff + `mypy --strict` clean (299 files), **640 unit tests** (15 new) +
+   `gen_contracts --check`, `Dockerfile.app` builds + imports. **Commit, push,
+   confirm CI green.**
 4. Multi-agent orchestration (detection / threat-intel / response-orchestration
    agents) + a controlled orchestrator (step cap, tool-call cap, wall-clock +
    token ceilings, cancellation, failure isolation, no uncontrolled recursion).

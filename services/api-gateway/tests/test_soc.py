@@ -157,3 +157,52 @@ def test_graph_neighbors_503_when_the_service_answers_with_a_non_object(
     do_login("acme", fixture.acme_analyst.email)
     r = client.get("/api/v1/soc/graph/neighbors", params={"label": "Host", "key": "web01"})
     assert r.status_code == 503
+
+
+def test_detection_explanation_gathers_evidence_and_proxies_the_analyst(
+    client: TestClient, fixture, do_login
+) -> None:
+    det = _detection(fixture.acme.id)
+    fixture.services.soc_repository.detections[det.id] = det
+    fixture.services.internal_client.responses["explain"] = {
+        "subject_type": "detection",
+        "subject_id": str(det.id),
+        "summary": f"Repeated auth failures for svc-backup [{det.id}].",
+        "cited_refs": [str(det.id)],
+        "confidence": "low",
+        "recommendations": ["Confirm against the raw events."],
+        "model": {
+            "provider": "",
+            "model_id": "",
+            "prompt_sha256": "",
+            "from_live_provider": False,
+        },
+        "generated_at": "2026-09-10T00:00:00Z",
+        "degraded": True,
+        "degraded_reason": "llm_disabled",
+        "evidence_flagged": False,
+    }
+    do_login("acme", fixture.acme_analyst.email)
+    r = client.get(f"/api/v1/soc/detections/{det.id}/explanation")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["degraded"] is True
+    assert body["subject_id"] == str(det.id)
+    assert ("explain", fixture.acme.id) in fixture.services.internal_client.calls
+
+
+def test_detection_explanation_404_for_an_unknown_detection(
+    client: TestClient, fixture, do_login
+) -> None:
+    do_login("acme", fixture.acme_analyst.email)
+    assert client.get(f"/api/v1/soc/detections/{uuid.uuid4()}/explanation").status_code == 404
+
+
+def test_detection_explanation_503_when_the_analyst_is_down(
+    client: TestClient, fixture, do_login
+) -> None:
+    det = _detection(fixture.acme.id)
+    fixture.services.soc_repository.detections[det.id] = det
+    fixture.services.internal_client.fail = True
+    do_login("acme", fixture.acme_analyst.email)
+    assert client.get(f"/api/v1/soc/detections/{det.id}/explanation").status_code == 503

@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "AnalystModelInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "from_live_provider": {
+          "default": false,
+          "title": "From Live Provider",
+          "type": "boolean"
+        },
+        "model_id": {
+          "default": "",
+          "maxLength": 128,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "provider": {
+          "default": "",
+          "maxLength": 32,
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "title": "AnalystModelInfo",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cited_refs": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 100,
+      "title": "Cited Refs",
+      "type": "array"
+    },
+    "confidence": {
+      "default": "low",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "degraded": {
+      "default": false,
+      "title": "Degraded",
+      "type": "boolean"
+    },
+    "degraded_reason": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Degraded Reason",
+      "type": "string"
+    },
+    "evidence_flagged": {
+      "default": false,
+      "title": "Evidence Flagged",
+      "type": "boolean"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "model": {
+      "$ref": "#/$defs/AnalystModelInfo"
+    },
+    "recommendations": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Recommendations",
+      "type": "array"
+    },
+    "subject_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "enum": [
+        "detection",
+        "attack_chain",
+        "incident"
+      ],
+      "title": "Subject Type",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 8000,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "subject_type",
+    "subject_id",
+    "summary",
+    "generated_at"
+  ],
+  "title": "Explanation",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

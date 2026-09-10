@@ -15,6 +15,10 @@ export type ActorType = "user" | "sensor" | "service" | "agent" | "system";
  * via the `definition` "AlertStatus".
  */
 export type AlertStatus = "open" | "acknowledged" | "closed";
+export type FromLiveProvider = boolean;
+export type ModelId = string;
+export type PromptSha256 = string;
+export type Provider = string;
 export type CreatedAt = string;
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -474,7 +478,7 @@ export type LastSeen4 = string;
 /**
  * '<source>' or 'fixture:<name>'.
  */
-export type Provider = string;
+export type Provider1 = string;
 /**
  * URL / feed line / ticket id.
  */
@@ -1085,6 +1089,35 @@ export type TenantId23 = string;
  * W3C trace-context trace-id.
  */
 export type TraceId11 = string | null;
+export type Content = string;
+export type Kind = string;
+export type Provenance2 = string;
+export type Ref1 = string;
+export type Trusted = boolean;
+/**
+ * @minItems 1
+ * @maxItems 100
+ */
+export type Evidence1 = [EvidenceRef, ...EvidenceRef[]];
+export type SubjectId4 = string;
+export type SubjectType = "detection" | "attack_chain" | "incident";
+export type Task = "summarize" | "triage" | "reason" | "remediate";
+/**
+ * @maxItems 100
+ */
+export type CitedRefs = string[];
+export type Confidence2 = "low" | "medium" | "high";
+export type Degraded = boolean;
+export type DegradedReason = string;
+export type EvidenceFlagged = boolean;
+export type GeneratedAt = string;
+/**
+ * @maxItems 20
+ */
+export type Recommendations = string[];
+export type SubjectId5 = string;
+export type SubjectType1 = "detection" | "attack_chain" | "incident";
+export type Summary2 = string;
 export type RoleId1 = string;
 export type Dst = string;
 export type Src = string;
@@ -1221,7 +1254,7 @@ export type Dependencies = DepStatus[];
 export type Ready = boolean;
 export type ComputedAt1 = string;
 export type Score6 = number;
-export type SubjectId4 = string;
+export type SubjectId6 = string;
 export type CreatedAt9 = string;
 export type Description4 = string;
 export type Id11 = string;
@@ -1253,7 +1286,7 @@ export type SensorType = "network" | "auth" | "dns" | "process" | "file" | "mixe
 export type UpdatedAt10 = string;
 export type ActiveChains = number;
 export type Detections24H = number;
-export type GeneratedAt = string;
+export type GeneratedAt1 = string;
 export type OpenAlerts = number;
 /**
  * @maxItems 20
@@ -1263,11 +1296,11 @@ export type CreatedAt11 = string;
 /**
  * @maxItems 64
  */
-export type Evidence1 = EvidenceItem[];
+export type Evidence2 = EvidenceItem[];
 export type Id14 = string;
 export type MatrixVersion3 = string;
 export type Rationale = string;
-export type SubjectId5 = string;
+export type SubjectId7 = string;
 export type TacticId2 = string | null;
 export type TechniqueId2 = string;
 export type TenantId27 = string;
@@ -1316,14 +1349,14 @@ export type Name11 = string;
 export type TtlSeconds = number;
 export type UpdatedAt14 = string;
 export type At = string;
-export type Kind = string;
+export type Kind1 = string;
 export type RefId = string;
 export type Title3 = string;
 /**
  * @maxItems 500
  */
 export type Entries = TimelineEntry[];
-export type SubjectId6 = string;
+export type SubjectId8 = string;
 export type CreatedAt15 = string;
 export type DisplayName2 = string;
 export type Email3 = string;
@@ -1342,6 +1375,16 @@ export type UserId1 = string;
 
 export interface SentinelMeshContracts {
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "AnalystModelInfo".
+ */
+export interface AnalystModelInfo {
+  from_live_provider?: FromLiveProvider;
+  model_id?: ModelId;
+  prompt_sha256?: PromptSha256;
+  provider?: Provider;
 }
 /**
  * One scored feature vector. An anomaly is *evidence*, not a conclusion.
@@ -1809,7 +1852,7 @@ export interface ThreatIndicator {
  * via the `definition` "Provenance".
  */
 export interface Provenance1 {
-  provider: Provider;
+  provider: Provider1;
   reference?: Reference;
   retrieved_at: RetrievedAt;
   source_kind: TiSourceKind;
@@ -2286,6 +2329,49 @@ export interface UserEventPayload {
   user_id: UserId;
 }
 /**
+ * One piece of platform-gathered evidence. `trusted` is `True` only for
+ * strings SentinelMesh itself produced (a rule id, a numeric score, a catalog
+ * technique id); everything telemetry- or third-party-derived is `False` and is
+ * fenced as data before it reaches the model.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "EvidenceRef".
+ */
+export interface EvidenceRef {
+  content: Content;
+  kind: Kind;
+  provenance: Provenance2;
+  ref: Ref1;
+  trusted?: Trusted;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "ExplainRequest".
+ */
+export interface ExplainRequest {
+  evidence: Evidence1;
+  subject_id: SubjectId4;
+  subject_type: SubjectType;
+  task?: Task;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "Explanation".
+ */
+export interface Explanation {
+  cited_refs?: CitedRefs;
+  confidence?: Confidence2;
+  degraded?: Degraded;
+  degraded_reason?: DegradedReason;
+  evidence_flagged?: EvidenceFlagged;
+  generated_at: GeneratedAt;
+  model?: AnalystModelInfo;
+  recommendations?: Recommendations;
+  subject_id: SubjectId5;
+  subject_type: SubjectType1;
+  summary: Summary2;
+}
+/**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "GrantRoleRequest".
  */
@@ -2498,7 +2584,7 @@ export interface RiskSubject {
   computed_at: ComputedAt1;
   score: Score6;
   scoring_status: ScoringStatus;
-  subject_id: SubjectId4;
+  subject_id: SubjectId6;
   subject_type: ThreatSubjectType;
 }
 /**
@@ -2568,7 +2654,7 @@ export interface SocSummary {
   active_chains: ActiveChains;
   alerts_by_severity?: AlertsBySeverity;
   detections_24h: Detections24H;
-  generated_at: GeneratedAt;
+  generated_at: GeneratedAt1;
   open_alerts: OpenAlerts;
   top_risk_subjects?: TopRiskSubjects;
 }
@@ -2584,12 +2670,12 @@ export interface AlertsBySeverity {
 export interface TechniqueMapping {
   confidence: MappingConfidence;
   created_at: CreatedAt11;
-  evidence?: Evidence1;
+  evidence?: Evidence2;
   id: Id14;
   matrix_version: MatrixVersion3;
   rationale: Rationale;
   source: MappingSource;
-  subject_id: SubjectId5;
+  subject_id: SubjectId7;
   subject_type: MappingSubjectType;
   tactic_id?: TacticId2;
   technique_id: TechniqueId2;
@@ -2669,7 +2755,7 @@ export interface TiSource {
 export interface TimelineEntry {
   at: At;
   detail?: Detail2;
-  kind: Kind;
+  kind: Kind1;
   ref_id: RefId;
   severity?: Severity | null;
   title: Title3;
@@ -2683,7 +2769,7 @@ export interface Detail2 {
  */
 export interface TimelineResponse {
   entries?: Entries;
-  subject_id: SubjectId6;
+  subject_id: SubjectId8;
   subject_type: ThreatSubjectType;
 }
 /**

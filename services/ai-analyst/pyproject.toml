@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sm-ai-analyst"
+version = "0.1.0"
+description = "SentinelMesh AI analyst (req 14 / 29): grounded incident summarization, triage, reasoning and remediation *recommendations*. Answers only from evidence api-gateway gathered; every claim cites a ref; no live LLM -> a deterministic factual template (degraded=true). The analyst holds no tools and takes no action."
+requires-python = ">=3.11"
+dependencies = [
+    "sm-contracts",
+    "sm-common",
+    "sm-ai",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sm_ai_analyst"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

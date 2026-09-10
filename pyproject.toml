@@ -17,7 +17,7 @@ select = ["E", "F", "I", "N", "UP", "B", "S", "ASYNC", "DTZ", "T20", "RUF"]
 ignore = ["S101"]  # assert allowed in tests only; see per-path override below
 
 [tool.ruff.lint.isort]
-known-first-party = ["sm_contracts", "sm_common", "sm_ml", "sm_api_gateway", "sm_ingestion_gateway", "sm_normalization_engine", "sm_stream_processor", "sm_graph_service"]
+known-first-party = ["sm_contracts", "sm_common", "sm_ml", "sm_ai", "sm_api_gateway", "sm_ingestion_gateway", "sm_normalization_engine", "sm_stream_processor", "sm_graph_service", "sm_ai_analyst"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's declarative dependency style requires these calls in defaults (B008).

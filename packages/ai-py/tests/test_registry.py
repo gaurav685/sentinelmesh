@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 from pydantic import BaseModel, Field
+
 from sm_ai.errors import ToolAuthorizationError, ToolInputInvalid, ToolOutputInvalid, UnknownToolError
 from sm_ai.messages import ToolCall
 from sm_ai.registry import ToolInvocationRecord, ToolRegistry
 from sm_ai.tools import FunctionTool, ToolContext, ToolOutcome
-
 from sm_contracts import PermissionCode
 
 from .conftest import FakePrincipal

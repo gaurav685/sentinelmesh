@@ -12,9 +12,13 @@ Import surface is intentionally flat for consumers:
 from __future__ import annotations
 
 from .api import (
+    AnalystModelInfo,
     CreateUserRequest,
     CursorPage,
     DepStatus,
+    EvidenceRef,
+    ExplainRequest,
+    Explanation,
     GrantRoleRequest,
     GraphEdge,
     GraphNeighborhood,
@@ -347,4 +351,9 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "GraphEdge",
     "GraphNeighborhood",
     "GraphPath",
+    # AI analyst (Phase 10)
+    "EvidenceRef",
+    "ExplainRequest",
+    "Explanation",
+    "AnalystModelInfo",
 ]

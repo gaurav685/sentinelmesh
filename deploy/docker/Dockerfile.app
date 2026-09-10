@@ -44,6 +44,8 @@ COPY services/detection-engine/pyproject.toml services/detection-engine/README.m
 COPY services/mitre-service/pyproject.toml services/mitre-service/README.md services/mitre-service/
 COPY services/threat-intel-service/pyproject.toml services/threat-intel-service/README.md services/threat-intel-service/
 COPY services/correlation-engine/pyproject.toml services/correlation-engine/README.md services/correlation-engine/
+COPY packages/ai-py/pyproject.toml packages/ai-py/README.md packages/ai-py/
+COPY services/ai-analyst/pyproject.toml services/ai-analyst/README.md services/ai-analyst/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
@@ -58,8 +60,10 @@ COPY services/detection-engine/src services/detection-engine/src
 COPY services/mitre-service/src services/mitre-service/src
 COPY services/threat-intel-service/src services/threat-intel-service/src
 COPY services/correlation-engine/src services/correlation-engine/src
+COPY packages/ai-py/src packages/ai-py/src
+COPY services/ai-analyst/src services/ai-analyst/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service ./services/correlation-engine \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service ./services/correlation-engine ./packages/ai-py ./services/ai-analyst \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #

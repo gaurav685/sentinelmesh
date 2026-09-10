@@ -31,6 +31,7 @@ class InternalServiceClient:
     def __init__(
         self, http: httpx.AsyncClient, *, signing_key: str, ttl_seconds: int,
         correlation_url: str, graph_url: str, ti_url: str, mitre_url: str,
+        ai_analyst_url: str = "http://localhost:8010",
     ) -> None:
         self._http = http
         self._key = signing_key
@@ -40,6 +41,7 @@ class InternalServiceClient:
             "graph-service": graph_url.rstrip("/"),
             "threat-intel-service": ti_url.rstrip("/"),
             "mitre-service": mitre_url.rstrip("/"),
+            "ai-analyst": ai_analyst_url.rstrip("/"),
         }
 
     def _token(self, audience: str, tenant_id: UUID) -> str:
@@ -122,3 +124,9 @@ class InternalServiceClient:
 
     async def mitre_techniques(self, tenant_id: UUID) -> Any:
         return await self._request("mitre-service", "GET", "/api/v1/mitre/techniques", tenant_id)
+
+    # ---- ai-analyst -----------------------------------------
+    async def explain(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "ai-analyst", "POST", "/api/v1/analyst/explain", tenant_id, json=payload
+        )
