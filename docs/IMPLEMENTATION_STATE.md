@@ -7,17 +7,30 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 8 — GNN + Temporal Intelligence. IN PROGRESS — Unit 1 (`sm_ml.graph`).**
-Graph construction (`GraphSample` — deterministic, numpy-free node features from
-the edge set + temporal fractions), the versioned `GraphFeatureSchema`, the
-graph-model interface (`NodeAnomalyResult` / `SubgraphVerdict` / `ClusterResult`,
-all carrying `model_version` + explicit `confidence`), the always-available
-structural path (`StructuralGraphAnomaly` MAD-z-score over node features,
-`SuspiciousSubgraphHeuristic`, `ConnectedComponentClusterer` /
-`LabelPropagationClusterer` — all stdlib, deterministic), and the GNN boundary
-(`GraphSAGEModel` / `GATModel` / `GraphAutoencoderModel` — `sm-ml[gnn]` optional,
-`GraphModelUnavailable` without torch, `GraphModelNotTrained` without weights).
-`ml/models/{graphsage,gat,graph_anomaly}/CONTRACT.md`. No metric is fabricated —
+**Phase 9 — Enterprise SOC Dashboard. IN PROGRESS — Unit 3 (the SOC views).**
+`frontend/web` now renders real, typed views for every read surface the BFF
+exposes: dashboard, alerts list + detail (`incidents/[id]` fetches the triggering
+detection), attack-chain list + detail (kill-chain stage table), MITRE ATT&CK
+heatmap, risk heatmap, entity explorer + timeline, threat-intel indicators. Every
+view goes through `DataView` (loading / error / empty / ready in one place);
+severity is colour + text + shape; no backend shape is re-declared (all types
+come from `@sentinelmesh/contracts`); no attack activity is fabricated — empty
+states say so plainly. `src/lib/contract.test.ts` compile-checks fixture
+responses against the generated types. The CI `frontend` job's contract-drift
+check switched from the unsupported `git diff --exit-status` to `git diff --quiet`.
+Attack-graph (Cytoscape) + real-time updates land in Unit 4.
+
+**Phase 8 — GNN + Temporal Intelligence. COMPLETE / CI-VERIFIED** (all four jobs,
+runs `34408045416` / `34408494057` / `34409131977` / `34410178417`). Units 1–4.
+Graph construction (`GraphSample`), the versioned `GraphFeatureSchema`, the
+graph-model interface, the always-available structural path
+(`StructuralGraphAnomaly` / `SuspiciousSubgraphHeuristic` /
+`LabelPropagationClusterer` — stdlib, deterministic), the GNN boundary
+(`sm-ml[gnn]` optional, `GraphModelUnavailable` without torch), `sm_ml.temporal`
+(out-of-order / clock-skew / duplicate-safe timeline, replay, session stitching),
+`services/ml-training` (the reproducible pipeline on a synthetic fixture),
+`ml-inference` `POST /api/v1/infer/graph/{model}`, `graph-service`
+`GET /api/v1/graph/intel`. No metric is fabricated —
 `METRICS: NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION` everywhere.
 
 **Phase 7 — Attack Chain Reconstruction + Threat Scoring. COMPLETE / CI-VERIFIED**
@@ -1814,14 +1827,19 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 9 — ENTERPRISE SOC DASHBOARD. Units 1–2 DONE.** Unit 1 (`api-gateway`
+**PHASE 9 — ENTERPRISE SOC DASHBOARD. Units 1–3 DONE.** Unit 1 (`api-gateway`
 SOC BFF) CI-green (run `34424869328`). Unit 2 (`frontend/web` Next.js scaffold +
-generated typed client + auth shell + `frontend` CI job): local gauntlet green —
-ruff / `mypy --strict` / 578 python unit + `gen_contracts --check`; contracts-ts
-typecheck; `frontend/web` `npm run lint` clean, `npm run test` 19 passed,
-`npm run build` OK (11 routes). `sm_contracts` `ref_template` fixed to `$defs`,
-generated TS committed as a single `src/index.ts`. **Commit Unit 2, push, confirm
-CI green (new `frontend` job).**
+generated typed client + auth shell + `frontend` CI job): committed `790fdf5` —
+the `frontend` CI job failed only on `git diff --exit-status` (unsupported by
+git 2.55; no schema drift). Unit 3 (the SOC views + CI git-flag fix): local
+gauntlet green — `frontend/web` `npm run lint` clean, `npm run test` 27 passed,
+`npm run build` OK (14 routes); ruff clean; `gen_contracts.py --check` up to date
++ no contracts drift; CI-config contract test 14 passed. New views:
+chains list + `chains/[id]`, incidents list + `incidents/[id]`, mitre heatmap,
+risk heatmap, entities + `entities/[id]` timeline, intel indicators; `DataView`
+primitive; `src/lib/contract.test.ts`. `.github/workflows/ci.yml` `frontend` job
+now uses `git diff --quiet`. **Commit Unit 3, push, confirm CI green (all five
+jobs incl. `frontend`).**
 
 **PHASE 9 — ENTERPRISE SOC DASHBOARD. Unit 1 details — `api-gateway` SOC BFF.**
 Tenant-scoped Postgres reads (`SqlSocRepository`: detections / alerts /

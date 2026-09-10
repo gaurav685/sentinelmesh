@@ -332,7 +332,11 @@ jobs:
       - name: Generated TypeScript contracts are current
         run: |
           python scripts/gen_contracts.py
-          git diff --exit-status -- packages/contracts-ts/schemas packages/contracts-ts/src
+          if ! git diff --quiet -- packages/contracts-ts/schemas packages/contracts-ts/src; then
+            echo "::error::generated contracts are stale — run: python scripts/gen_contracts.py"
+            git --no-pager diff --stat -- packages/contracts-ts/schemas packages/contracts-ts/src
+            exit 1
+          fi
 
       - name: Contracts type-check
         run: (cd packages/contracts-ts && npm run typecheck)

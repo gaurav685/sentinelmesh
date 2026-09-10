@@ -1,5 +1,5 @@
 import { Placeholder } from "@/components/Placeholder";
 
-export default function Page() {
-  return <Placeholder title="Graph" />;
+export default function GraphPage() {
+  return <Placeholder title="Attack graph" />;
 }
