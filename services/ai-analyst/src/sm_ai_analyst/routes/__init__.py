@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from . import agents, explain, health, metrics
+from . import agents, explain, health, hunt, metrics
 
-__all__ = ["agents", "explain", "health", "metrics"]
+__all__ = ["agents", "explain", "health", "hunt", "metrics"]

@@ -106,6 +106,20 @@ class InternalServiceClient:
             params={"label": label, "key": key, "depth": depth},
         )
 
+    async def graph_hunt(self, tenant_id: UUID, plan: dict[str, Any]) -> Any:
+        return await self._request(
+            "graph-service", "POST", "/api/v1/graph/hunt", tenant_id, json=plan
+        )
+
+    # ---- ai-analyst: NL hunting -----------------------------
+    async def hunt_plan(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request("ai-analyst", "POST", "/api/v1/hunt/plan", tenant_id, json=payload)
+
+    async def hunt_explain(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "ai-analyst", "POST", "/api/v1/hunt/explain", tenant_id, json=payload
+        )
+
     # ---- threat-intel-service --------------------------------
     async def ti_indicators(self, tenant_id: UUID, **query: Any) -> Any:
         return await self._request(

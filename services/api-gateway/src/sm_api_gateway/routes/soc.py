@@ -31,9 +31,12 @@ from sm_contracts import (
     Explanation,
     GraphNeighborhood,
     GraphPath,
+    HuntResult,
     MitreHeatmap,
     PermissionCode,
     SecurityAlert,
+    SocHuntRequest,
+    SocHuntResponse,
     ThreatScore,
     TimelineResponse,
 )
@@ -333,3 +336,67 @@ async def ti_indicators(
     client: InternalServiceClient = Depends(get_internal_client),
 ) -> Any:
     return await client.ti_indicators(principal.tenant_id, type=type, limit=limit)
+
+
+# ---- threat hunting (Phase 11) -----------------------------
+@router.post("/hunt", response_model=SocHuntResponse)
+async def hunt(
+    body: SocHuntRequest,
+    principal: Principal = Depends(_hunt),
+    repo: SocRepository = Depends(get_soc_repository),
+    client: InternalServiceClient = Depends(get_internal_client),
+) -> SocHuntResponse:
+    """Run a threat hunt. `body.plan` = a structured plan built by the UI (no
+    LLM); `body.query` = natural language, translated to a `QueryPlan` by
+    `ai-analyst`. Either way the plan is executed by `graph-service` scoped to
+    `principal.tenant_id` (never a body field). The natural-language text is
+    never sent to `graph-service` and never becomes a query."""
+    tenant = principal.tenant_id
+
+    plan_dict: dict[str, Any]
+    mode: str
+    nl_query: str | None
+    if body.plan is not None:
+        plan_dict = body.plan.model_dump(mode="json")
+        mode, nl_query = "quick", None
+    elif body.query is not None:
+        mode, nl_query = "nl", body.query
+        planned = await client.hunt_plan(
+            tenant, {"query": body.query, "max_rows": body.max_rows}
+        )
+        if not isinstance(planned, dict):
+            raise DependencyUnavailable("ai-analyst returned an unexpected response")
+        if not planned.get("supported") or not planned.get("plan"):
+            await repo.record_hunt(
+                tenant, principal=principal.email, mode=mode, nl_query=nl_query,
+                intent=None, supported=False, row_count=0, cypher_fingerprint=None,
+            )
+            return SocHuntResponse(
+                supported=False,
+                unsupported_reason=str(planned.get("unsupported_reason", "could not plan the query")),
+            )
+        plan_dict = planned["plan"]
+    else:
+        return SocHuntResponse(supported=False, unsupported_reason="provide 'query' or 'plan'")
+
+    raw = await client.graph_hunt(tenant, plan_dict)
+    if not isinstance(raw, dict):
+        raise DependencyUnavailable("graph-service returned an unexpected response")
+    result = HuntResult.model_validate(raw)
+
+    # best-effort grounded explanation; a failure here does not fail the hunt
+    try:
+        explained = await client.hunt_explain(
+            tenant, {"result": result.model_dump(mode="json")}
+        )
+        if isinstance(explained, dict):
+            result = HuntResult.model_validate(explained)
+    except DependencyUnavailable:
+        pass
+
+    history_id = await repo.record_hunt(
+        tenant, principal=principal.email, mode=mode, nl_query=nl_query,
+        intent=result.intent, supported=True, row_count=result.row_count,
+        cypher_fingerprint=result.cypher_fingerprint or None,
+    )
+    return SocHuntResponse(supported=True, result=result, history_id=str(history_id))

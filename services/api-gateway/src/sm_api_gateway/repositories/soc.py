@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sm_common.clock import utcnow
 from sm_common.db import Detection as DetectionRow
+from sm_common.db import HuntQueryRow
 from sm_common.db import SecurityAlert as AlertRow
 from sm_common.db import ThreatScore as ThreatScoreRow
 from sm_common.db.intel_models import TechniqueMappingRow
@@ -189,6 +190,33 @@ class SqlSocRepository:
             ))
         entries.sort(key=lambda e: e.at, reverse=True)
         return entries[:limit]
+
+    # ---- hunt history (Phase 11) --------------------------------
+    async def record_hunt(
+        self,
+        tenant_id: UUID,
+        *,
+        principal: str,
+        mode: str,
+        nl_query: str | None,
+        intent: str | None,
+        supported: bool,
+        row_count: int,
+        cypher_fingerprint: str | None,
+    ) -> UUID:
+        row = HuntQueryRow(
+            tenant_id=tenant_id,
+            principal=principal[:256],
+            mode=mode,
+            nl_query=nl_query,
+            intent=intent,
+            supported=supported,
+            row_count=row_count,
+            cypher_fingerprint=cypher_fingerprint,
+        )
+        self._s.add(row)
+        await self._s.flush()
+        return row.id
 
     # ---- mappers -------------------------------------------------
     @staticmethod

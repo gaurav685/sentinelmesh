@@ -6,6 +6,7 @@ from .base import NAMING_CONVENTION, Base, TimestampMixin
 from .chain_models import AttackChainRow, AttackChainStageRow
 from .detection_models import Anomaly, Detection, SecurityAlert, ThreatScore
 from .engine import build_engine
+from .hunt_models import HuntQueryRow
 from .intel_models import (
     AttackMatrixVersionRow,
     AttackTacticRow,
@@ -40,6 +41,7 @@ __all__ = [
     "Base",
     "Database",
     "Detection",
+    "HuntQueryRow",
     "Permission",
     "Role",
     "RolePermission",

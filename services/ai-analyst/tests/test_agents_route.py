@@ -34,12 +34,16 @@ def _req(agent: str) -> dict[str, Any]:
 
 def _services(runner: AgentRunner) -> Services:
     base = build_metrics("ai-analyst")
+    from sm_ai_analyst.hunt import HuntPlanner
+
     return Services(
         settings=build_settings(),
         metrics=base,
         analyst_metrics=AnalystMetrics(base, "ai-analyst"),
         analyst=IncidentAnalyst(None, model="m", max_output_tokens=200),
         agent_runner=runner,
+        hunt_planner=HuntPlanner(None, model="m"),
+        llm=None,
         llm_live_capable=False,
     )
 

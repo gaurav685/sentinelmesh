@@ -23,8 +23,9 @@ from sm_common.observability import build_metrics, configure_tracing
 from .agents import AgentRunner
 from .analyst import IncidentAnalyst
 from .deps import Services
+from .hunt import HuntPlanner
 from .metrics import AnalystMetrics
-from .routes import agents, explain, health, metrics
+from .routes import agents, explain, health, hunt, metrics
 from .version import SERVICE_NAME, SERVICE_VERSION
 
 __all__ = ["build_services", "create_app"]
@@ -73,6 +74,7 @@ def build_services(settings: AppSettings) -> Services:
         llm, model=model, max_output_tokens=settings.llm_max_output_tokens, audit=_analyst_event
     )
     agent_runner = AgentRunner(llm, model=model, settings=settings)
+    hunt_planner = HuntPlanner(llm, model=model)
     _log.info(
         "service_start",
         service=SERVICE_NAME,
@@ -86,6 +88,8 @@ def build_services(settings: AppSettings) -> Services:
         analyst_metrics=analyst_metrics,
         analyst=analyst,
         agent_runner=agent_runner,
+        hunt_planner=hunt_planner,
+        llm=llm,
         llm_live_capable=live_capable,
     )
 
@@ -112,4 +116,5 @@ def create_app(
     app.include_router(metrics.router)
     app.include_router(explain.router)
     app.include_router(agents.router)
+    app.include_router(hunt.router)
     return app

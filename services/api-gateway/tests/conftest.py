@@ -48,6 +48,12 @@ class FakeSocRepository:
         self.alerts: dict[UUID, Any] = {}
         self.scores: list[Any] = []
         self.heatmap_cells: list[Any] = []
+        self.hunts: list[dict[str, Any]] = []
+
+    async def record_hunt(self, tenant_id: UUID, **kw: Any) -> UUID:
+        rid = uuid7()
+        self.hunts.append({"id": rid, "tenant_id": tenant_id, **kw})
+        return rid
 
     async def list_detections(self, tenant_id: UUID, *, limit: int, before: Any = None,
                               severity: str | None = None, status: str | None = None) -> list[Any]:
@@ -136,6 +142,15 @@ class FakeInternalClient:
 
             raise DependencyUnavailable("ai-analyst unreachable")
         return self.responses.get("explain")
+
+    async def graph_hunt(self, tenant_id: UUID, plan: Any) -> Any:
+        return await self._answer("graph_hunt", tenant_id)
+
+    async def hunt_plan(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("hunt_plan", tenant_id)
+
+    async def hunt_explain(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("hunt_explain", tenant_id)
 
     async def mitre_techniques(self, tenant_id: UUID) -> Any:
         return await self._answer("mitre_techniques", tenant_id)

@@ -1,0 +1,188 @@
+{
+  "$defs": {
+    "EntitySelector": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "identity",
+            "host",
+            "ip",
+            "domain",
+            "process",
+            "file",
+            "detection",
+            "attack_chain",
+            "attack_technique",
+            "threat_actor",
+            "campaign"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "EntitySelector",
+      "type": "object"
+    },
+    "HuntTimeRange": {
+      "additionalProperties": false,
+      "properties": {
+        "end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "start": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start"
+        }
+      },
+      "title": "HuntTimeRange",
+      "type": "object"
+    },
+    "QueryLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_depth": {
+          "default": 2,
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Max Depth",
+          "type": "integer"
+        },
+        "max_rows": {
+          "default": 100,
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Max Rows",
+          "type": "integer"
+        }
+      },
+      "title": "QueryLimits",
+      "type": "object"
+    },
+    "QueryPlan": {
+      "additionalProperties": false,
+      "description": "A validated, capability-bounded hunt request. Deterministically compiled\nto a parameterized Cypher template by `graph-service` \u2014 never executed as\nfree text.",
+      "properties": {
+        "intent": {
+          "enum": [
+            "find_entity",
+            "list_related",
+            "path_between",
+            "detections_for",
+            "chains_for",
+            "indicator_sightings",
+            "technique_usage"
+          ],
+          "title": "Intent",
+          "type": "string"
+        },
+        "limits": {
+          "$ref": "#/$defs/QueryLimits"
+        },
+        "rel_types": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "title": "Rel Types",
+          "type": "array"
+        },
+        "selectors": {
+          "items": {
+            "$ref": "#/$defs/EntitySelector"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "title": "Selectors",
+          "type": "array"
+        },
+        "time_range": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HuntTimeRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "intent",
+        "selectors"
+      ],
+      "title": "QueryPlan",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The browser-facing hunt. Exactly one of `query` (natural language, planned\nby `ai-analyst`) or `plan` (a structured plan built by the UI, no LLM).",
+  "properties": {
+    "max_rows": {
+      "default": 100,
+      "maximum": 500,
+      "minimum": 1,
+      "title": "Max Rows",
+      "type": "integer"
+    },
+    "plan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QueryPlan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "query": {
+      "anyOf": [
+        {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Query"
+    }
+  },
+  "title": "SocHuntRequest",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
