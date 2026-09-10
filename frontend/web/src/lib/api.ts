@@ -20,6 +20,8 @@ import type {
   MeResponse,
   MitreHeatmap,
   SecurityAlert,
+  SocHuntRequest,
+  SocHuntResponse,
   SocSummary,
   ThreatIndicator,
   ThreatScore,
@@ -182,4 +184,7 @@ export const api = {
     },
     signal?: AbortSignal,
   ) => apiFetch<GraphPath>("/soc/graph/paths", { query, signal }),
+
+  hunt: (body: SocHuntRequest, csrfToken: string | null, signal?: AbortSignal) =>
+    apiFetch<SocHuntResponse>("/soc/hunt", { method: "POST", body, csrfToken, signal }),
 };

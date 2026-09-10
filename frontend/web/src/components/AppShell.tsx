@@ -14,6 +14,7 @@ const NAV: { href: string; label: string; perm: string }[] = [
   { href: "/heatmap", label: "Risk heatmap", perm: "detections:read" },
   { href: "/entities", label: "Entity explorer", perm: "hunt:query" },
   { href: "/graph", label: "Attack graph", perm: "hunt:query" },
+  { href: "/hunt", label: "Threat hunting", perm: "hunt:query" },
   { href: "/intel", label: "Threat intel", perm: "detections:read" },
 ];
 

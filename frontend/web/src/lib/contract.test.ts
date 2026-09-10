@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { AttackChainModel, Detection, SocSummary } from "@sentinelmesh/contracts";
+import type {
+  AttackChainModel,
+  Detection,
+  SocHuntResponse,
+  SocSummary,
+} from "@sentinelmesh/contracts";
 
 /**
  * API-contract tests: a fixture that mirrors a real BFF response must satisfy the
@@ -55,5 +60,28 @@ describe("generated contract types", () => {
   it("Detection severity is one of the contract's values", () => {
     const severities: Detection["severity"][] = ["info", "low", "medium", "high", "critical"];
     expect(severities).toContain("critical");
+  });
+
+  it("SocHuntResponse matches a BFF /soc/hunt response", () => {
+    const res: SocHuntResponse = {
+      supported: true,
+      unsupported_reason: "",
+      history_id: "h1",
+      result: {
+        intent: "list_related",
+        plan: {
+          intent: "list_related",
+          selectors: [{ type: "host", value: "web01" }],
+          rel_types: [],
+          limits: { max_depth: 2, max_rows: 100 },
+        },
+        rows: [{ id: "n1", labels: ["IpAddress"], properties: { ip: "10.0.0.9" } }],
+        row_count: 1,
+        truncated: false,
+        cypher_fingerprint: "fp",
+        explanation: "one related ip [rows]",
+      },
+    };
+    expect(res.result?.intent).toBe("list_related");
   });
 });
