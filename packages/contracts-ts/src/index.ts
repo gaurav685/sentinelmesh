@@ -556,6 +556,19 @@ export type UpdatedAt6 = string;
 export type Value1 = string;
 export type Matched = boolean;
 export type Value2 = string;
+export type Type =
+  | "identity"
+  | "host"
+  | "ip"
+  | "domain"
+  | "process"
+  | "file"
+  | "detection"
+  | "attack_chain"
+  | "attack_technique"
+  | "threat_actor"
+  | "campaign";
+export type Value3 = string;
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "ErrorCode".
@@ -1063,7 +1076,7 @@ export type IndicatorId = string;
 export type ObservedAt3 = string;
 export type Source2 = string;
 export type TenantId21 = string | null;
-export type Value3 = string;
+export type Value4 = string;
 /**
  * `<service>@<semver>`, e.g. ingestion-gateway@0.1.0
  */
@@ -1158,7 +1171,7 @@ export type Summary3 = string;
 export type RoleId1 = string;
 export type Dst = string;
 export type Src = string;
-export type Type = string;
+export type Type1 = string;
 export type Depth = number;
 /**
  * @maxItems 20000
@@ -1188,6 +1201,45 @@ export type Nodes1 = GraphNode[];
 export type Service = string;
 export type Status1 = "ok";
 export type Version1 = string;
+export type CypherFingerprint = string;
+export type Explanation1 = string;
+export type Intent =
+  | "find_entity"
+  | "list_related"
+  | "path_between"
+  | "detections_for"
+  | "chains_for"
+  | "indicator_sightings"
+  | "technique_usage";
+export type Intent1 =
+  | "find_entity"
+  | "list_related"
+  | "path_between"
+  | "detections_for"
+  | "chains_for"
+  | "indicator_sightings"
+  | "technique_usage";
+export type MaxDepth = number;
+export type MaxRows = number;
+/**
+ * @maxItems 8
+ */
+export type RelTypes = string[];
+/**
+ * @minItems 1
+ * @maxItems 2
+ */
+export type Selectors = [EntitySelector] | [EntitySelector, EntitySelector];
+export type End = string | null;
+export type Start = string | null;
+export type RowCount = number;
+/**
+ * @maxItems 500
+ */
+export type Rows = {
+  [k: string]: unknown;
+}[];
+export type Truncated1 = boolean;
 export type Email1 = string;
 export type Password = string;
 export type TenantSlug = string;
@@ -1283,10 +1335,14 @@ export type TechniqueId1 = string;
  */
 export type Cells = MitreHeatmapCell[];
 export type MatrixVersion2 = string | null;
+export type MaxRows1 = number;
+export type Query = string;
 export type Action2 = string;
 export type Description3 = string;
 export type Id10 = string;
 export type ResourceType1 = string;
+export type Supported = boolean;
+export type UnsupportedReason = string;
 export type Dependencies = DepStatus[];
 export type Ready = boolean;
 export type ComputedAt1 = string;
@@ -1959,6 +2015,14 @@ export interface Provenance2 {
 }
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "EntitySelector".
+ */
+export interface EntitySelector {
+  type: Type;
+  value: Value3;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "ErrorBody".
  */
 export interface ErrorBody {
@@ -2391,7 +2455,7 @@ export interface TiUpdatePayload {
   source: Source2;
   tenant_id?: TenantId21;
   type: IndicatorType;
-  value: Value3;
+  value: Value4;
 }
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -2470,7 +2534,7 @@ export interface GraphEdge {
   dst: Dst;
   properties?: Properties;
   src: Src;
-  type: Type;
+  type: Type1;
 }
 export interface Properties {
   [k: string]: unknown;
@@ -2525,6 +2589,50 @@ export interface HealthResponse {
   service: Service;
   status?: Status1;
   version: Version1;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "HuntResult".
+ */
+export interface HuntResult {
+  cypher_fingerprint?: CypherFingerprint;
+  explanation?: Explanation1;
+  intent: Intent;
+  plan: QueryPlan;
+  row_count: RowCount;
+  rows?: Rows;
+  truncated?: Truncated1;
+}
+/**
+ * A validated, capability-bounded hunt request. Deterministically compiled
+ * to a parameterized Cypher template by `graph-service` — never executed as
+ * free text.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "QueryPlan".
+ */
+export interface QueryPlan {
+  intent: Intent1;
+  limits?: QueryLimits;
+  rel_types?: RelTypes;
+  selectors: Selectors;
+  time_range?: HuntTimeRange | null;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "QueryLimits".
+ */
+export interface QueryLimits {
+  max_depth?: MaxDepth;
+  max_rows?: MaxRows;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "HuntTimeRange".
+ */
+export interface HuntTimeRange {
+  end?: End;
+  start?: Start;
 }
 /**
  * Local fallback login. Federated users authenticate via OIDC instead.
@@ -2637,6 +2745,17 @@ export interface MitreHeatmapCell {
   technique_id: TechniqueId1;
 }
 /**
+ * A natural-language hunt. `api-gateway` sends this to `ai-analyst`, which
+ * returns a `QueryPlan` or `unsupported`.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "NlHuntRequest".
+ */
+export interface NlHuntRequest {
+  max_rows?: MaxRows1;
+  query: Query;
+}
+/**
  * An atomic capability. Seeded and immutable; deny-by-default.
  *
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -2648,6 +2767,17 @@ export interface Permission {
   description: Description3;
   id: Id10;
   resource_type: ResourceType1;
+}
+/**
+ * `ai-analyst`'s answer to an `NlHuntRequest`.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "PlanResponse".
+ */
+export interface PlanResponse {
+  plan?: QueryPlan | null;
+  supported: Supported;
+  unsupported_reason?: UnsupportedReason;
 }
 /**
  * `GET /readyz` — readiness. `ready` is false if any *required* dependency

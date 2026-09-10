@@ -89,6 +89,11 @@ class AppSettings(BaseSettings):
     # depth-bounded and row-capped so one call cannot walk the whole graph.
     neo4j_query_max_rows: int = Field(default=1_000, ge=1, le=100_000)
     neo4j_traversal_max_depth: int = Field(default=8, ge=1, le=15)
+    # Threat-hunting (Phase 11) — a tighter ceiling than the generic query API,
+    # applied on top of the `QueryPlan`'s own limits, so an "expensive" hunt is
+    # bounded regardless of what the plan (or the LLM that produced it) asked.
+    hunt_max_rows: int = Field(default=200, ge=1, le=2_000)
+    hunt_max_depth: int = Field(default=3, ge=1, le=5)
 
     # ---- kafka (event bus; ADR-008) -----------------------------------
     kafka_bootstrap_servers: str = "localhost:9092"

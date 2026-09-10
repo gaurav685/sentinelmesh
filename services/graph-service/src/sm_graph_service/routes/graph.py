@@ -11,8 +11,10 @@ from fastapi import APIRouter, Depends, Query
 
 from sm_common.errors import NotFound
 from sm_common.security import InternalPrincipal
+from sm_contracts import HuntResult, QueryPlan
 
-from ..deps import Services, get_principal, get_repository, get_services
+from ..deps import Services, get_hunt_runner, get_principal, get_repository, get_services
+from ..hunt import HuntRunner
 from ..intel import analyse_neighbourhood
 from ..repository import GraphRepository
 from ..schemas import (
@@ -87,3 +89,17 @@ async def paths(
         principal.tenant_id, (src_label, src_key), (dst_label, dst_key), max_depth=max_depth
     )
     return PathResponse.of(view)
+
+
+@router.post("/hunt", response_model=HuntResult)
+async def hunt(
+    plan: QueryPlan,
+    principal: InternalPrincipal = Depends(get_principal),
+    runner: HuntRunner = Depends(get_hunt_runner),
+) -> HuntResult:
+    """Execute a **validated** `QueryPlan`. `api-gateway` sends the plan (from a
+    structured form or an `ai-analyst` NL translation); this endpoint validates
+    it against the capability set, compiles it to one parameterized Cypher
+    template, scopes it to `principal.tenant_id` (never a plan field), and runs
+    it read-only. A plan outside the capability set -> 422 (`ValidationFailed`)."""
+    return await runner.run(plan, principal.tenant_id)

@@ -19,11 +19,12 @@ from sm_common.observability import Metrics
 from sm_common.security import InternalPrincipal, verify_internal_token
 
 from .engine import GraphEngine
+from .hunt import HuntRunner
 from .metrics import GraphMetrics
 from .repository import GraphRepository
 from .version import SERVICE_NAME
 
-__all__ = ["Services", "get_principal", "get_repository", "get_services"]
+__all__ = ["Services", "get_hunt_runner", "get_principal", "get_repository", "get_services"]
 
 
 @dataclass
@@ -33,6 +34,7 @@ class Services:
     graph_metrics: GraphMetrics
     graph: Graph
     repository: GraphRepository
+    hunt_runner: HuntRunner
     producer: EventBusProducer
     consumer: EventBusConsumer
     engine: GraphEngine
@@ -46,6 +48,10 @@ def get_services(request: Request) -> Services:
 
 def get_repository(services: Services = Depends(get_services)) -> GraphRepository:
     return services.repository
+
+
+def get_hunt_runner(services: Services = Depends(get_services)) -> HuntRunner:
+    return services.hunt_runner
 
 
 def get_principal(
