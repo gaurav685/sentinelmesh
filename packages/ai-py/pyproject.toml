@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sm-ai"
+version = "0.1.0"
+description = "SentinelMesh AI layer: the untrusted-LLM boundary. Provider adapters (deterministic test adapter + a real HTTP boundary that is inert without credentials), a token-budgeted / timed / cancellable client, a schema-checked authorized tool registry, an evidence/context builder that fences retrieved content as data, and prompt-injection + output validation. The LLM never gains a privilege it was not already granted."
+requires-python = ">=3.11"
+dependencies = [
+    "sm-contracts",
+    "sm-common",
+    "pydantic>=2.9,<3",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "respx>=0.21",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sm_ai"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
