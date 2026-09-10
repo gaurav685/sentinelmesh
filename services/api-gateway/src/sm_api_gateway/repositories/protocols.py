@@ -14,12 +14,50 @@ from typing import Protocol
 from uuid import UUID
 
 from sm_common.db.models import Permission, Role, Tenant, User
+from sm_contracts import (
+    Detection,
+    MitreHeatmapCell,
+    SecurityAlert,
+    SocSummary,
+    ThreatScore,
+    TimelineEntry,
+)
 
 __all__ = [
     "RoleRepository",
+    "SocRepository",
     "TenantRepository",
     "UserRepository",
 ]
+
+
+class SocRepository(Protocol):
+    """Tenant-scoped SOC reads. Every method takes `tenant_id` first, from the
+    authenticated `Principal`."""
+
+    async def list_detections(
+        self, tenant_id: UUID, *, limit: int, before: datetime | None = None,
+        severity: str | None = None, status: str | None = None,
+    ) -> list[Detection]: ...
+
+    async def get_detection(self, tenant_id: UUID, detection_id: UUID) -> Detection | None: ...
+
+    async def list_alerts(
+        self, tenant_id: UUID, *, limit: int, before: datetime | None = None,
+        status: str | None = None,
+    ) -> list[SecurityAlert]: ...
+
+    async def get_alert(self, tenant_id: UUID, alert_id: UUID) -> SecurityAlert | None: ...
+
+    async def top_risk(self, tenant_id: UUID, *, limit: int = 10) -> list[ThreatScore]: ...
+
+    async def summary(self, tenant_id: UUID) -> SocSummary: ...
+
+    async def mitre_heatmap(self, tenant_id: UUID) -> list[MitreHeatmapCell]: ...
+
+    async def entity_timeline(
+        self, tenant_id: UUID, subject_id: str, *, limit: int = 200
+    ) -> list[TimelineEntry]: ...
 
 
 class TenantRepository(Protocol):

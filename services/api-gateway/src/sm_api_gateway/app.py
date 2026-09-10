@@ -43,8 +43,9 @@ from sm_common.logging import configure_logging, get_logger
 from sm_common.observability import build_metrics, configure_tracing, shutdown_tracing
 from sm_common.security import OidcClient
 
+from .clients import InternalServiceClient
 from .deps import Services, SqlRepositoryFactory
-from .routes import admin, auth, health, metrics
+from .routes import admin, auth, health, metrics, soc
 from .security.session import RedisOidcStateStore, RedisSessionStore
 from .version import SERVICE_NAME, SERVICE_VERSION
 
@@ -59,6 +60,15 @@ def build_services(settings: AppSettings) -> Services:
     cache = Cache.from_settings(settings)
     http = httpx.AsyncClient(timeout=settings.llm_request_timeout_s)
     oidc = OidcClient.from_settings(settings, http)
+    internal_client = InternalServiceClient(
+        http,
+        signing_key=settings.internal_jwt_signing_key.get_secret_value(),
+        ttl_seconds=settings.internal_jwt_ttl_seconds,
+        correlation_url=settings.correlation_engine_url,
+        graph_url=settings.graph_service_url,
+        ti_url=settings.ti_service_url,
+        mitre_url=settings.mitre_service_url,
+    )
     return Services(
         settings=settings,
         db=db,
@@ -74,6 +84,7 @@ def build_services(settings: AppSettings) -> Services:
         repositories=SqlRepositoryFactory(),
         http=http,
         oidc=oidc,
+        internal_client=internal_client,
     )
 
 
@@ -141,5 +152,6 @@ def create_app(
     app.include_router(auth.router)
     app.include_router(auth.me_router)
     app.include_router(admin.router)
+    app.include_router(soc.router)
 
     return app

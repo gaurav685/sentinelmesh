@@ -37,6 +37,103 @@ PASSWORD = "correct-horse-battery-staple"
 
 
 # --------------------------------------------------------------------------- #
+# SOC BFF fakes (Phase 9)
+# --------------------------------------------------------------------------- #
+class FakeSocRepository:
+    """In-memory SOC reads, tenant-scoped. Every list is filtered by tenant_id
+    exactly as the SQL implementation is."""
+
+    def __init__(self) -> None:
+        self.detections: dict[UUID, Any] = {}
+        self.alerts: dict[UUID, Any] = {}
+        self.scores: list[Any] = []
+        self.heatmap_cells: list[Any] = []
+
+    async def list_detections(self, tenant_id: UUID, *, limit: int, before: Any = None,
+                              severity: str | None = None, status: str | None = None) -> list[Any]:
+        items = [d for d in self.detections.values() if d.tenant_id == tenant_id]
+        if severity:
+            items = [d for d in items if d.severity.value == severity]
+        return sorted(items, key=lambda d: d.created_at, reverse=True)[:limit]
+
+    async def get_detection(self, tenant_id: UUID, detection_id: UUID) -> Any:
+        d = self.detections.get(detection_id)
+        return d if d is not None and d.tenant_id == tenant_id else None
+
+    async def list_alerts(self, tenant_id: UUID, *, limit: int, before: Any = None,
+                          status: str | None = None) -> list[Any]:
+        items = [a for a in self.alerts.values() if a.tenant_id == tenant_id]
+        return sorted(items, key=lambda a: a.created_at, reverse=True)[:limit]
+
+    async def get_alert(self, tenant_id: UUID, alert_id: UUID) -> Any:
+        a = self.alerts.get(alert_id)
+        return a if a is not None and a.tenant_id == tenant_id else None
+
+    async def top_risk(self, tenant_id: UUID, *, limit: int = 10) -> list[Any]:
+        return [s for s in self.scores if s.tenant_id == tenant_id][:limit]
+
+    async def summary(self, tenant_id: UUID) -> Any:
+        from sm_contracts import SocSummary
+        return SocSummary(
+            generated_at=utcnow(),
+            open_alerts=sum(1 for a in self.alerts.values() if a.tenant_id == tenant_id),
+            alerts_by_severity={}, active_chains=0,
+            detections_24h=sum(1 for d in self.detections.values() if d.tenant_id == tenant_id),
+            top_risk_subjects=[],
+        )
+
+    async def mitre_heatmap(self, tenant_id: UUID) -> list[Any]:
+        return list(self.heatmap_cells)
+
+    async def entity_timeline(self, tenant_id: UUID, subject_id: str, *, limit: int = 200) -> list[Any]:
+        return []
+
+
+class FakeInternalClient:
+    """Records proxy calls; returns queued responses. `fail=True` raises the same
+    DependencyUnavailable the real client raises on a transport error."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, Any]] = []
+        self.responses: dict[str, Any] = {}
+        self.fail = False
+
+    async def _answer(self, name: str, tenant_id: UUID) -> Any:
+        from sm_common.errors import DependencyUnavailable
+        self.calls.append((name, tenant_id))
+        if self.fail:
+            raise DependencyUnavailable(f"{name} unreachable")
+        return self.responses.get(name)
+
+    async def chains(self, tenant_id: UUID, **q: Any) -> Any:
+        return await self._answer("chains", tenant_id)
+
+    async def chain(self, tenant_id: UUID, chain_id: str) -> Any:
+        return await self._answer("chain", tenant_id)
+
+    async def graph_neighbors(self, tenant_id: UUID, **q: Any) -> Any:
+        return await self._answer("graph_neighbors", tenant_id)
+
+    async def graph_paths(self, tenant_id: UUID, **q: Any) -> Any:
+        return await self._answer("graph_paths", tenant_id)
+
+    async def graph_intel(self, tenant_id: UUID, **q: Any) -> Any:
+        return await self._answer("graph_intel", tenant_id)
+
+    async def ti_indicators(self, tenant_id: UUID, **q: Any) -> Any:
+        return await self._answer("ti_indicators", tenant_id)
+
+    async def ti_enrich(self, tenant_id: UUID, items: Any) -> Any:
+        return await self._answer("ti_enrich", tenant_id)
+
+    async def mitre_heatmap(self, tenant_id: UUID) -> Any:
+        return await self._answer("mitre_heatmap", tenant_id)
+
+    async def mitre_techniques(self, tenant_id: UUID) -> Any:
+        return await self._answer("mitre_techniques", tenant_id)
+
+
+# --------------------------------------------------------------------------- #
 # fake infrastructure
 # --------------------------------------------------------------------------- #
 class FakeSession:
@@ -454,7 +551,7 @@ def fixture() -> Fixture:
         PermissionCode.roles_grant,
         PermissionCode.ops_read,
     ]
-    analyst_perms = [PermissionCode.detections_read]
+    analyst_perms = [PermissionCode.detections_read, PermissionCode.hunt_query]
     for code in {*admin_perms, *analyst_perms}:
         perm = _permission(code)
         store.permissions[perm.id] = perm
@@ -492,6 +589,8 @@ def fixture() -> Fixture:
         repositories=InMemoryRepositoryFactory(store),  # type: ignore[arg-type]
         http=None,
         oidc=None,
+        internal_client=FakeInternalClient(),  # type: ignore[arg-type]
+        soc_repository=FakeSocRepository(),  # type: ignore[arg-type]
     )
 
     return Fixture(

@@ -1814,16 +1814,45 @@ push, confirm CI green → closes Phase 7.**
 
 **Phase 7 is CLOSED — CI-VERIFIED, run `34406870398` (all four jobs).**
 
-**PHASE 9 — ENTERPRISE SOC DASHBOARD. IN PROGRESS — Unit 1 (`api-gateway` SOC BFF).**
-`api-gateway` becomes the browser-facing BFF: tenant-scoped Postgres reads for
-detections / alerts / threat-scores / summary / MITRE heatmap / entity timeline
-(`SqlSocRepository`), and minted-JWT proxies to `correlation-engine` (chains),
-`graph-service` (graph + intel), `threat-intel-service`, `mitre-service`
-(`InternalServiceClient`). Every route is `require_permission(detections_read)` /
-`hunt_query`, tenant from the session `Principal`. `sm_contracts.api.soc`
-(`SocSummary` / `RiskSubject` / `MitreHeatmap*` / `TimelineResponse`) +
-`CursorPage[…]` schema exports for the generated TS client. `SM_GRAPH_SERVICE_URL`
-config.
+**PHASE 9 — ENTERPRISE SOC DASHBOARD. Unit 1 DONE — `api-gateway` SOC BFF.**
+Tenant-scoped Postgres reads (`SqlSocRepository`: detections / alerts /
+threat-scores / summary / MITRE heatmap / entity timeline, keyset-paged) + minted-JWT
+proxies to `correlation-engine` / `graph-service` / `threat-intel-service` /
+`mitre-service` (`InternalServiceClient`). `GET /api/v1/soc/*` — every route
+`require_permission(detections:read | hunt:query)`, tenant from the session
+`Principal`, a dependency outage → 503. `sm_contracts.api.soc` + `CursorPage[…]`
+schema exports for the generated TS client. `SM_GRAPH_SERVICE_URL`. Local
+gauntlet green — ruff, `mypy --strict`, 578 unit tests (12 new SOC tests) +
+`gen_contracts --check`, 4 real-PG integration tests (`test_soc_reads_pg.py`),
+`Dockerfile.app` build. **Commit Unit 1, push, confirm CI green.**
+
+**Then Unit 2 — `frontend/web` scaffold + typed client + auth shell.** Next.js
+(App Router) + TypeScript. `packages/contracts-ts` generates the TS types from
+the committed JSON Schema (`npm install json-schema-to-typescript` under
+`packages/contracts-ts`, then `gen_contracts.py` emits `src/*.ts`); a thin typed
+`fetch` client wraps the `/api/v1/*` surface — the frontend **never re-declares a
+backend shape**. Auth: login form → `POST /api/v1/auth/login` → session cookie;
+a route guard redirects unauthenticated users; `/me` drives the tenant-aware
+shell (nav, user menu, theme). Loading / error / empty-state primitives.
+Security: no token in JS-readable storage (httpOnly cookie), CSP, `dangerouslySetInnerHTML`
+banned by lint, no secret in the bundle. A **new `frontend` CI job**: `npm ci`,
+`npm run lint`, `npm run typecheck`, `npm run build`, `npm test` (vitest +
+testing-library). Component + auth-guard tests.
+
+**Then Unit 3 — the SOC views:** dashboard (summary counters + risk list + recent
+alerts), alerts list + detail, incidents, attack-chain list + detail (stage
+timeline), MITRE ATT&CK view (heatmap), risk heatmap, entity explorer, threat-intel
+view. Typed data hooks, every view has loading / error / empty states, severity
+is colour + text + icon (a11y). Demo/seed data, if any, is labelled in the UI.
+Tests: component, API-contract (the generated types match a fixture response),
+critical-flow (login → dashboard → open an alert).
+
+**Then Unit 4 — attack graph + timeline + real-time + polish + close:** Cytoscape
+attack-graph view with node/edge navigation and a detail panel; an entity/chain
+timeline; live updates where supported (SSE/poll — `graph.events` / `detections`
+are Kafka, so the gateway needs a projection or a poll fallback — poll for v1,
+documented); responsive + keyboard-navigable; graph-interaction tests. Phase 9
+exit report + §23 + `REQUIREMENTS_TRACEABILITY` R13 + `CONTRACTS.md`.
 
 **PHASE 8 — GNN + TEMPORAL INTELLIGENCE. COMPLETE / CI-VERIFIED** (all four jobs,
 runs `34408045416` / `34408494057` / `34409131977` / `34410178417`). Units 1–4.

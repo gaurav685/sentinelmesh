@@ -1,0 +1,316 @@
+{
+  "$defs": {
+    "AttackChainModel": {
+      "additionalProperties": false,
+      "description": "The full chain as returned by `correlation-engine`'s read API.",
+      "properties": {
+        "confidence": {
+          "description": "Probabilistic estimate that this is a coordinated chain. Never 1.0.",
+          "maximum": 0.95,
+          "minimum": 0.0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "detection_count": {
+          "minimum": 0,
+          "title": "Detection Count",
+          "type": "integer"
+        },
+        "distinct_stage_count": {
+          "maximum": 15,
+          "minimum": 0,
+          "title": "Distinct Stage Count",
+          "type": "integer"
+        },
+        "first_seen": {
+          "format": "date-time",
+          "title": "First Seen",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "last_seen": {
+          "format": "date-time",
+          "title": "Last Seen",
+          "type": "string"
+        },
+        "notes": {
+          "description": "Machine-readable caveats, e.g. 'out_of_order_observed', 'conflicting_severity'.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 32,
+          "title": "Notes",
+          "type": "array"
+        },
+        "progression": {
+          "description": "Furthest kill-chain position reached, normalised.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Progression",
+          "type": "number"
+        },
+        "score": {
+          "description": "Deterministic chain threat score.",
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Score",
+          "type": "number"
+        },
+        "score_version": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Score Version",
+          "type": "string"
+        },
+        "scoring_status": {
+          "$ref": "#/definitions/ScoringStatus"
+        },
+        "stages": {
+          "items": {
+            "$ref": "#/definitions/ChainStageModel"
+          },
+          "maxItems": 15,
+          "title": "Stages",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/definitions/ChainStatus"
+        },
+        "subject_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_type": {
+          "$ref": "#/definitions/ThreatSubjectType"
+        },
+        "technique_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 128,
+          "title": "Technique Ids",
+          "type": "array"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "ti_corroborated": {
+          "default": false,
+          "description": "At least one member detection matched a threat-intel indicator.",
+          "title": "Ti Corroborated",
+          "type": "boolean"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        },
+        "window_start": {
+          "format": "date-time",
+          "title": "Window Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at",
+        "updated_at",
+        "tenant_id",
+        "id",
+        "subject_type",
+        "subject_id",
+        "status",
+        "window_start",
+        "first_seen",
+        "last_seen",
+        "distinct_stage_count",
+        "progression",
+        "confidence",
+        "score",
+        "score_version",
+        "scoring_status",
+        "detection_count"
+      ],
+      "title": "AttackChainModel",
+      "type": "object"
+    },
+    "AttackStage": {
+      "description": "Kill-chain stage, one per enterprise ATT&CK tactic, in kill-chain order.\n\n`unknown` is a real, first-class value: a detection whose techniques the\nplatform cannot place goes here rather than being forced onto a stage.",
+      "enum": [
+        "reconnaissance",
+        "resource_development",
+        "initial_access",
+        "execution",
+        "persistence",
+        "privilege_escalation",
+        "defense_evasion",
+        "credential_access",
+        "discovery",
+        "lateral_movement",
+        "collection",
+        "command_and_control",
+        "exfiltration",
+        "impact",
+        "unknown"
+      ],
+      "title": "AttackStage",
+      "type": "string"
+    },
+    "ChainStageModel": {
+      "additionalProperties": false,
+      "description": "One kill-chain stage within a chain, with the detections behind it.",
+      "properties": {
+        "detection_count": {
+          "minimum": 0,
+          "title": "Detection Count",
+          "type": "integer"
+        },
+        "detection_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "title": "Detection Ids",
+          "type": "array"
+        },
+        "first_seen": {
+          "format": "date-time",
+          "title": "First Seen",
+          "type": "string"
+        },
+        "last_seen": {
+          "format": "date-time",
+          "title": "Last Seen",
+          "type": "string"
+        },
+        "max_detection_score": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Max Detection Score",
+          "type": "number"
+        },
+        "max_severity": {
+          "$ref": "#/definitions/Severity"
+        },
+        "stage": {
+          "$ref": "#/definitions/AttackStage"
+        },
+        "stage_order": {
+          "maximum": 13,
+          "minimum": -1,
+          "title": "Stage Order",
+          "type": "integer"
+        },
+        "technique_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Technique Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "stage",
+        "stage_order",
+        "max_severity",
+        "max_detection_score",
+        "detection_count",
+        "first_seen",
+        "last_seen"
+      ],
+      "title": "ChainStageModel",
+      "type": "object"
+    },
+    "ChainStatus": {
+      "description": "Lifecycle of a chain's *evidence* \u2014 not an analyst verdict.\n\nA chain is never automatically `confirmed`; confirmation is a human action on\nthe alert/investigation layer (Constitution \u00a717), not something the\ncorrelator asserts.",
+      "enum": [
+        "forming",
+        "active",
+        "dormant"
+      ],
+      "title": "ChainStatus",
+      "type": "string"
+    },
+    "ScoringStatus": {
+      "description": "ADR-013: a model timeout / outage degrades the score, never drops it.",
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "ScoringStatus",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "items": {
+        "$ref": "#/definitions/AttackChainModel"
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "limit": {
+      "maximum": 200,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "next_cursor": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Next Cursor"
+    }
+  },
+  "required": [
+    "items",
+    "limit"
+  ],
+  "title": "CursorPage[AttackChainModel]",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

@@ -174,6 +174,7 @@ class AppSettings(BaseSettings):
     ti_poll_seconds: int = Field(default=3_600, ge=60, le=86_400)
     ti_service_url: str = "http://localhost:8007"
     mitre_service_url: str = "http://localhost:8008"
+    graph_service_url: str = "http://localhost:8004"
     # normalization-engine calls threat-intel-service to tag canonical events.
     ti_enrichment_enabled: bool = False
 

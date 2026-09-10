@@ -26,12 +26,14 @@ from sm_common.cache import Cache
 from sm_common.config import AppSettings
 from sm_common.context import get_correlation_id, get_request_id
 from sm_common.db import Database
-from sm_common.errors import PermissionDenied, Unauthenticated
+from sm_common.errors import DependencyUnavailable, PermissionDenied, Unauthenticated
 from sm_common.observability import Metrics
 from sm_common.security import OidcClient
 from sm_contracts import ActorType, AuditResult, PermissionCode, UserStatus
 
-from .repositories.protocols import RoleRepository, TenantRepository, UserRepository
+from .clients import InternalServiceClient
+from .repositories.protocols import RoleRepository, SocRepository, TenantRepository, UserRepository
+from .repositories.soc import SqlSocRepository
 from .repositories.sql import SqlRoleRepository, SqlTenantRepository, SqlUserRepository
 from .security.cookies import CSRF_HEADER
 from .security.principal import Principal
@@ -42,8 +44,10 @@ __all__ = [
     "RepositoryFactory",
     "Services",
     "SqlRepositoryFactory",
+    "get_internal_client",
     "get_principal",
     "get_services",
+    "get_soc_repository",
     "require_permission",
 ]
 
@@ -83,6 +87,8 @@ class Services:
     repositories: RepositoryFactory
     http: httpx.AsyncClient | None = None
     oidc: OidcClient | None = None
+    internal_client: InternalServiceClient | None = None
+    soc_repository: SocRepository | None = None
 
 
 def get_services(request: Request) -> Services:
@@ -95,6 +101,22 @@ async def get_read_session(
 ) -> AsyncIterator[AsyncSession]:
     async with services.db.session() as session:
         yield session
+
+
+async def get_soc_repository(
+    services: Services = Depends(get_services),
+) -> AsyncIterator[SocRepository]:
+    if services.soc_repository is not None:
+        yield services.soc_repository
+        return
+    async with services.db.session() as session:
+        yield SqlSocRepository(session)
+
+
+def get_internal_client(services: Services = Depends(get_services)) -> InternalServiceClient:
+    if services.internal_client is None:
+        raise DependencyUnavailable("internal service client is not configured")
+    return services.internal_client
 
 
 async def get_principal(

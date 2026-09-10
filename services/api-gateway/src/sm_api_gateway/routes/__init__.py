@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from . import admin, auth, health, metrics
+from . import admin, auth, health, metrics, soc
 
-__all__ = ["admin", "auth", "health", "metrics"]
+__all__ = ["admin", "auth", "health", "metrics", "soc"]
