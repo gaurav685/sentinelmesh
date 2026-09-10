@@ -39,6 +39,8 @@ EXPECTED_TABLES = {
     # attack-chain correlation (Phase 7)
     "attack_chain",
     "attack_chain_stage",
+    # threat-hunting history (Phase 11)
+    "hunt_query",
 }
 
 

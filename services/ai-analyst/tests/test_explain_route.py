@@ -25,12 +25,16 @@ def client() -> Any:
         model="test-model",
         max_output_tokens=400,
     )
+    from sm_ai_analyst.hunt import HuntPlanner
+
     services = Services(
         settings=settings,
         metrics=base,
         analyst_metrics=am,
         analyst=analyst,
         agent_runner=AgentRunner(None, model="test-model", settings=settings),
+        hunt_planner=HuntPlanner(None, model="test-model"),
+        llm=None,
         llm_live_capable=False,
     )
     with TestClient(create_app(services=services)) as c:

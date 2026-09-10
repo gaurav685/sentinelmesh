@@ -7,21 +7,23 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 11 — Threat Hunting + Natural Language Querying. IN PROGRESS — Unit 1
-(`QueryPlan` + the deterministic plan→Cypher compiler).** `raw LLM output → executed
-Cypher` is impossible: `sm_contracts.QueryPlan` is a **closed schema** (a fixed
-`HuntIntent` set over typed `EntitySelector`s + `QueryLimits`), and `graph-service`
-`hunt.py` `validate_plan` rejects anything outside the capability set, then
-`compile_plan` maps each intent to **one constant parameterized Cypher template**.
-The only things ever interpolated are a node label (checked against
-`GRAPH_NODE_LABELS`), relationship-type names (checked against `GRAPH_REL_TYPES`),
-and an int depth clamped to the server ceiling; every entity value is a
-`$`-parameter and never reaches the query text. Every query is `$tenant`-scoped
-(from the verified token — the plan has no tenant field), read-only, and
-row-capped by `SM_HUNT_MAX_ROWS` / `SM_HUNT_MAX_DEPTH` on top of the plan's own
-limits. `POST /api/v1/graph/hunt` (internal JWT) — a plan outside the set → 422.
-`cypher_fingerprint` (sha256 of the template, not the params) proves which of the
-fixed queries ran.
+**Phase 11 — Threat Hunting + Natural Language Querying. IN PROGRESS — Units 1–2
+done (local green, Unit 2 awaiting CI).** `raw LLM output → executed Cypher` is
+impossible: `sm_contracts.QueryPlan` is a **closed schema**, `ai-analyst`'s NL
+planner only ever emits a `QueryPlan` (parsed into that model — never a query) or
+says the request is out of scope, and `graph-service` `hunt.py` `validate_plan`
+rejects anything outside the capability set then `compile_plan` maps each intent
+to **one constant parameterized Cypher template** (only a checked label / checked
+relationship type / clamped int depth are interpolated; every entity value is a
+`$`-parameter; `$tenant` from the verified token, no plan field for it).
+`POST /api/v1/graph/hunt` (Unit 1, CI-verified run `34446018571`).
+`api-gateway` `POST /api/v1/soc/hunt` (`require_permission(hunt:query)`, tenant
+from the session principal) orchestrates: `body.plan` → run directly; `body.query`
+→ `ai-analyst` `/hunt/plan` (unsupported → `SocHuntResponse(supported=false)`,
+never executed) → `graph-service` `/graph/hunt` → `ai-analyst` `/hunt/explain`
+(grounded, best-effort). Every hunt recorded to `hunt_query` (migration `0006`,
+append-only, tenant-scoped — stores what was asked + the answer shape, never the
+result rows).
 
 **Phase 10 — AI Security Analyst + Multi-Agent Defense. COMPLETE / CI-VERIFIED**
 (all five jobs, final run `34432159191`; unit runs `34429226626` / `34429715242`
@@ -2024,9 +2026,10 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 11 — THREAT HUNTING + NATURAL LANGUAGE QUERYING. Unit 1 done — local
-gauntlet green, awaiting CI.** Planned units:
-1. ✅ `sm_contracts.api.hunt` — `QueryPlan` (closed schema: `HuntIntent` ∈
+**PHASE 11 — THREAT HUNTING + NATURAL LANGUAGE QUERYING. Units 1–2 done (Unit 2
+local green, awaiting CI).** Planned units:
+1. ✅ **CI-VERIFIED (run `34446018571`).** `sm_contracts.api.hunt` — `QueryPlan`
+   (closed schema: `HuntIntent` ∈
    {find_entity, list_related, path_between, detections_for, chains_for,
    indicator_sightings, technique_usage}, typed `EntitySelector`s, `rel_types`
    allow-list, `QueryLimits`), `NlHuntRequest`, `PlanResponse`, `HuntResult`.
@@ -2040,15 +2043,24 @@ gauntlet green, awaiting CI.** Planned units:
    + parameterized, a Cypher-injection string stays a `$` param, plan-validation
    rejections, depth/row clamps, fingerprint determinism, route authz + 422) +
    `gen_contracts --check`; real-Neo4j `test_hunt_neo4j.py` (hunt runs,
-   tenant-scoped, cross-tenant isolation, hallucinated entity → empty). **Commit,
-   push, confirm CI green.**
-2. NL → `QueryPlan` in `ai-analyst` (`POST /api/v1/hunt/plan` — LLM emits **only**
-   a `QueryPlan`, never Cypher; malformed / out-of-scope / no LLM →
-   `PlanResponse(supported=false)`) + a grounded result explainer
-   (`POST /api/v1/hunt/explain`). `api-gateway` `POST /api/v1/soc/hunt`
-   (`require_permission(hunt:query)`, tenant from the session principal)
-   orchestrates plan → `graph-service` `/graph/hunt` → explain. `hunt_query`
-   history (migration `0006`).
+   tenant-scoped, cross-tenant isolation, hallucinated entity → empty).
+2. ✅ NL → `QueryPlan` in `ai-analyst` — `HuntPlanner` (`POST /api/v1/hunt/plan`):
+   the LLM emits **only** a `QueryPlan` (parsed into the closed model) or
+   `{"unsupported": true}`; non-JSON / invalid intent / no LLM →
+   `PlanResponse(supported=false)`, **never a query**. `explain_hunt` +
+   `POST /api/v1/hunt/explain` (grounded, cites the plan; deterministic baseline
+   without an LLM). `api-gateway` `POST /api/v1/soc/hunt`
+   (`require_permission(hunt:query)` + CSRF, tenant from the session `Principal`)
+   orchestrates: `body.plan` → run directly; `body.query` → `ai-analyst`
+   `/hunt/plan` (unsupported → `SocHuntResponse(supported=false)`, not executed) →
+   `graph-service` `/graph/hunt` → `/hunt/explain` (best-effort). The NL text is
+   never sent to `graph-service`. `hunt_query` history (`sm_common.db.HuntQueryRow`
+   + migration `0006`, append-only; `SqlSocRepository.record_hunt`).
+   `SocHuntRequest` / `SocHuntResponse` / `HuntExplainRequest`. Local: ruff +
+   `mypy --strict` clean (308 files), **694 unit tests** (28 new) + `gen_contracts
+   --check`; real PG `test_migrations_pg.py` (0006 up/down) + real Neo4j
+   `test_hunt_neo4j.py`; `Dockerfile.app` builds + imports. **Commit, push,
+   confirm CI green.**
 3. `frontend/web` hunt panel — a "quick" structured lookup (form → `QueryPlan`
    directly, no LLM) and an "ask" NL mode, both showing the compiled `QueryPlan`
    for transparency; graph pivots from a result row. Phase 11 exit report + §23 +

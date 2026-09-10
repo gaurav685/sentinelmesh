@@ -188,6 +188,7 @@ Every entity above is justified by a numbered requirement in
 | Postgres: `threat_indicator,threat_actor,ti_source` | threat-intel-service |
 | Postgres: `attack_*` catalog + `technique_mapping` | mitre-service |
 | Postgres: `attack_chain*` | detection-engine (+ stream-processor via topic) |
+| Postgres: `hunt_query` (threat-hunting history) | api-gateway |
 | Postgres: analyst artifacts | ai-analyst-service |
 | Postgres: `agent_task,response_action,response_policy,approval` | agent-orchestrator |
 | Postgres: `threat_memory,campaign,adversary_fingerprint` | memory-service |
@@ -313,7 +314,7 @@ No metric values appear until an experiment has actually run (ADR-024).
 
 ## 7. AI / agent contracts (DRAFT — Phase 6/7)
 
-### 7.1 `QueryPlan` (NL hunting — ADR-015)
+### 7.1 `QueryPlan` (NL hunting — ADR-015; **IMPLEMENTED** Phase 11)
 
 ```json
 {
@@ -328,6 +329,19 @@ No metric values appear until an experiment has actually run (ADR-024).
 Closed schema. LLM produces this; server validates + authorizes + compiles to
 parameterized Cypher. Unsupported request → `unsupported_query`, never a raw
 query.
+
+**As implemented:** `sm_contracts.QueryPlan` — `intent` ∈ {`find_entity`,
+`list_related`, `path_between`, `detections_for`, `chains_for`,
+`indicator_sightings`, `technique_usage`}, `selectors: [EntitySelector{type, value}]`
+(1, or exactly 2 for `path_between`), `rel_types` (allow-list, `list_related`
+only), `time_range?`, `limits: {max_depth ≤ 4, max_rows ≤ 500}`. `ai-analyst`'s
+`HuntPlanner` parses the LLM's JSON into this model — the model output is **never**
+used as a query, and a plan it cannot produce is `PlanResponse(supported=false)`.
+`graph-service` `hunt.py` `validate_plan` + `compile_plan` turn it into one of a
+fixed set of parameterized Cypher templates (see §5). `api-gateway`
+`POST /api/v1/soc/hunt` is the browser entry point (`hunt:query` + CSRF; tenant
+from the session, never a body field); `hunt_query` (migration `0006`) is the
+append-only history.
 
 ### 7.2 Explanation contract (**IMPLEMENTED** Phase 10, Unit 3 — `sm_contracts.Explanation`)
 
@@ -478,6 +492,7 @@ path to a model:
 
 | Date | Change | Phase |
 |---|---|---|
+| 2026-09-10 | **NL hunting + orchestration** (Phase 11, Unit 2): `ai-analyst` `HuntPlanner` (`POST /api/v1/hunt/plan`) — the LLM produces **only** a `QueryPlan` (parsed into the closed `sm_contracts.QueryPlan` model — never used as a query) or `{"unsupported": true, "reason": ...}`; non-JSON output, an invalid intent, or no LLM → `PlanResponse(supported=false)`. `explain_hunt` + `POST /api/v1/hunt/explain` — a grounded one-paragraph summary citing the plan; a deterministic baseline without an LLM. `api-gateway` `POST /api/v1/soc/hunt` (`require_permission(hunt:query)` + CSRF; tenant from the session `Principal`, never a body field) — `body.plan` runs directly (no LLM); `body.query` goes `ai-analyst /hunt/plan` (unsupported → `SocHuntResponse(supported=false)`, **not executed**) → `graph-service /graph/hunt` → `/hunt/explain` (best-effort). The natural-language text is never sent to `graph-service`. Every hunt is recorded to `hunt_query` (`sm_common.db.HuntQueryRow` + migration `0006`, append-only, tenant-scoped — stores mode + NL text + resolved intent + row_count + `cypher_fingerprint`, never the result rows). New: `SocHuntRequest` / `SocHuntResponse` / `HuntExplainRequest`. 28 tests (planner: no-LLM / valid-plan / model-unsupported / non-JSON / invalid-intent / injection-in-NL / row-cap; `/soc/hunt`: authz + CSRF, quick vs NL, unplannable → not executed, 503, no-tenant-field). | 11 (Unit 2) |
 | 2026-09-10 | **Hunt query plan + deterministic compiler** (Phase 11, Unit 1): `sm_contracts.api.hunt` — `QueryPlan` (**closed schema**: `HuntIntent` ∈ {find_entity, list_related, path_between, detections_for, chains_for, indicator_sightings, technique_usage}, typed `EntitySelector`s, a `rel_types` allow-list, `QueryLimits`), `NlHuntRequest`, `PlanResponse` (`supported` + optional `plan` + `unsupported_reason`), `HuntResult` (rows + `cypher_fingerprint` + `explanation`). `graph-service` `hunt.py` — `validate_plan` (capability-set enforcement), `compile_plan` (intent → one constant parameterized Cypher template; label/reltype/int-depth are the only interpolations, all allow-listed; every value is a `$` param; `$tenant` from the token, no plan field for it), `HuntRunner`. `POST /api/v1/graph/hunt` (internal JWT; a plan outside the set → 422). `SM_HUNT_MAX_ROWS` (200) / `SM_HUNT_MAX_DEPTH` (3), applied on top of the plan's own limits. See §5. Real-Neo4j `test_hunt_neo4j.py` (tenant-scoped, cross-tenant isolation, hallucinated entity → empty). 17 unit tests. | 11 (Unit 1) |
 | 2026-09-10 | **Phase 10 CI-verified** — final run `34432159191`, all five jobs (unit runs `34429226626` / `34429715242` / `34430968254`). | 10 (close) |
 | 2026-09-10 | **Phase 10 closed** (Unit 4): multi-agent defense. `sm_ai.agents` — `AgentSpec` (name + fixed system prompt + tool **allow-list**), `run_agent` under `AgentLimits` (`max_steps` / `max_tool_calls` / `wall_clock_s` / cumulative-token `RunBudget`) + a cancellation `Event`. `DETECTION_AGENT` / `THREAT_INTEL_AGENT` / `RESPONSE_AGENT`. An agent **cannot spawn another agent**, **cannot execute** anything, and holds **no standing permissions**; a tool outside its allow-list or unauthorised is refused mid-run without stopping the run; a tool exception is a tool result, not a crash. `sm_ai.action_gate` — `suggest_only` → `denied`; `allowed` needs `auto` + no approval requirement + production + a signed policy + a reversible action, so with the shipped `SM_RESPONSE_MODE=suggest_only` + `SM_RESPONSE_APPROVAL_REQUIRED=true` an agent proposal is **never** `allowed` (R31 / §7.3 boundary). `sm_contracts.api.agent` — `AgentRunRequest` / `AgentRunResult` (findings + `proposed_actions` with a per-action `decision`) / `AgentFinding` / `ProposedActionOut`. `services/ai-analyst` `POST /api/v1/agents/run` (internal JWT; no live LLM → `status="failed"`, never a 500). `FunctionTool` made non-generic (Protocol invariance). See §7.6. `REQUIREMENTS_TRACEABILITY` R29 / R30 → IMPLEMENTED, R31 → FOUNDATION IMPLEMENTED. 31 tests (allow-list boundary, unauthorised tool refused mid-run, step / tool-call / wall-clock / budget limits, cancellation, `action_gate` truth table, "suggestion ≠ action", route authz + no-LLM). | 10 (close) |

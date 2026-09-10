@@ -21,12 +21,15 @@ from ..common import SmBaseModel, to_utc
 __all__ = [
     "EntitySelector",
     "HuntEntityType",
+    "HuntExplainRequest",
     "HuntIntent",
     "HuntResult",
     "NlHuntRequest",
     "PlanResponse",
     "QueryLimits",
     "QueryPlan",
+    "SocHuntRequest",
+    "SocHuntResponse",
 ]
 
 HuntIntent = Literal[
@@ -120,3 +123,27 @@ class HuntResult(SmBaseModel):
     cypher_fingerprint: str = Field(default="", max_length=64)
     #: Grounded, cites the plan. Filled by `ai-analyst`; empty from `graph-service`.
     explanation: str = Field(default="", max_length=4_000)
+
+
+class HuntExplainRequest(SmBaseModel):
+    """`api-gateway` -> `ai-analyst`: turn a `HuntResult` (no explanation) into
+    one with a grounded natural-language summary."""
+
+    result: HuntResult
+
+
+class SocHuntRequest(SmBaseModel):
+    """The browser-facing hunt. Exactly one of `query` (natural language, planned
+    by `ai-analyst`) or `plan` (a structured plan built by the UI, no LLM)."""
+
+    query: str | None = Field(default=None, min_length=1, max_length=1_000)
+    plan: QueryPlan | None = None
+    max_rows: int = Field(default=100, ge=1, le=500)
+
+
+class SocHuntResponse(SmBaseModel):
+    supported: bool
+    unsupported_reason: str = Field(default="", max_length=300)
+    result: HuntResult | None = None
+    #: The `hunt_query` history row id, when one was recorded.
+    history_id: str | None = None

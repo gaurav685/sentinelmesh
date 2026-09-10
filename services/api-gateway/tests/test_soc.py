@@ -206,3 +206,103 @@ def test_detection_explanation_503_when_the_analyst_is_down(
     fixture.services.internal_client.fail = True
     do_login("acme", fixture.acme_analyst.email)
     assert client.get(f"/api/v1/soc/detections/{det.id}/explanation").status_code == 503
+
+
+# ---- threat hunting (Phase 11) --------------------------------
+_PLAN = {
+    "intent": "list_related",
+    "selectors": [{"type": "host", "value": "web01"}],
+    "rel_types": [],
+    "limits": {"max_depth": 2, "max_rows": 100},
+}
+_HUNT_RESULT = {
+    "intent": "list_related",
+    "plan": _PLAN,
+    "rows": [{"id": "n1", "labels": ["IpAddress"], "properties": {"ip": "10.0.0.9"}}],
+    "row_count": 1,
+    "truncated": False,
+    "cypher_fingerprint": "fp1",
+    "explanation": "",
+}
+
+
+def test_hunt_needs_hunt_query_permission(client: TestClient, fixture, do_login, csrf) -> None:
+    r = do_login("globex", fixture.globex_admin.email)  # no hunt:query
+    assert client.post(
+        "/api/v1/soc/hunt", json={"plan": _PLAN}, headers=csrf(r)
+    ).status_code == 403
+
+
+def test_a_structured_plan_is_executed_and_recorded(
+    client: TestClient, fixture, do_login, csrf
+) -> None:
+    ic = fixture.services.internal_client
+    ic.responses["graph_hunt"] = _HUNT_RESULT
+    ic.responses["hunt_explain"] = {**_HUNT_RESULT, "explanation": "one related ip [rows]"}
+    r = client.post(
+        "/api/v1/soc/hunt", json={"plan": _PLAN},
+        headers=csrf(do_login("acme", fixture.acme_analyst.email)),
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["supported"] is True
+    assert body["result"]["row_count"] == 1
+    assert body["result"]["explanation"] == "one related ip [rows]"
+    assert ("graph_hunt", fixture.acme.id) in ic.calls
+    # the natural-language planner was NOT called for a structured plan
+    assert ("hunt_plan", fixture.acme.id) not in ic.calls
+    hunts = fixture.services.soc_repository.hunts
+    assert hunts and hunts[-1]["mode"] == "quick" and hunts[-1]["supported"] is True
+
+
+def test_a_natural_language_hunt_goes_through_the_planner(
+    client: TestClient, fixture, do_login, csrf
+) -> None:
+    ic = fixture.services.internal_client
+    ic.responses["hunt_plan"] = {"supported": True, "plan": _PLAN, "unsupported_reason": ""}
+    ic.responses["graph_hunt"] = _HUNT_RESULT
+    ic.responses["hunt_explain"] = _HUNT_RESULT
+    r = client.post(
+        "/api/v1/soc/hunt", json={"query": "what talks to web01"},
+        headers=csrf(do_login("acme", fixture.acme_analyst.email)),
+    )
+    assert r.status_code == 200
+    assert r.json()["supported"] is True
+    assert ("hunt_plan", fixture.acme.id) in ic.calls
+    assert ("graph_hunt", fixture.acme.id) in ic.calls
+    hunts = fixture.services.soc_repository.hunts
+    assert hunts[-1]["mode"] == "nl" and hunts[-1]["nl_query"] == "what talks to web01"
+
+
+def test_an_unplannable_nl_query_is_reported_not_executed(
+    client: TestClient, fixture, do_login, csrf
+) -> None:
+    ic = fixture.services.internal_client
+    ic.responses["hunt_plan"] = {"supported": False, "unsupported_reason": "too vague"}
+    r = client.post(
+        "/api/v1/soc/hunt", json={"query": "find bad stuff"},
+        headers=csrf(do_login("acme", fixture.acme_analyst.email)),
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["supported"] is False and body["unsupported_reason"] == "too vague"
+    assert ("graph_hunt", fixture.acme.id) not in ic.calls
+    hunts = fixture.services.soc_repository.hunts
+    assert hunts[-1]["supported"] is False and hunts[-1]["intent"] is None
+
+
+def test_a_graph_service_outage_is_503(client: TestClient, fixture, do_login, csrf) -> None:
+    fixture.services.internal_client.fail = True
+    r = client.post(
+        "/api/v1/soc/hunt", json={"plan": _PLAN},
+        headers=csrf(do_login("acme", fixture.acme_analyst.email)),
+    )
+    assert r.status_code == 503
+
+
+def test_the_hunt_body_has_no_tenant_field(client: TestClient, fixture, do_login, csrf) -> None:
+    r = client.post(
+        "/api/v1/soc/hunt", json={"plan": _PLAN, "tenant_id": str(uuid.uuid4())},
+        headers=csrf(do_login("acme", fixture.acme_analyst.email)),
+    )
+    assert r.status_code == 422  # SmBaseModel extra=forbid

@@ -59,6 +59,11 @@ class SocRepository(Protocol):
         self, tenant_id: UUID, subject_id: str, *, limit: int = 200
     ) -> list[TimelineEntry]: ...
 
+    async def record_hunt(
+        self, tenant_id: UUID, *, principal: str, mode: str, nl_query: str | None,
+        intent: str | None, supported: bool, row_count: int, cypher_fingerprint: str | None,
+    ) -> UUID: ...
+
 
 class TenantRepository(Protocol):
     async def get(self, tenant_id: UUID) -> Tenant | None: ...

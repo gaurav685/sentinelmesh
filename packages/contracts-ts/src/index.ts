@@ -1377,6 +1377,11 @@ export type TenantId26 = string;
  */
 export type SensorType = "network" | "auth" | "dns" | "process" | "file" | "mixed";
 export type UpdatedAt10 = string;
+export type MaxRows2 = number;
+export type Query1 = string | null;
+export type HistoryId = string | null;
+export type Supported1 = boolean;
+export type UnsupportedReason1 = string;
 export type ActiveChains = number;
 export type Detections24H = number;
 export type GeneratedAt2 = string;
@@ -2856,6 +2861,28 @@ export interface Sensor {
   tenant_id: TenantId26;
   type: SensorType;
   updated_at: UpdatedAt10;
+}
+/**
+ * The browser-facing hunt. Exactly one of `query` (natural language, planned
+ * by `ai-analyst`) or `plan` (a structured plan built by the UI, no LLM).
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "SocHuntRequest".
+ */
+export interface SocHuntRequest {
+  max_rows?: MaxRows2;
+  plan?: QueryPlan | null;
+  query?: Query1;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "SocHuntResponse".
+ */
+export interface SocHuntResponse {
+  history_id?: HistoryId;
+  result?: HuntResult | null;
+  supported: Supported1;
+  unsupported_reason?: UnsupportedReason1;
 }
 /**
  * The dashboard's top-of-page counters. Every number is a real row count for

@@ -19,11 +19,14 @@ from .graph import GraphEdge, GraphNeighborhood, GraphNode, GraphPath
 from .health import DepStatus, HealthResponse, MetaResponse, ReadyResponse
 from .hunt import (
     EntitySelector,
+    HuntExplainRequest,
     HuntResult,
     NlHuntRequest,
     PlanResponse,
     QueryLimits,
     QueryPlan,
+    SocHuntRequest,
+    SocHuntResponse,
 )
 from .pagination import CursorPage
 from .soc import (
@@ -54,6 +57,7 @@ __all__ = [
     "GraphNode",
     "GraphPath",
     "HealthResponse",
+    "HuntExplainRequest",
     "HuntResult",
     "LoginRequest",
     "LoginResponse",
@@ -70,6 +74,8 @@ __all__ = [
     "ReadyResponse",
     "RiskSubject",
     "RoleSummary",
+    "SocHuntRequest",
+    "SocHuntResponse",
     "SocSummary",
     "TimelineEntry",
     "TimelineResponse",
