@@ -8,17 +8,23 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 12 — Simulation + Deception + Security Digital Twin. IN PROGRESS —
-Unit 1 (`sm_ml.twin` — the digital twin + blast radius + stress testing).**
-`build_twin(assets, relations, weaknesses) -> TwinModel` (frozen, sorted,
-validated — deterministic and standard-library). `attack_paths(twin, sources=,
-targets=, max_depth=)` (bounded, simple paths, ordered by feasibility),
-`blast_radius(twin, seeds=, max_hops=, min_weight=)` → `BlastRadiusReport`
-(reached set + per-hop + critical-assets-reached + a criticality-weighted score +
-amplifying weaknesses), `stress_test(twin, ..., controls=[DefensiveControl])` →
-which attack paths a set of controls (`block_relation_kind` / `isolate_asset` /
-`harden_asset`) would break, the residual risk, and the single most valuable
-control. **Scenario execution and blast-radius analysis run against this model,
-never against real systems.**
+Units 1–2 done (Unit 2 local green, awaiting CI).** Unit 1 (CI-verified, run
+`34449930913`): `sm_ml.twin` — `build_twin(assets, relations, weaknesses) ->
+TwinModel` (frozen, sorted, validated — deterministic, stdlib).
+`attack_paths(twin, sources=, targets=, max_depth=)` (bounded, simple paths,
+ordered by feasibility), `blast_radius(twin, seeds=, max_hops=, min_weight=)` →
+`BlastRadiusReport` (reached set + per-hop + critical-assets-reached +
+criticality-weighted score + amplifying weaknesses), `stress_test(twin, ...,
+controls=[DefensiveControl])` → which attack paths a control set
+(`block_relation_kind` / `isolate_asset` / `harden_asset`) would break, the
+residual risk, and the single most valuable control. Unit 2: `sm_ml.scenario` —
+`build_synthetic_env(seed)` (deterministic, every id `sim-`-prefixed, never
+real), `ScenarioSpec` (apt / ransomware / insider / brute_force),
+`validate_spec` (raises `ScenarioIsolationError` unless every target is a
+synthetic id present in the env), `run_scenario` (deterministic ordered
+`SimEvent`s, each `simulated=True` + its `scenario_id`), `replay_run`
+(deterministic read-only slice). **Scenario execution and blast-radius analysis
+run against this model, never against real systems.**
 
 **Phase 11 — Threat Hunting + Natural Language Querying. COMPLETE / CI-VERIFIED**
 (all five jobs, final run `34448406595`; unit runs `34446018571` /
@@ -2161,25 +2167,31 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Unit 1 done — local
+**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Unit 2 done — local
 gauntlet green, awaiting CI.** Everything synthetic, isolated, deterministic;
 scenarios run against a model, never real systems. Planned units:
-1. ✅ `sm_ml.twin` — `TwinModel` (`TwinAsset` / `TwinRelation` / `TwinWeakness`,
-   `build_twin` validates + freezes + sorts → deterministic, stdlib),
-   `attack_paths` (bounded simple paths, feasibility-ordered), `blast_radius` →
-   `BlastRadiusReport` (reached set, per-hop, critical-reached, criticality-
-   weighted score, amplifying weaknesses), `stress_test` + `DefensiveControl` →
-   which paths a control set breaks + residual risk + most-valuable control.
-   Local: ruff + `mypy --strict` clean, **706 unit tests** (11 new — order-
-   independent build, validation rejections, bounded/simple/ordered paths,
-   deterministic blast-radius scored by criticality, `min_weight` pruning,
-   stress-test path-breaking + best control, `apply_controls` immutability) +
-   `gen_contracts --check`. **Commit, push, confirm CI green.**
-2. `sm_ml.scenario` — `SyntheticEnvironment` (seeded, `synthetic=True`, never
-   real), `ScenarioSpec` (apt / ransomware / insider / brute_force), `run_scenario`
-   → a deterministic ordered list of synthetic telemetry events (each
-   `simulated=True`), `replay`, an isolation validator (a spec's targets must be
-   synthetic-env ids; no external/real targets).
+1. ✅ **CI-VERIFIED (run `34449930913`).** `sm_ml.twin` — `TwinModel`
+   (`TwinAsset` / `TwinRelation` / `TwinWeakness`, `build_twin` validates +
+   freezes + sorts → deterministic, stdlib), `attack_paths` (bounded simple
+   paths, feasibility-ordered), `blast_radius` → `BlastRadiusReport` (reached
+   set, per-hop, critical-reached, criticality-weighted score, amplifying
+   weaknesses), `stress_test` + `DefensiveControl` → which paths a control set
+   breaks + residual risk + most-valuable control.
+2. ✅ `sm_ml.scenario` — `build_synthetic_env(seed)` (deterministic, every id
+   `sim-`-prefixed — `is_synthetic_id` is the check every target passes
+   through), `ScenarioSpec` (apt / ransomware / insider / brute_force, Pydantic
+   frozen + `extra=forbid`), `validate_spec` (raises `ScenarioIsolationError`
+   unless every target is a synthetic id present in the env — a spec naming a
+   real-looking id like `host-01` or one from a different env is refused before
+   anything runs), `run_scenario` (a seeded-RNG deterministic ordered
+   `SimEvent` list per kind — recon/initial-access/lateral/collection/exfil for
+   apt, a failure burst + one success for brute_force, discovery + write bursts
+   for ransomware, an off-hours login + bulk reads for insider; every event
+   `simulated=True` + its `scenario_id`; `intensity` scales volume),
+   `replay_run` (deterministic read-only slice; an inverted window raises).
+   Local: ruff + `mypy --strict` clean (42 files), **723 unit tests** (17 new)
+   + `gen_contracts --check`; `Dockerfile.app` builds + `sm_ml.scenario`
+   imports. **Commit, push, confirm CI green.**
 3. `services/simulation-service` — a scenario-run endpoint + a deception decoy
    registry (`decoy` / `decoy_interaction`, migration `0007`; isolation
    invariants: a `network_boundary` is required, never `production`, one-way
