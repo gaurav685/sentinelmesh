@@ -82,6 +82,7 @@ from .report import (
     GroundedStatement,
     Report,
     ReportAsset,
+    ReportDownload,
     ReportGeneratedPayload,
     ReportTimelineEntry,
 )
@@ -195,6 +196,7 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "Prediction": Prediction,
     "Report": Report,
     "ReportAsset": ReportAsset,
+    "ReportDownload": ReportDownload,
     "ReportTimelineEntry": ReportTimelineEntry,
     "GroundedStatement": GroundedStatement,
     "ReportGeneratedPayload": ReportGeneratedPayload,

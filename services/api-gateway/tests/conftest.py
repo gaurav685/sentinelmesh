@@ -212,6 +212,15 @@ class FakeInternalClient:
     async def predict_threat_trajectory(self, tenant_id: UUID, payload: Any) -> Any:
         return await self._answer("predict_threat_trajectory", tenant_id)
 
+    async def create_report(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("create_report", tenant_id)
+
+    async def get_report(self, tenant_id: UUID, report_id: str) -> Any:
+        return await self._answer("get_report", tenant_id)
+
+    async def get_narrative(self, tenant_id: UUID, chain_id: str) -> Any:
+        return await self._answer("get_narrative", tenant_id)
+
 
 # --------------------------------------------------------------------------- #
 # fake infrastructure
@@ -630,6 +639,8 @@ def fixture() -> Fixture:
         PermissionCode.roles_read,
         PermissionCode.roles_grant,
         PermissionCode.ops_read,
+        PermissionCode.reports_generate,
+        PermissionCode.reports_read,
     ]
     analyst_perms = [
         PermissionCode.detections_read,
@@ -637,6 +648,8 @@ def fixture() -> Fixture:
         PermissionCode.simulation_run,
         PermissionCode.deception_manage,
         PermissionCode.memory_read,
+        PermissionCode.reports_generate,
+        PermissionCode.reports_read,
     ]
     for code in {*admin_perms, *analyst_perms}:
         perm = _permission(code)

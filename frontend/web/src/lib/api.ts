@@ -25,8 +25,11 @@ import type {
   GraphPath,
   MeResponse,
   MitreHeatmap,
+  Narrative,
   Prediction,
   RegisterDecoyRequest,
+  Report,
+  ReportDownload,
   RunScenarioRequest,
   ScenarioRunResult,
   SecurityAlert,
@@ -264,4 +267,15 @@ export const api = {
     apiFetch<Prediction>("/soc/predict/threat-trajectory", {
       method: "POST", body: { campaign_id: campaignId }, csrfToken,
     }),
+
+  createReport: (
+    body: { kind: string; subject_type: string; subject_id: string; title: string },
+    csrfToken: string | null,
+  ) => apiFetch<Report>("/soc/reports", { method: "POST", body, csrfToken }),
+
+  getReport: (id: string, signal?: AbortSignal) =>
+    apiFetch<ReportDownload>(`/soc/reports/${encodeURIComponent(id)}`, { signal }),
+
+  getNarrative: (chainId: string, signal?: AbortSignal) =>
+    apiFetch<Narrative>(`/soc/incidents/${encodeURIComponent(chainId)}/narrative`, { signal }),
 };

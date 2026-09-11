@@ -95,6 +95,17 @@ services:
       <<: *app-env
       SM_SERVICE_NAME: api-gateway
       SM_DEPLOYMENT_PROFILE: monolith
+      # BFF proxy targets — the api-gateway container talks to every other
+      # service by its compose service name, never `localhost` (that would
+      # resolve to the api-gateway container itself).
+      SM_CORRELATION_ENGINE_URL: http://correlation-engine:8009
+      SM_GRAPH_SERVICE_URL: http://graph-service:8004
+      SM_TI_SERVICE_URL: http://threat-intel-service:8007
+      SM_MITRE_SERVICE_URL: http://mitre-service:8008
+      SM_AI_ANALYST_URL: http://ai-analyst:8010
+      SM_SIMULATION_SERVICE_URL: http://simulation-service:8011
+      SM_MEMORY_SERVICE_URL: http://memory-service:8012
+      SM_REPORTING_SERVICE_URL: http://reporting-service:8013
     ports:
       - "8000:8000"
     depends_on:

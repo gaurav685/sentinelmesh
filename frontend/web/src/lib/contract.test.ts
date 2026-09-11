@@ -6,7 +6,9 @@ import type {
   Campaign,
   Decoy,
   Detection,
+  Narrative,
   Prediction,
+  Report,
   ScenarioRunResult,
   SocHuntResponse,
   SocSummary,
@@ -165,5 +167,36 @@ describe("generated contract types", () => {
     };
     expect(prediction.model_version).toBe("heuristic-v1");
     expect(prediction.subject_type).toBeNull();
+  });
+
+  it("Report's evidence/findings/recommendations each carry a grounding tier", () => {
+    const report: Report = {
+      id: "r1", tenant_id: "t1", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+      kind: "incident", status: "partial", subject_type: "host", subject_id: "web01",
+      title: "Host incident", requested_by: "u1", generated_at: "2026-01-01T00:00:00Z",
+      incident_metadata: {}, timeline: [], affected_assets: [], detection_ids: [],
+      evidence: [{ text: "A detection fired.", tier: "evidence", ref: "d1" }],
+      chain_ids: [], technique_ids: [], threat_score: null, findings: [], recommendations: [],
+      confidence: null, provenance: ["detection-engine"], missing_sections: ["affected_assets"],
+      storage_key: null,
+    };
+    expect(report.evidence?.[0].tier).toBe("evidence");
+    expect(report.missing_sections).toContain("affected_assets");
+  });
+
+  it("Narrative's beats are deterministic and simulated is set for a synthetic chain", () => {
+    const narrative: Narrative = {
+      id: "n1", tenant_id: "t1", created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+      chain_id: "c1", subject_type: "host", subject_id: "sim-host-01",
+      beats: [{
+        at: "2026-01-01T00:00:00Z", stage: "initial_access", title: "Initial Access",
+        detection_ids: ["d1"], technique_ids: ["T1110"], detection_count: 1, tier: "synthetic",
+      }],
+      summary: "A foothold was gained.", cited_refs: ["initial_access"], confidence: "low",
+      model: {}, degraded: true, degraded_reason: "llm_disabled", simulated: true,
+      generated_at: "2026-01-01T00:00:00Z",
+    };
+    expect(narrative.simulated).toBe(true);
+    expect(narrative.beats?.[0].tier).toBe("synthetic");
   });
 });

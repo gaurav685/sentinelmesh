@@ -1,0 +1,400 @@
+{
+  "$defs": {
+    "GroundedStatement": {
+      "additionalProperties": false,
+      "description": "One finding, recommendation, or analyst statement. `tier` says which\nof the four grounding kinds it is; `ref` traces it back to its source\n(a detection id, a chain id, a prediction id...) whenever `tier` is not\n`synthetic`.",
+      "properties": {
+        "ref": {
+          "anyOf": [
+            {
+              "maxLength": 256,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref"
+        },
+        "text": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "tier": {
+          "$ref": "#/$defs/GroundingKind"
+        }
+      },
+      "required": [
+        "text",
+        "tier"
+      ],
+      "title": "GroundedStatement",
+      "type": "object"
+    },
+    "GroundingKind": {
+      "description": "How a statement in a report is backed. Every `GroundedStatement` and\n`ReportTimelineEntry` carries one \u2014 never left implicit (Constitution\n\u00a73).\n\n- `evidence`: a real detection/chain/telemetry record the platform\n  itself produced; `ref` points at it.\n- `inference`: a deterministic derivation from evidence (e.g. a stage\n  rollup), not a new observation.\n- `prediction`: `sm_ml.predict` output \u2014 a forecast, never fact\n  (mirrors `Prediction`, Phase 13).\n- `synthetic`: from `simulation-service` (Phase 12) demo/scenario data \u2014\n  never real, always labeled as such.",
+      "enum": [
+        "evidence",
+        "inference",
+        "prediction",
+        "synthetic"
+      ],
+      "title": "GroundingKind",
+      "type": "string"
+    },
+    "Report": {
+      "additionalProperties": false,
+      "description": "A generated report. The rendered artifact (PDF) lives in object\nstorage at `storage_key`; this row is the durable record of what was\ngenerated, from what, and how sure the platform is about each part of\nit. `status` is `partial` (never faked) whenever a content dependency\ncould not be reached \u2014 see `missing_sections`.",
+      "properties": {
+        "affected_assets": {
+          "items": {
+            "$ref": "#/$defs/ReportAsset"
+          },
+          "maxItems": 200,
+          "title": "Affected Assets",
+          "type": "array"
+        },
+        "chain_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 100,
+          "title": "Chain Ids",
+          "type": "array"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "detection_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 500,
+          "title": "Detection Ids",
+          "type": "array"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/GroundedStatement"
+          },
+          "maxItems": 500,
+          "title": "Evidence",
+          "type": "array"
+        },
+        "findings": {
+          "items": {
+            "$ref": "#/$defs/GroundedStatement"
+          },
+          "maxItems": 200,
+          "title": "Findings",
+          "type": "array"
+        },
+        "generated_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Generated At"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "incident_metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Incident Metadata",
+          "type": "object"
+        },
+        "kind": {
+          "enum": [
+            "incident",
+            "executive_summary",
+            "soc",
+            "compliance"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "missing_sections": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Missing Sections",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "recommendations": {
+          "items": {
+            "$ref": "#/$defs/GroundedStatement"
+          },
+          "maxItems": 200,
+          "title": "Recommendations",
+          "type": "array"
+        },
+        "requested_by": {
+          "format": "uuid",
+          "title": "Requested By",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "partial",
+            "complete",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "storage_key": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Storage Key"
+        },
+        "subject_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_type": {
+          "$ref": "#/$defs/ThreatSubjectType"
+        },
+        "technique_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 200,
+          "title": "Technique Ids",
+          "type": "array"
+        },
+        "tenant_id": {
+          "format": "uuid",
+          "title": "Tenant Id",
+          "type": "string"
+        },
+        "threat_score": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Threat Score"
+        },
+        "timeline": {
+          "items": {
+            "$ref": "#/$defs/ReportTimelineEntry"
+          },
+          "maxItems": 500,
+          "title": "Timeline",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "updated_at": {
+          "format": "date-time",
+          "title": "Updated At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "created_at",
+        "updated_at",
+        "tenant_id",
+        "id",
+        "kind",
+        "status",
+        "subject_type",
+        "subject_id",
+        "title",
+        "requested_by"
+      ],
+      "title": "Report",
+      "type": "object"
+    },
+    "ReportAsset": {
+      "additionalProperties": false,
+      "description": "One affected asset referenced by a report.",
+      "properties": {
+        "role": {
+          "description": "e.g. \"victim\", \"source\".",
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        },
+        "subject_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_type": {
+          "$ref": "#/$defs/ThreatSubjectType"
+        }
+      },
+      "required": [
+        "subject_type",
+        "subject_id",
+        "role"
+      ],
+      "title": "ReportAsset",
+      "type": "object"
+    },
+    "ReportTimelineEntry": {
+      "additionalProperties": false,
+      "description": "Timeline point inside a report. Deliberately a separate type from\n`TimelineEntry` (`api/soc.py`) even though the shape is close \u2014 a\nreport's timeline is a persisted, immutable snapshot at generation\ntime, not a live query result, and additionally carries `tier`.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "ref_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Ref Id",
+          "type": "string"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Severity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tier": {
+          "$ref": "#/$defs/GroundingKind",
+          "default": "evidence"
+        },
+        "title": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "kind",
+        "title",
+        "ref_id"
+      ],
+      "title": "ReportTimelineEntry",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`GET /api/v1/reports/{id}` response \u2014 the report plus a fresh,\ntime-limited presigned download URL (ADR-019: never a public bucket,\nnever a raw path a caller could manipulate).",
+  "properties": {
+    "download_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Presigned; None until the report is `complete` or `partial`.",
+      "title": "Download Url"
+    },
+    "report": {
+      "$ref": "#/$defs/Report"
+    }
+  },
+  "required": [
+    "report"
+  ],
+  "title": "ReportDownload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

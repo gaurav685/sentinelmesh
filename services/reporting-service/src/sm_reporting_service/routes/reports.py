@@ -13,7 +13,7 @@ from pydantic import Field
 
 from sm_common.errors import NotFound
 from sm_common.security import InternalPrincipal
-from sm_contracts import Report, ReportKind, SmBaseModel, ThreatSubjectType
+from sm_contracts import Report, ReportDownload, ReportKind, SmBaseModel, ThreatSubjectType
 
 from ..deps import Services, get_generator, get_principal, get_repository, get_services
 from ..generator import ReportGenerator
@@ -35,13 +35,6 @@ class CreateReportRequest(SmBaseModel):
     subject_id: str = Field(min_length=1, max_length=256)
     title: str = Field(min_length=1, max_length=200)
     requested_by: UUID
-
-
-class ReportDownload(SmBaseModel):
-    report: Report
-    download_url: str | None = Field(
-        default=None, description="Presigned; None until the report is `complete` or `partial`."
-    )
 
 
 @router.post("", response_model=Report)
