@@ -8,7 +8,7 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 12 — Simulation + Deception + Security Digital Twin. IN PROGRESS —
-Units 1–3 done (Unit 3 local green, awaiting CI).** Unit 1 (CI-verified, run
+Units 1–3 done (Unit 3 CI-verified, run `34572530014`).** Unit 1 (CI-verified, run
 `34449930913`): `sm_ml.twin` — `build_twin(assets, relations, weaknesses) ->
 TwinModel` (frozen, sorted, validated — deterministic, stdlib).
 `attack_paths(twin, sources=, targets=, max_depth=)` (bounded, simple paths,
@@ -23,8 +23,8 @@ every id `sim-`-prefixed, never real), `ScenarioSpec` (apt / ransomware /
 insider / brute_force), `validate_spec` (raises `ScenarioIsolationError` unless
 every target is a synthetic id present in the env), `run_scenario`
 (deterministic ordered `SimEvent`s, each `simulated=True` + its `scenario_id`),
-`replay_run` (deterministic read-only slice). Unit 3 (local green, awaiting
-CI): `services/simulation-service` (port 8011) — `POST
+`replay_run` (deterministic read-only slice). Unit 3 (CI-verified, run
+`34572530014`): `services/simulation-service` (port 8011) — `POST
 /api/v1/sim/scenarios/run` runs a scenario against a fresh synthetic
 environment built from the request's own seed and, when `feed_pipeline: true`,
 produces every mappable event onto `telemetry.raw` (`source.type =
@@ -2180,9 +2180,9 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Unit 3 done — local
-gauntlet green, awaiting CI.** Everything synthetic, isolated, deterministic;
-scenarios run against a model, never real systems. Planned units:
+**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Units 1-3 done and
+CI-verified. Exact next action: Unit 4.** Everything synthetic, isolated,
+deterministic; scenarios run against a model, never real systems. Planned units:
 1. ✅ **CI-VERIFIED (run `34449930913`).** `sm_ml.twin` — `TwinModel`
    (`TwinAsset` / `TwinRelation` / `TwinWeakness`, `build_twin` validates +
    freezes + sorts → deterministic, stdlib), `attack_paths` (bounded simple
@@ -2225,11 +2225,12 @@ scenarios run against a model, never real systems. Planned units:
    `Dockerfile.app` builds, `sm_simulation_service` imports in the image,
    non-root uid 10001 confirmed; CI (`.github/workflows/ci.yml`) and
    `deploy/docker/{Dockerfile.app,docker-compose.yml}` wired (profile
-   `detect`, depends on `postgres` + `migrate`). **Commit, push, confirm CI
-   green.**
+   `detect`, depends on `postgres` + `migrate`). **CI-VERIFIED (run
+   `34572530014`, all five jobs).**
 4. `api-gateway` BFF + `frontend/web` (a simulation page badged "SIMULATION", a
    blast-radius view, a deception page) + Phase 12 close (exit report + §23 +
-   `REQUIREMENTS_TRACEABILITY` R16 / R17 / R26 / R35 + `CONTRACTS.md`).
+   `REQUIREMENTS_TRACEABILITY` R16 / R17 / R26 / R35 + `CONTRACTS.md`). **This
+   is the next unit to implement.**
 
 Exit next action after Phase 12: **PHASE 13 — Memory + Predictive Intelligence**
 (prompt not yet given — do NOT start speculatively; the next session resumes
