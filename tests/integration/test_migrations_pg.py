@@ -62,6 +62,8 @@ EXPECTED_TABLES = {
     "threat_memory",
     "campaign",
     "adversary_fingerprint",
+    "report",
+    "report_template",
     "alembic_version",
 }
 
@@ -168,10 +170,10 @@ async def test_head_is_the_expected_revision(alembic):
     # `heads` reads the migration scripts, not the database, so it does not
     # depend on an upgrade having run first.
     out = alembic("heads").stdout
-    assert "0010" in out
+    assert "0011" in out
 
     alembic("upgrade", "head")
-    assert "0010" in alembic("current").stdout
+    assert "0011" in alembic("current").stdout
 
 
 @pytest.mark.asyncio

@@ -76,6 +76,13 @@ from .mitre import (
     TechniqueMapping,
     TechniqueMatch,
 )
+from .report import (
+    GroundedStatement,
+    Report,
+    ReportAsset,
+    ReportGeneratedPayload,
+    ReportTimelineEntry,
+)
 from .telemetry import (
     AuthEventPayload,
     CanonicalEventPayload,
@@ -184,6 +191,11 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "AdversaryFingerprint": AdversaryFingerprint,
     "SimilarityMatch": SimilarityMatch,
     "Prediction": Prediction,
+    "Report": Report,
+    "ReportAsset": ReportAsset,
+    "ReportTimelineEntry": ReportTimelineEntry,
+    "GroundedStatement": GroundedStatement,
+    "ReportGeneratedPayload": ReportGeneratedPayload,
     "CursorPage_Detection": DetectionPage,
     "CursorPage_SecurityAlert": AlertPage,
     "CursorPage_AttackChain": ChainPage,

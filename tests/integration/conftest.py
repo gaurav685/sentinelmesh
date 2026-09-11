@@ -28,6 +28,7 @@ from sm_common.cache import Cache
 from sm_common.config import AppSettings
 from sm_common.db import Base, Database
 from sm_common.graph import Graph, apply_pending
+from sm_common.objectstore import ObjectStore
 
 pytestmark = pytest.mark.integration
 
@@ -82,6 +83,10 @@ def integration_settings(**over: object) -> AppSettings:
         "redis_url": os.environ.get("SM_TEST_REDIS_URL", "redis://localhost:6379/15"),
         "neo4j_uri": os.environ.get("SM_TEST_NEO4J_URI", "bolt://localhost:7687"),
         "neo4j_password": os.environ.get("SM_TEST_NEO4J_PASSWORD", "neo4j-dev-password"),
+        "s3_endpoint": os.environ.get("SM_TEST_S3_ENDPOINT", "http://localhost:9000"),
+        "s3_access_key_id": os.environ.get("SM_TEST_S3_ACCESS_KEY_ID", "sentinelmesh"),
+        "s3_secret_access_key": os.environ.get("SM_TEST_S3_SECRET_ACCESS_KEY", "sentinelmesh-dev-secret"),
+        "s3_bucket_reports": os.environ.get("SM_TEST_S3_BUCKET_REPORTS", "sm-reports-test"),
         "internal_jwt_signing_key": "integration-signing-key-0123456789",
         "oidc_client_secret": "integration",
         "session_idle_seconds": 60,
@@ -225,3 +230,24 @@ async def graph(settings: AppSettings) -> AsyncIterator[Graph]:
     finally:
         await g.run_write("MATCH (n) DETACH DELETE n")
         await g.close()
+
+
+@pytest_asyncio.fixture
+async def object_store(settings: AppSettings) -> AsyncIterator[ObjectStore]:
+    """A reachable MinIO with `settings.s3_bucket_reports` created and empty.
+
+    Needs the compose `objects` profile:
+        docker compose -f deploy/docker/docker-compose.yml --profile objects up -d minio
+    """
+    store = ObjectStore.from_settings(settings)
+    bucket = settings.s3_bucket_reports
+
+    async def _probe() -> None:
+        await store.ensure_bucket(bucket)
+
+    if not await _reachable(_probe):
+        _unavailable(
+            "MinIO is not reachable; start it with `docker compose "
+            "-f deploy/docker/docker-compose.yml --profile objects up -d minio`"
+        )
+    yield store

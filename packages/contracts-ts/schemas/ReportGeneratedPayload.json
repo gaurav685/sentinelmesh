@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "`report.generated` topic event (`EventType.report_generated`). Thin\nprojection \u2014 enough to fan a notification out; the full report (and its\nrendered artifact) stay in Postgres / object storage.",
+  "properties": {
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "incident",
+        "executive_summary",
+        "soc",
+        "compliance"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "report_id": {
+      "format": "uuid",
+      "title": "Report Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "partial",
+        "complete",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "subject_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "$ref": "#/$defs/ThreatSubjectType"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "report_id",
+    "tenant_id",
+    "kind",
+    "status",
+    "subject_type",
+    "subject_id",
+    "generated_at"
+  ],
+  "title": "ReportGeneratedPayload",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

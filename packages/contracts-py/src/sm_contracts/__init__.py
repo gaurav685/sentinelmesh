@@ -187,6 +187,17 @@ from .mitre import (
     is_technique_id,
     parent_technique_id,
 )
+from .report import (
+    REPORT_PAYLOADS,
+    GroundedStatement,
+    GroundingKind,
+    Report,
+    ReportAsset,
+    ReportGeneratedPayload,
+    ReportKind,
+    ReportStatus,
+    ReportTimelineEntry,
+)
 from .telemetry import (
     TELEMETRY_PAYLOADS,
     AuthEventPayload,
@@ -448,4 +459,14 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "NextActionRequest",
     "LateralMovementRequest",
     "ThreatTrajectoryRequest",
+    # reporting + attack storytelling (Phase 14)
+    "Report",
+    "ReportKind",
+    "ReportStatus",
+    "ReportAsset",
+    "ReportTimelineEntry",
+    "GroundedStatement",
+    "GroundingKind",
+    "ReportGeneratedPayload",
+    "REPORT_PAYLOADS",
 ]

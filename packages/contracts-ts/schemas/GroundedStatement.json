@@ -1,0 +1,49 @@
+{
+  "$defs": {
+    "GroundingKind": {
+      "description": "How a statement in a report is backed. Every `GroundedStatement` and\n`ReportTimelineEntry` carries one \u2014 never left implicit (Constitution\n\u00a73).\n\n- `evidence`: a real detection/chain/telemetry record the platform\n  itself produced; `ref` points at it.\n- `inference`: a deterministic derivation from evidence (e.g. a stage\n  rollup), not a new observation.\n- `prediction`: `sm_ml.predict` output \u2014 a forecast, never fact\n  (mirrors `Prediction`, Phase 13).\n- `synthetic`: from `simulation-service` (Phase 12) demo/scenario data \u2014\n  never real, always labeled as such.",
+      "enum": [
+        "evidence",
+        "inference",
+        "prediction",
+        "synthetic"
+      ],
+      "title": "GroundingKind",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One finding, recommendation, or analyst statement. `tier` says which\nof the four grounding kinds it is; `ref` traces it back to its source\n(a detection id, a chain id, a prediction id...) whenever `tier` is not\n`synthetic`.",
+  "properties": {
+    "ref": {
+      "anyOf": [
+        {
+          "maxLength": 256,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ref"
+    },
+    "text": {
+      "maxLength": 4000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "tier": {
+      "$ref": "#/$defs/GroundingKind"
+    }
+  },
+  "required": [
+    "text",
+    "tier"
+  ],
+  "title": "GroundedStatement",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

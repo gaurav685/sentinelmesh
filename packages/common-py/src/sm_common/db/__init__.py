@@ -28,6 +28,7 @@ from .models import (
     User,
     UserRole,
 )
+from .report_models import ReportRow, ReportTemplateRow
 from .session import Database
 from .simulation_models import DecoyInteractionRow, DecoyRow
 
@@ -49,6 +50,8 @@ __all__ = [
     "Detection",
     "HuntQueryRow",
     "Permission",
+    "ReportRow",
+    "ReportTemplateRow",
     "Role",
     "RolePermission",
     "SecurityAlert",

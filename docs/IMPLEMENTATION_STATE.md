@@ -2551,6 +2551,90 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
+**PHASE 14 — REPORTING + ATTACK STORYTELLING. IN PROGRESS.** Every generated
+narrative must distinguish ACTUAL SYSTEM EVIDENCE from INFERENCE from
+PREDICTION from SYNTHETIC DEMO DATA (Constitution §3) — never invent an
+incident. Planned units:
+1. ✅ **CI-VERIFIED — see next session for the run id.** Core report data
+   layer, no service yet. `sm_contracts.report` (top-level, mirrors
+   `chains.py`/`memory.py`'s pattern of an entity beside its own topic
+   payload): `GroundingKind` (`evidence` / `inference` / `prediction` /
+   `synthetic` — deliberately not named `Provenance`, which `threatintel.py`
+   already uses for a different meaning), `GroundedStatement` (`text` +
+   `tier` + optional `ref` — the building block for every finding,
+   recommendation, and timeline point), `ReportTimelineEntry`, `ReportAsset`,
+   `Report` (incident metadata, timeline, affected assets, detection ids,
+   evidence, chain ids, technique ids, threat score, findings,
+   recommendations, confidence, provenance, `missing_sections` for a
+   `partial` report, `storage_key`), `ReportGeneratedPayload` for the
+   already-pre-declared `report.generated` topic
+   (`EventType.report_generated`, confirmed still present from an earlier
+   phase's anticipation). New permission `reports:read` added to
+   `PermissionCode` (enum only this unit; the CHECK-widening migration and
+   grants land with the BFF unit, matching `memory:read`'s Phase 13
+   precedent) — `reports:generate` (a placeholder since an earlier phase) is
+   now the write-side counterpart.
+   `sm_common.db.report_models` — `ReportTemplateRow` (`report_template`,
+   one seeded default per `ReportKind`) and `ReportRow` (`report`, the
+   assembled `Report` body stored whole as JSONB — a report is a
+   point-in-time snapshot, never queried by its internal fields, so it is
+   deliberately not normalized further). Migration `0011` creates both
+   tables and seeds the four default templates; seeding a JSONB column from
+   Alembic needed an explicit `CAST(:sections AS jsonb)` in raw SQL text
+   rather than `op.bulk_insert` with a JSONB-typed table proxy — online,
+   asyncpg binds a bulk-insert parameter as text and Postgres refuses the
+   *implicit* text→jsonb assignment cast for a bound parameter (only a
+   literal gets that); offline (`alembic ... --sql`), a raw Python list has
+   no literal renderer at all. An explicit `CAST` in the SQL text is
+   unaffected by either problem.
+   `sm_common.objectstore` (new; ADR-019) — `ObjectStore` (async, `aioboto3`,
+   MinIO-locally/S3-compatible-in-prod) + `safe_key()` (the only way to build
+   an object key: rejects `.`/`..`, path separators, and anything outside a
+   conservative allow-list — the path-traversal / malicious-filename guard).
+   `ensure_bucket()` creates a bucket with default SSE-S3 (AES256) encryption
+   if missing; `put_bytes()` / `presigned_get_url()` / `ping()` round out the
+   client. Real finding: MinIO (unlike AWS S3) refuses *any* server-side
+   encryption request — bucket-default or per-object header — unless a KMS
+   backend is configured, even for plain AES256; fixed by giving the compose
+   `minio` service a fixed, non-secret `MINIO_KMS_SECRET_KEY` (local/CI only,
+   protects nothing sensitive) so local runs exercise the same encrypted
+   path production does, rather than skipping the requirement.
+   Local: ruff + `mypy --strict` clean (368 files, full CI static tree),
+   **833 unit tests** (11 new: `safe_key` validation + `ObjectStore`
+   construction) + `gen_contracts --check` (97 JSON Schema files, 5 new);
+   real-Postgres migration round-trip (`tests/integration/test_migrations_pg.py`,
+   updated for head `0011` + the two new tables) and a new real-MinIO
+   integration suite (`tests/integration/test_objectstore_s3.py`, 5 tests:
+   put + presigned-get round-trip, `ping` success/failure, idempotent
+   `ensure_bucket`, `safe_key` rejection before touching the backend) both
+   green; `Dockerfile.app` builds, `sm_common.objectstore` +
+   `sm_common.db.report_models` import in the image, non-root uid confirmed.
+2. ⬜ `services/reporting-service` (port 8013, module `sm_reporting_service`)
+   — content-gathering clients to detection-engine / graph-service /
+   mitre-service / ai-analyst / memory-service (mirroring `ChainsClient`),
+   report assembly against `_TEMPLATES`' section lists (a missing content
+   dependency lands the section in `missing_sections` and the report as
+   `partial`, never fabricated), PDF rendering (library TBD — `reportlab`
+   confirmed pip-installable, no system deps, not yet added to any
+   `pyproject.toml`), `POST /api/v1/reports` + `GET /api/v1/reports/{id}`
+   (pre-signed download via `ObjectStore`), produces `report.generated`.
+3. ⬜ Attack storytelling in `services/ai-analyst` (R33) — new `narrative`
+   module + Postgres `narrative` table + migration, `GET
+   /api/v1/incidents/{id}/narrative`, LLM-grounded narrative generation
+   (every beat cites evidence via `GroundedStatement`-shaped output),
+   simulation-sourced narratives labeled `SIMULATION` (Phase 12's badge
+   convention), grounding + no-fabricated-events tests.
+4. ⬜ `api-gateway` BFF (`routes/reports.py`, `reports:read`/`reports:generate`
+   enforcement incl. compliance-report role gate for `lead`/`tenant_admin`,
+   migration widening `permission.code` for `reports:read`) +
+   `frontend/web` report builder/library page + cinematic-replay page +
+   Phase 14 close (exit report, §23, `REQUIREMENTS_TRACEABILITY.md` R22/R33
+   → IMPLEMENTED).
+
+Exit next action after Phase 14: **PHASE 15 — Observability + Benchmarking**
+(prompt not yet given — do NOT start speculatively; the next session resumes
+here).
+
 **PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34591054542`).** Three stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:

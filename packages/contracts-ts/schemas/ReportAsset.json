@@ -1,0 +1,44 @@
+{
+  "$defs": {
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One affected asset referenced by a report.",
+  "properties": {
+    "role": {
+      "description": "e.g. \"victim\", \"source\".",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Role",
+      "type": "string"
+    },
+    "subject_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "$ref": "#/$defs/ThreatSubjectType"
+    }
+  },
+  "required": [
+    "subject_type",
+    "subject_id",
+    "role"
+  ],
+  "title": "ReportAsset",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

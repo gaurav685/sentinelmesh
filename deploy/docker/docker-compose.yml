@@ -557,6 +557,13 @@ services:
     environment:
       MINIO_ROOT_USER: ${SM_S3_ACCESS_KEY_ID:-sentinelmesh}
       MINIO_ROOT_PASSWORD: ${SM_S3_SECRET_ACCESS_KEY:?SM_S3_SECRET_ACCESS_KEY must be set in .env}
+      # MinIO needs a KMS backend before it will honor ANY server-side
+      # encryption request (ADR-019), even plain SSE-S3 AES256 — unlike
+      # real AWS S3, which supports AES256 with no KMS at all. This
+      # fixed key enables MinIO's built-in single-key auto-encryption for
+      # local dev / CI only; it protects nothing sensitive and is not an
+      # application secret, so it is not `SM_`-prefixed / in `.env`.
+      MINIO_KMS_SECRET_KEY: "sm-local-dev-key:MTIzNDU2Nzg5MGFiY2RlZjEyMzQ1Njc4OTBhYmNkZWY="
     ports:
       - "9000:9000"
       - "9001:9001"
