@@ -36,6 +36,7 @@ class InternalServiceClient:
         correlation_url: str, graph_url: str, ti_url: str, mitre_url: str,
         ai_analyst_url: str = "http://localhost:8010",
         simulation_url: str = "http://localhost:8011",
+        memory_url: str = "http://localhost:8012",
     ) -> None:
         self._http = http
         self._key = signing_key
@@ -47,6 +48,7 @@ class InternalServiceClient:
             "mitre-service": mitre_url.rstrip("/"),
             "ai-analyst": ai_analyst_url.rstrip("/"),
             "simulation-service": simulation_url.rstrip("/"),
+            "memory-service": memory_url.rstrip("/"),
         }
 
     def _token(self, audience: str, tenant_id: UUID) -> str:
@@ -198,4 +200,56 @@ class InternalServiceClient:
     async def list_decoy_interactions(self, tenant_id: UUID, decoy_id: str) -> Any:
         return await self._request(
             "simulation-service", "GET", f"/api/v1/deception/decoys/{decoy_id}/interactions", tenant_id
+        )
+
+    # ---- memory-service: threat memory -----------------------
+    async def mem_similar(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "memory-service", "POST", "/api/v1/memory/similar", tenant_id, json=payload
+        )
+
+    async def mem_patterns(
+        self, tenant_id: UUID, *, subject_type: str | None = None, subject_id: str | None = None,
+    ) -> Any:
+        return await self._request(
+            "memory-service", "GET", "/api/v1/memory/patterns", tenant_id,
+            params={k: v for k, v in {"subject_type": subject_type, "subject_id": subject_id}.items() if v},
+        )
+
+    async def mem_fingerprint(self, tenant_id: UUID, subject_type: str, subject_id: str) -> Any:
+        return await self._request(
+            "memory-service", "GET", f"/api/v1/memory/fingerprints/{subject_type}/{subject_id}",
+            tenant_id,
+        )
+
+    async def mem_campaigns(self, tenant_id: UUID, *, status: str | None = None) -> Any:
+        return await self._request(
+            "memory-service", "GET", "/api/v1/memory/campaigns", tenant_id,
+            params={"status": status} if status else None,
+        )
+
+    async def mem_campaign(self, tenant_id: UUID, campaign_id: str) -> Any:
+        return await self._request(
+            "memory-service", "GET", f"/api/v1/memory/campaigns/{campaign_id}", tenant_id
+        )
+
+    # ---- memory-service: predictive intelligence --------------
+    async def predict_attack_progression(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "memory-service", "POST", "/api/v1/predict/attack-progression", tenant_id, json=payload
+        )
+
+    async def predict_next_action(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "memory-service", "POST", "/api/v1/predict/next-action", tenant_id, json=payload
+        )
+
+    async def predict_lateral_movement(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "memory-service", "POST", "/api/v1/predict/lateral-movement", tenant_id, json=payload
+        )
+
+    async def predict_threat_trajectory(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "memory-service", "POST", "/api/v1/predict/threat-trajectory", tenant_id, json=payload
         )

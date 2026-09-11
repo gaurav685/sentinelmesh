@@ -314,7 +314,28 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** tenant-scoped inputs; predictions are advisory, never trigger auto-response.
 - **Test:** pipeline smoke tests, calibration test scaffold, failure-behavior tests.
 - **Verification method:** backtesting harness on CTU-13 attack sequences — not yet run.
-- **Phase:** P8 (foundation) → P6-era model deferred. **Status:** FOUNDATION IMPLEMENTED. Phase 8 delivers the pieces a predictive model sits on: `sm_ml.temporal.ProgressionTrack` (furthest kill-chain stage over time + every transition), `TemporalGraphState.at(t)` (the graph state to condition a forecast on), and the GNN node-embedding boundary (`GnnNodeAnomalyModel` / GraphSAGE). No forecast is produced yet — `{predicted_action, probability, horizon, confidence}` and a trained sequence model are future work; until then the platform makes no prediction rather than a guessed one. **No accuracy claimed.**
+- **Phase:** P8 (foundation) → P13 (interfaces). **Status:** IMPLEMENTED (P13)
+  — **as deterministic heuristics, explicitly not a trained model.** Phase 8
+  delivered the pieces a trained model would sit on (`sm_ml.temporal`,
+  the GNN node-embedding boundary); Phase 13 delivers the four interfaces
+  this row calls for — `sm_ml.predict` (`MODEL_VERSION = "heuristic-v1"`):
+  `predict_attack_progression` (next kill-chain stage), `predict_next_action`
+  (a technique the subject used before, not yet in this chain),
+  `predict_lateral_movement` (fingerprint technique-overlap similarity, not
+  a live graph traversal), `predict_threat_trajectory`
+  (escalating/active/stalling/concluded from a campaign's status + chain
+  count) — every one returns `{prediction, confidence, evidence, features,
+  model_version, generated_at}` and `confidence=0.0` with a stated reason
+  when underdetermined, never a guess. `memory-service`
+  `POST /api/v1/predict/{attack-progression,next-action,lateral-movement,
+  threat-trajectory}`, proxied at `/api/v1/soc/predict/...`.
+  **Deviations, all deliberate:** no MLflow/S3, no trained sequence model, no
+  training run — `{predicted_action, probability, horizon, confidence}`'s
+  literal shape and a GPU-trained model remain future work; `horizon` is not
+  produced (every prediction is "next", not "in N hours"); hosted on
+  `memory-service`, not `ml-training`/`ml-inference`/`detection-engine` — the
+  heuristics read threat-memory data those services don't own.
+  **No accuracy, precision, or recall figure is claimed anywhere.**
 
 ### R16 — Deception & Honeypot Module
 - **Purpose:** decoy services, attacker-interaction tracking, adversary profiling; controlled isolation.
@@ -471,7 +492,30 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** strict tenant scoping; cross-tenant similarity **disabled by default** (only via federated mesh R34 with privacy controls).
 - **Test:** retention tests, tenant-isolation tests, retrieval-relevance scaffold, degradation (pgvector down → exact fallback).
 - **Verification method:** integration tests against Postgres+pgvector.
-- **Phase:** P6. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P6. **Status:** IMPLEMENTED (P13). `services/memory-service`
+  (port 8012) consumes `attack_chains` (group `memory`; the topic event is a
+  thin projection, so `ChainsClient` fetches the full chain from
+  `correlation-engine` first) and upserts three record kinds — never a
+  shared "memory" table (ADR-011): `ThreatMemoryRow` (a behavioral pattern
+  per subject, upserted — `occurrence_count` bumped, never one row per
+  occurrence), `CampaignRow` (chains grouped by pgvector cosine similarity
+  over a deterministic technique feature vector,
+  `SM_MEMORY_CAMPAIGN_SIMILARITY_THRESHOLD`, exact-fallback on a DB error),
+  `AdversaryFingerprintRow` (one evolving fingerprint per subject) — each a
+  Postgres `vector(32)` column + `hnsw`/`vector_cosine_ops` index (migration
+  `0009`, `pgvector/pgvector:pg16`). Produces `campaign.updates`.
+  `POST /api/v1/memory/similar` (never returns the raw vector, only a
+  score + `exact_fallback`) + read routes for patterns/fingerprints/
+  campaigns, proxied by `api-gateway` at `/api/v1/soc/memory/...`
+  (`memory:read`, migration `0010`). `RetentionSweeper` — the deletion
+  lifecycle: `active -> dormant -> closed` on inactivity, then deleted past
+  `SM_MEMORY_RETENTION_DAYS`. `frontend/web/app/(soc)/memory`. **Deviations:**
+  `sm_ml.memory.technique_feature_vector` is a deterministic hashed
+  bag-of-techniques, explicitly **not a trained embedding** — "ML/AI:
+  embedding generation" above is satisfied by a documented rule, not a
+  model. Cross-tenant similarity is not merely disabled by default — there
+  is no code path to it at all (every query is `WHERE tenant_id = :tenant`);
+  R34 (federated mesh) has not been built, so there is nothing to gate yet.
 
 ### R22 — Threat Report Generator
 - **Purpose:** executive summaries, automated SOC reports, compliance-ready PDF reports.
@@ -772,7 +816,17 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** tenant-scoped; cross-tenant similarity only via R34 with privacy controls.
 - **Test:** "no duplicate memory store" architecture test, retrieval tests, tenant-isolation tests.
 - **Verification method:** integration tests; ADR-011 boundary assertions.
-- **Phase:** P6. **Status:** ARCHITECTURE DEFINED. Relationship to R19/R21/R15/R29: **RESOLVED** (ADR-011).
+- **Phase:** P6. **Status:** IMPLEMENTED (P13). Relationship to
+  R19/R21/R15/R29: **RESOLVED** (ADR-011) — and held to in the build:
+  `AdversaryFingerprintRow` introduces no store beyond what R21 already
+  owns (no separate `campaign_similarity` table — a fingerprint's own
+  `campaign_ids` list is that link), and `predict_lateral_movement` (R15) is
+  a straight consumer of R21's fingerprints, nothing new. `"seen before"` is
+  the fingerprint lookup on `frontend/web/app/(soc)/memory`. **Deviations:**
+  no separate `ai-analyst-service`/`agent-orchestrator` consumer wired up
+  yet — the retrieval + prediction API exists and is real, but nothing
+  automatically surfaces "similar past campaigns" inside an AI-analyst
+  explanation in this build; that integration is future work.
 
 ### R23a — HTTP hardening (foundation)
 - **Note:** not a numbered architecture requirement; recorded because Phase 1

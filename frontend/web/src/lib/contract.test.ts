@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type {
+  AdversaryFingerprint,
   AttackChainModel,
   BlastRadiusResult,
+  Campaign,
   Decoy,
   Detection,
+  Prediction,
   ScenarioRunResult,
   SocHuntResponse,
   SocSummary,
@@ -136,5 +139,31 @@ describe("generated contract types", () => {
       created_at: "2026-01-01T00:00:00Z",
     };
     expect(decoy.network_boundary).not.toBe("production");
+  });
+
+  it("Campaign and AdversaryFingerprint match memory-service responses", () => {
+    const campaign: Campaign = {
+      id: "c1", tenant_id: "t1", status: "active", chain_ids: ["ch1"],
+      technique_ids: ["T1110"], first_seen: "2026-01-01T00:00:00Z", last_seen: "2026-01-01T00:00:00Z",
+      created_at: "2026-01-01T00:00:00Z", updated_at: "2026-01-01T00:00:00Z",
+    };
+    const fingerprint: AdversaryFingerprint = {
+      id: "f1", tenant_id: "t1", subject_type: "identity", subject_id: "svc-backup",
+      technique_ids: ["T1110"], campaign_ids: ["c1"], first_seen: "2026-01-01T00:00:00Z",
+      last_seen: "2026-01-01T00:00:00Z", created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+    expect(campaign.status).toBe("active");
+    expect(fingerprint.subject_id).toBe("svc-backup");
+  });
+
+  it("Prediction always carries confidence + evidence + model_version, never just a verdict", () => {
+    const prediction: Prediction = {
+      kind: "threat_trajectory", subject_type: null, subject_id: "c1", prediction: "escalating",
+      confidence: 0.7, evidence: ["status=active"], features: {}, model_version: "heuristic-v1",
+      generated_at: "2026-01-01T00:00:00Z",
+    };
+    expect(prediction.model_version).toBe("heuristic-v1");
+    expect(prediction.subject_type).toBeNull();
   });
 });

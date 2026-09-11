@@ -1328,7 +1328,8 @@ export type PermissionCode =
   | "response:execute"
   | "response:approve"
   | "simulation:run"
-  | "deception:manage";
+  | "deception:manage"
+  | "memory:read";
 /**
  * Effective permissions for this session, resolved server-side.
  */

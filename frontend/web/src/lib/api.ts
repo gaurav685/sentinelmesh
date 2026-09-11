@@ -10,9 +10,11 @@
  */
 
 import type {
+  AdversaryFingerprint,
   AttackChainModel,
   BlastRadiusRequest,
   BlastRadiusResult,
+  Campaign,
   CursorPageDetection,
   CursorPageSecurityAlert,
   Decoy,
@@ -23,14 +25,17 @@ import type {
   GraphPath,
   MeResponse,
   MitreHeatmap,
+  Prediction,
   RegisterDecoyRequest,
   RunScenarioRequest,
   ScenarioRunResult,
   SecurityAlert,
+  SimilarityMatch,
   SocHuntRequest,
   SocHuntResponse,
   SocSummary,
   ThreatIndicator,
+  ThreatMemory,
   ThreatScore,
   TimelineResponse,
   TwinSnapshot,
@@ -219,4 +224,44 @@ export const api = {
 
   decoyInteractions: (id: string, signal?: AbortSignal) =>
     apiFetch<DecoyInteraction[]>(`/soc/deception/decoys/${id}/interactions`, { signal }),
+
+  memSimilar: (
+    body: { kind: "threat_memory" | "campaign" | "adversary_fingerprint"; technique_ids: string[]; limit?: number },
+    csrfToken: string | null,
+  ) => apiFetch<SimilarityMatch[]>("/soc/memory/similar", { method: "POST", body, csrfToken }),
+
+  memPatterns: (query: { subject_type?: string; subject_id?: string } = {}, signal?: AbortSignal) =>
+    apiFetch<ThreatMemory[]>("/soc/memory/patterns", { query, signal }),
+
+  memFingerprint: (subjectType: string, subjectId: string, signal?: AbortSignal) =>
+    apiFetch<AdversaryFingerprint>(
+      `/soc/memory/fingerprints/${encodeURIComponent(subjectType)}/${encodeURIComponent(subjectId)}`,
+      { signal },
+    ),
+
+  memCampaigns: (query: { status?: string } = {}, signal?: AbortSignal) =>
+    apiFetch<Campaign[]>("/soc/memory/campaigns", { query, signal }),
+
+  memCampaign: (id: string, signal?: AbortSignal) =>
+    apiFetch<Campaign>(`/soc/memory/campaigns/${id}`, { signal }),
+
+  predictAttackProgression: (chainId: string, csrfToken: string | null) =>
+    apiFetch<Prediction>("/soc/predict/attack-progression", {
+      method: "POST", body: { chain_id: chainId }, csrfToken,
+    }),
+
+  predictNextAction: (chainId: string, csrfToken: string | null) =>
+    apiFetch<Prediction>("/soc/predict/next-action", {
+      method: "POST", body: { chain_id: chainId }, csrfToken,
+    }),
+
+  predictLateralMovement: (subjectType: string, subjectId: string, csrfToken: string | null) =>
+    apiFetch<Prediction>("/soc/predict/lateral-movement", {
+      method: "POST", body: { subject_type: subjectType, subject_id: subjectId }, csrfToken,
+    }),
+
+  predictThreatTrajectory: (campaignId: string, csrfToken: string | null) =>
+    apiFetch<Prediction>("/soc/predict/threat-trajectory", {
+      method: "POST", body: { campaign_id: campaignId }, csrfToken,
+    }),
 };
