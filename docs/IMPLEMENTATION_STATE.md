@@ -8,7 +8,7 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 2
-local green, awaiting CI.** Three distinct stores, one graph database
+CI-VERIFIED (all five jobs, run `34586331308`).** Three distinct stores, one graph database
 (`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
 persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
 memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
@@ -2388,8 +2388,9 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 2 done — local
-gauntlet green, awaiting CI.** Three stores, one graph database (ADR-011);
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 2 CI-VERIFIED
+(run `34586331308`, all five jobs). Exact next action: Unit 3.** Three
+stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:
 1. ✅ **CI-VERIFIED (run `34582276848`, all five jobs).** `sm_ml.memory`
    (`technique_feature_vector`, `cosine_similarity` — deterministic, not a
@@ -2429,8 +2430,8 @@ never present a prediction as fact. Planned units:
    uid confirmed; CI + `deploy/docker/{Dockerfile.app,docker-compose.yml}`
    wired (profile `detect`, depends on `postgres` + `migrate`;
    `SM_CORRELATION_ENGINE_URL` overridden to the compose service name — the
-   one new cross-service call this unit introduces). **Commit, push, confirm
-   CI green.**
+   one new cross-service call this unit introduces). **CI-VERIFIED (run
+   `34586331308`, all five jobs).**
 3. Prediction interfaces — `sm_contracts.api.prediction` (`Prediction`:
    `prediction`, `confidence`, `evidence`, `model_version`, `timestamp` —
    never presented as fact) + deterministic heuristic predictors (attack
