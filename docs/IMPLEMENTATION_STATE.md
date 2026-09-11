@@ -8,7 +8,7 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 3
-local green, awaiting CI.** Three distinct stores, one graph database
+CI-VERIFIED (all five jobs, run `34588573722`).** Three distinct stores, one graph database
 (`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
 persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
 memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
@@ -2408,8 +2408,9 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 3 done — local
-gauntlet green, awaiting CI.** Three stores, one graph database (ADR-011);
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 3 CI-VERIFIED
+(run `34588573722`, all five jobs). Exact next action: Unit 4.** Three
+stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:
 1. ✅ **CI-VERIFIED (run `34582276848`, all five jobs).** `sm_ml.memory`
    (`technique_feature_vector`, `cosine_similarity` — deterministic, not a
@@ -2467,7 +2468,7 @@ never present a prediction as fact. Planned units:
    **812 unit tests** (22 new: 14 heuristics, 8 route) +
    `gen_contracts --check` (92 JSON Schema files); full `tests/integration`
    suite green; `Dockerfile.app` builds, image imports clean, non-root uid
-   confirmed. **Commit, push, confirm CI green.**
+   confirmed. **CI-VERIFIED (run `34588573722`, all five jobs).**
 4. `api-gateway` BFF + `frontend/web` (a memory/campaign browser, a
    prediction overlay, an evidence-grounded "seen before" panel) + Phase 13
    close (exit report + §23 + `REQUIREMENTS_TRACEABILITY` R15 / R21 / R37 +
