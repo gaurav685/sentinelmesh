@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "captured_at": {
+      "format": "date-time",
+      "title": "Captured At",
+      "type": "string"
+    },
+    "decoy_id": {
+      "title": "Decoy Id",
+      "type": "string"
+    },
+    "detail": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Detail",
+      "type": "object"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "source": {
+      "title": "Source",
+      "type": "string"
+    },
+    "technique_hint": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Technique Hint"
+    },
+    "tenant_id": {
+      "title": "Tenant Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "decoy_id",
+    "tenant_id",
+    "source",
+    "captured_at"
+  ],
+  "title": "DecoyInteraction",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

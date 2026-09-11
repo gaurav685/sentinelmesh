@@ -41,6 +41,9 @@ EXPECTED_TABLES = {
     "attack_chain_stage",
     # threat-hunting history (Phase 11)
     "hunt_query",
+    # simulation + deception (Phase 12)
+    "decoy",
+    "decoy_interaction",
 }
 
 

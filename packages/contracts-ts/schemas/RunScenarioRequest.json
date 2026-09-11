@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "feed_pipeline": {
+      "default": false,
+      "title": "Feed Pipeline",
+      "type": "boolean"
+    },
+    "intensity": {
+      "default": 3,
+      "maximum": 5,
+      "minimum": 1,
+      "title": "Intensity",
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "apt",
+        "ransomware",
+        "insider",
+        "brute_force"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "seed": {
+      "default": 1,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "target_host": {
+      "maxLength": 96,
+      "minLength": 1,
+      "title": "Target Host",
+      "type": "string"
+    },
+    "target_identity": {
+      "maxLength": 96,
+      "minLength": 1,
+      "title": "Target Identity",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "kind",
+    "target_host",
+    "target_identity"
+  ],
+  "title": "RunScenarioRequest",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

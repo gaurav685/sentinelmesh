@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "honeypot_host",
+        "honeytoken",
+        "decoy_credential"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "network_boundary": {
+      "enum": [
+        "isolated",
+        "dmz-isolated"
+      ],
+      "title": "Network Boundary",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "torn_down"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "tenant_id": {
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "torn_down_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Torn Down At"
+    },
+    "ttl_seconds": {
+      "title": "Ttl Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "tenant_id",
+    "name",
+    "kind",
+    "network_boundary",
+    "status",
+    "ttl_seconds",
+    "created_at"
+  ],
+  "title": "Decoy",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

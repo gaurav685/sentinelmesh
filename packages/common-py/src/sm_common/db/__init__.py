@@ -28,6 +28,7 @@ from .models import (
     UserRole,
 )
 from .session import Database
+from .simulation_models import DecoyInteractionRow, DecoyRow
 
 __all__ = [
     "NAMING_CONVENTION",
@@ -40,6 +41,8 @@ __all__ = [
     "AuditLog",
     "Base",
     "Database",
+    "DecoyInteractionRow",
+    "DecoyRow",
     "Detection",
     "HuntQueryRow",
     "Permission",

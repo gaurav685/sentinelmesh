@@ -414,6 +414,33 @@ services:
       retries: 3
       start_period: 20s
 
+  simulation-service:
+    profiles: ["detect"]
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    image: sentinelmesh/app:dev
+    command: ["python", "-m", "sm_simulation_service"]
+    env_file:
+      - ../../.env
+    environment:
+      <<: *app-env
+      SM_SERVICE_NAME: simulation-service
+      SM_DEPLOYMENT_PROFILE: monolith
+    ports:
+      - "8011:8011"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8011/healthz', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   keycloak:
     profiles: ["oidc"]
     image: quay.io/keycloak/keycloak:26.0

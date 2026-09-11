@@ -94,7 +94,7 @@ TOPICS: dict[str, TopicSpec] = {
     t.name: t
     for t in (
         _spec("telemetry.raw", 12, "tenant+sensor", "7d", "delete",
-              ("ingestion-gateway",), ("normalization",)),
+              ("ingestion-gateway", "simulation-service"), ("normalization",)),
         _spec("events.canonical", 24, "tenant+entity", "30d", "delete",
               ("normalization-engine",),
               ("stream-processor", "graph-writer", "detection", "memory", "api-projection")),
