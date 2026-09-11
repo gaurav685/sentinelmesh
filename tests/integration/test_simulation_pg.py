@@ -11,12 +11,12 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from sm_simulation_service.repository import DecoyRepository
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from sm_common.db import Database
 from sm_contracts import DecoyInteractionIn, RegisterDecoyRequest
-from sm_simulation_service.repository import DecoyRepository
 
 pytestmark = pytest.mark.integration
 
