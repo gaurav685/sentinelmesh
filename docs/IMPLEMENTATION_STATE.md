@@ -8,7 +8,7 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 1
-local green, awaiting CI.** Three distinct stores, one graph database
+CI-VERIFIED (all five jobs, run `34582276848`).** Three distinct stores, one graph database
 (`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
 persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
 memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
@@ -2371,8 +2371,9 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 1 done — local
-gauntlet green, awaiting CI.** Three stores, one graph database (ADR-011);
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 1 CI-VERIFIED
+(run `34582276848`, all five jobs). Exact next action: Unit 2.** Three
+stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:
 1. ✅ `sm_ml.memory` (`technique_feature_vector`, `cosine_similarity` —
    deterministic, not a trained embedding), `sm_common.db.memory_models`
@@ -2388,7 +2389,8 @@ never present a prediction as fact. Planned units:
    nearest-neighbor agrees with the Python fallback, tenant scoping, upsert
    uniqueness, CHECK-constraint rejection ×2, fingerprint uniqueness);
    `Dockerfile.app` builds, `pgvector.sqlalchemy` imports in the image,
-   non-root uid confirmed. **Commit, push, confirm CI green.**
+   non-root uid confirmed. **CI-VERIFIED (run `34582276848`, all five
+   jobs).**
 2. `services/memory-service` (port 8012) — consumes `detections` +
    `attack_chains`, writes/upserts threat-memory patterns, campaigns, and
    fingerprints; internal retrieval API (`find_similar`, pgvector query with
