@@ -5,6 +5,8 @@ import pytest
 from sm_common.cache import Cache, build_redis
 from sm_common.config import AppSettings
 from sm_common.db import Database, build_engine
+from sm_common.errors import ValidationFailed
+from sm_common.objectstore import ObjectStore, safe_key
 from sm_common.observability import build_metrics, configure_tracing, get_tracer
 
 
@@ -62,6 +64,37 @@ def test_two_metrics_registries_isolated():
     b = build_metrics("b")
     a.observe_http("GET", "/x", 200, 0.1)
     assert a.registry is not b.registry
+
+
+# ---- objectstore -----------------------------------------------------
+def test_safe_key_joins_valid_segments():
+    assert safe_key("tenant-1", "reports", "abc.pdf") == "tenant-1/reports/abc.pdf"
+
+
+@pytest.mark.parametrize(
+    "parts",
+    [
+        (),
+        ("..",),
+        (".",),
+        ("../etc/passwd",),
+        ("a/b",),
+        ("tenant-1", ".."),
+        ("tenant-1", "report;drop.pdf"),
+        ("tenant-1", ""),
+        ("tenant-1", "x" * 129),
+    ],
+)
+def test_safe_key_rejects_unsafe_segments(parts: tuple[str, ...]):
+    with pytest.raises(ValidationFailed):
+        safe_key(*parts)
+
+
+def test_object_store_from_settings_builds_without_connecting():
+    store = ObjectStore.from_settings(
+        _settings(s3_endpoint="http://minio:9000", s3_access_key_id="k", s3_secret_access_key="s")
+    )
+    assert store is not None
 
 
 # ---- tracing ---------------------------------------------------------

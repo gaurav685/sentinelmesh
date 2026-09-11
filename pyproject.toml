@@ -17,7 +17,7 @@ select = ["E", "F", "I", "N", "UP", "B", "S", "ASYNC", "DTZ", "T20", "RUF"]
 ignore = ["S101"]  # assert allowed in tests only; see per-path override below
 
 [tool.ruff.lint.isort]
-known-first-party = ["sm_contracts", "sm_common", "sm_ml", "sm_ai", "sm_api_gateway", "sm_ingestion_gateway", "sm_normalization_engine", "sm_stream_processor", "sm_graph_service", "sm_ai_analyst"]
+known-first-party = ["sm_contracts", "sm_common", "sm_ml", "sm_ai", "sm_api_gateway", "sm_ingestion_gateway", "sm_normalization_engine", "sm_stream_processor", "sm_graph_service", "sm_ai_analyst", "sm_reporting_service"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's declarative dependency style requires these calls in defaults (B008).
@@ -68,6 +68,11 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 # Serving-only deps (installed via `sm-ml[serving]` / `sm-ml[gnn]`, absent in the base env).
 module = ["numpy.*", "sklearn.*", "joblib.*", "torch", "torch.*", "torch_geometric", "torch_geometric.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# S3 client (ADR-019) and the PDF renderer (reporting-service) ship no py.typed marker / stubs.
+module = ["aioboto3.*", "aiobotocore.*", "boto3.*", "botocore.*", "reportlab.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

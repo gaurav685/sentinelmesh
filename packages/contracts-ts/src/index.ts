@@ -1258,6 +1258,26 @@ export type Length = number | null;
  * @maxItems 64
  */
 export type Nodes1 = GraphNode[];
+export type Ref2 = string | null;
+export type Text = string;
+/**
+ * How a statement in a report is backed. Every `GroundedStatement` and
+ * `ReportTimelineEntry` carries one — never left implicit (Constitution
+ * §3).
+ *
+ * - `evidence`: a real detection/chain/telemetry record the platform
+ *   itself produced; `ref` points at it.
+ * - `inference`: a deterministic derivation from evidence (e.g. a stage
+ *   rollup), not a new observation.
+ * - `prediction`: `sm_ml.predict` output — a forecast, never fact
+ *   (mirrors `Prediction`, Phase 13).
+ * - `synthetic`: from `simulation-service` (Phase 12) demo/scenario data —
+ *   never real, always labeled as such.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "GroundingKind".
+ */
+export type GroundingKind = "evidence" | "inference" | "prediction" | "synthetic";
 export type Service = string;
 export type Status3 = "ok";
 export type Version1 = string;
@@ -1329,7 +1349,8 @@ export type PermissionCode =
   | "response:approve"
   | "simulation:run"
   | "deception:manage"
-  | "memory:read";
+  | "memory:read"
+  | "reports:read";
 /**
  * Effective permissions for this session, resolved server-side.
  */
@@ -1426,25 +1447,108 @@ export type NetworkBoundary1 = "isolated" | "dmz-isolated";
  */
 export type Tags2 = string[];
 export type TtlSeconds1 = number;
+/**
+ * e.g. "victim", "source".
+ */
+export type Role = string;
+export type SubjectId9 = string;
+/**
+ * @maxItems 200
+ */
+export type AffectedAssets = ReportAsset[];
+/**
+ * @maxItems 100
+ */
+export type ChainIds1 = string[];
+export type Confidence5 = number | null;
+export type CreatedAt12 = string;
+/**
+ * @maxItems 500
+ */
+export type DetectionIds1 = string[];
+/**
+ * @maxItems 500
+ */
+export type Evidence4 = GroundedStatement[];
+/**
+ * @maxItems 200
+ */
+export type Findings1 = GroundedStatement[];
+export type GeneratedAt3 = string | null;
+export type Id15 = string;
+export type Kind5 = "incident" | "executive_summary" | "soc" | "compliance";
+/**
+ * @maxItems 20
+ */
+export type MissingSections = string[];
+/**
+ * @maxItems 20
+ */
+export type Provenance3 = string[];
+/**
+ * @maxItems 200
+ */
+export type Recommendations1 = GroundedStatement[];
+export type RequestedBy = string;
+export type Status4 = "pending" | "partial" | "complete" | "failed";
+export type StorageKey = string | null;
+export type SubjectId10 = string;
+/**
+ * @maxItems 200
+ */
+export type TechniqueIds7 = string[];
+export type TenantId29 = string;
+export type ThreatScore1 = number | null;
+export type At = string;
+export type Kind6 = string;
+export type RefId = string;
+/**
+ * How a statement in a report is backed. Every `GroundedStatement` and
+ * `ReportTimelineEntry` carries one — never left implicit (Constitution
+ * §3).
+ *
+ * - `evidence`: a real detection/chain/telemetry record the platform
+ *   itself produced; `ref` points at it.
+ * - `inference`: a deterministic derivation from evidence (e.g. a stage
+ *   rollup), not a new observation.
+ * - `prediction`: `sm_ml.predict` output — a forecast, never fact
+ *   (mirrors `Prediction`, Phase 13).
+ * - `synthetic`: from `simulation-service` (Phase 12) demo/scenario data —
+ *   never real, always labeled as such.
+ */
+export type GroundingKind1 = "evidence" | "inference" | "prediction" | "synthetic";
+export type Title3 = string;
+/**
+ * @maxItems 500
+ */
+export type Timeline = ReportTimelineEntry[];
+export type Title4 = string;
+export type UpdatedAt11 = string;
+export type GeneratedAt4 = string;
+export type Kind7 = "incident" | "executive_summary" | "soc" | "compliance";
+export type ReportId = string;
+export type Status5 = "pending" | "partial" | "complete" | "failed";
+export type SubjectId11 = string;
+export type TenantId30 = string;
 export type ComputedAt1 = string;
 export type Score7 = number;
-export type SubjectId9 = string;
-export type CreatedAt12 = string;
+export type SubjectId12 = string;
+export type CreatedAt13 = string;
 export type Description4 = string;
-export type Id15 = string;
+export type Id16 = string;
 export type IsSystem = boolean;
 export type Name7 = string;
-export type TenantId29 = string | null;
-export type UpdatedAt11 = string;
+export type TenantId31 = string | null;
+export type UpdatedAt12 = string;
 export type PermissionId = string;
 export type RoleId2 = string;
 export type Description5 = string;
-export type Id16 = string;
+export type Id17 = string;
 export type IsSystem1 = boolean;
 export type Name8 = string;
 export type FeedPipeline = boolean;
 export type Intensity = number;
-export type Kind5 = "apt" | "ransomware" | "insider" | "brute_force";
+export type Kind8 = "apt" | "ransomware" | "insider" | "brute_force";
 export type Name9 = string;
 export type Seed2 = number;
 export type TargetHost1 = string;
@@ -1452,7 +1556,7 @@ export type TargetIdentity = string;
 export type EventCount = number;
 export type Actor = string;
 export type AtOffsetS = number;
-export type Kind6 = string;
+export type Kind9 = string;
 export type ScenarioId = string;
 export type Simulated = boolean;
 export type Step = number;
@@ -1464,14 +1568,14 @@ export type Events = SimEventOut[];
 export type FedEventCount = number;
 export type FedToPipeline = boolean;
 export type Intensity1 = number;
-export type Kind7 = "apt" | "ransomware" | "insider" | "brute_force";
+export type Kind10 = "apt" | "ransomware" | "insider" | "brute_force";
 export type ScenarioId1 = string;
 export type Seed3 = number;
 export type Synthetic = boolean;
 export type TargetHost2 = string;
 export type TargetIdentity1 = string;
-export type CreatedAt13 = string;
-export type Id17 = string;
+export type CreatedAt14 = string;
+export type Id18 = string;
 export type LastSeenAt = string | null;
 export type Name10 = string;
 /**
@@ -1479,22 +1583,22 @@ export type Name10 = string;
  * via the `definition` "SensorStatus".
  */
 export type SensorStatus = "active" | "disabled" | "pending";
-export type TenantId30 = string;
+export type TenantId32 = string;
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "SensorType".
  */
 export type SensorType = "network" | "auth" | "dns" | "process" | "file" | "mixed";
-export type UpdatedAt12 = string;
+export type UpdatedAt13 = string;
 export type ExactFallback = boolean;
-export type Id18 = string;
-export type Kind8 = "threat_memory" | "campaign" | "adversary_fingerprint";
+export type Id19 = string;
+export type Kind11 = "threat_memory" | "campaign" | "adversary_fingerprint";
 export type LastSeen7 = string;
 export type Score8 = number;
 /**
  * @maxItems 200
  */
-export type TechniqueIds7 = string[];
+export type TechniqueIds8 = string[];
 export type MaxRows2 = number;
 export type Query1 = string | null;
 export type HistoryId = string | null;
@@ -1502,25 +1606,25 @@ export type Supported1 = boolean;
 export type UnsupportedReason1 = string;
 export type ActiveChains = number;
 export type Detections24H = number;
-export type GeneratedAt3 = string;
+export type GeneratedAt5 = string;
 export type OpenAlerts = number;
 /**
  * @maxItems 20
  */
 export type TopRiskSubjects = RiskSubject[];
-export type CreatedAt14 = string;
+export type CreatedAt15 = string;
 /**
  * @maxItems 64
  */
-export type Evidence4 = EvidenceItem[];
-export type Id19 = string;
+export type Evidence5 = EvidenceItem[];
+export type Id20 = string;
 export type MatrixVersion3 = string;
 export type Rationale1 = string;
-export type SubjectId10 = string;
+export type SubjectId13 = string;
 export type TacticId2 = string | null;
 export type TechniqueId2 = string;
-export type TenantId31 = string;
-export type UpdatedAt13 = string;
+export type TenantId33 = string;
+export type UpdatedAt14 = string;
 export type MatrixVersion4 = string;
 export type Name11 = string;
 export type Rationale2 = string;
@@ -1535,40 +1639,40 @@ export type ActorId3 = string;
  * @maxItems 32
  */
 export type Aliases = string[];
-export type CreatedAt15 = string;
+export type CreatedAt16 = string;
 export type Description6 = string;
 export type FirstSeen7 = string | null;
-export type Id20 = string;
+export type Id21 = string;
 export type LastSeen8 = string | null;
 export type Name12 = string;
 export type Source4 = string;
-export type UpdatedAt14 = string;
-export type CreatedAt16 = string;
+export type UpdatedAt15 = string;
+export type CreatedAt17 = string;
 export type FirstSeen8 = string;
-export type Id21 = string;
+export type Id22 = string;
 export type LastSeen9 = string;
 export type OccurrenceCount = number;
 export type PatternKind = "technique_sequence";
 export type Source5 = string;
-export type SubjectId11 = string;
+export type SubjectId14 = string;
 /**
  * @maxItems 200
  */
-export type TechniqueIds8 = string[];
-export type TenantId32 = string;
-export type UpdatedAt15 = string;
+export type TechniqueIds9 = string[];
+export type TenantId34 = string;
+export type UpdatedAt16 = string;
 export type ActorId4 = string | null;
-export type CreatedAt17 = string;
+export type CreatedAt18 = string;
 export type Description7 = string;
 export type FirstSeen9 = string | null;
-export type Id22 = string;
+export type Id23 = string;
 export type LastSeen10 = string | null;
 export type Name13 = string;
-export type TenantId33 = string;
-export type UpdatedAt16 = string;
-export type CreatedAt18 = string;
+export type TenantId35 = string;
+export type UpdatedAt17 = string;
+export type CreatedAt19 = string;
 export type Enabled = boolean;
-export type Id23 = string;
+export type Id24 = string;
 export type IndicatorCount = number;
 export type LastPollAt = string | null;
 export type LastPollStatus = string | null;
@@ -1577,23 +1681,23 @@ export type Name14 = string;
  * Fresh window; freshness derives from it.
  */
 export type TtlSeconds2 = number;
-export type UpdatedAt17 = string;
-export type At = string;
-export type Kind9 = string;
-export type RefId = string;
-export type Title3 = string;
+export type UpdatedAt18 = string;
+export type At1 = string;
+export type Kind12 = string;
+export type RefId1 = string;
+export type Title5 = string;
 /**
  * @maxItems 500
  */
 export type Entries = TimelineEntry[];
-export type SubjectId12 = string;
+export type SubjectId15 = string;
 export type Criticality = number;
-export type Id24 = string;
-export type Kind10 = string;
+export type Id25 = string;
+export type Kind13 = string;
 export type Name15 = string;
 export type Tags3 = string[];
 export type Dst1 = string;
-export type Kind11 = string;
+export type Kind14 = string;
 export type Src1 = string;
 export type Weight = number;
 /**
@@ -1608,23 +1712,23 @@ export type Seed4 = number;
 export type Synthetic1 = boolean;
 export type AssetId = string;
 export type Detail5 = string;
-export type Kind12 = string;
+export type Kind15 = string;
 export type Severity1 = string;
 /**
  * @maxItems 200
  */
 export type Weaknesses = TwinWeaknessOut[];
-export type CreatedAt19 = string;
+export type CreatedAt20 = string;
 export type DisplayName2 = string;
 export type Email3 = string;
 /**
  * OIDC `sub` for federated users; null for local-only users.
  */
 export type ExternalSubject1 = string | null;
-export type Id25 = string;
+export type Id26 = string;
 export type LastLoginAt1 = string | null;
-export type TenantId34 = string;
-export type UpdatedAt18 = string;
+export type TenantId36 = string;
+export type UpdatedAt19 = string;
 export type GrantedAt = string;
 export type GrantedBy = string;
 export type RoleId3 = string;
@@ -2839,6 +2943,20 @@ export interface GraphPath {
   nodes?: Nodes1;
 }
 /**
+ * One finding, recommendation, or analyst statement. `tier` says which
+ * of the four grounding kinds it is; `ref` traces it back to its source
+ * (a detection id, a chain id, a prediction id...) whenever `tier` is not
+ * `synthetic`.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "GroundedStatement".
+ */
+export interface GroundedStatement {
+  ref?: Ref2;
+  text: Text;
+  tier: GroundingKind;
+}
+/**
  * `GET /healthz` — liveness. The process is up and can serve.
  *
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -3079,6 +3197,91 @@ export interface RegisterDecoyRequest {
   ttl_seconds?: TtlSeconds1;
 }
 /**
+ * A generated report. The rendered artifact (PDF) lives in object
+ * storage at `storage_key`; this row is the durable record of what was
+ * generated, from what, and how sure the platform is about each part of
+ * it. `status` is `partial` (never faked) whenever a content dependency
+ * could not be reached — see `missing_sections`.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "Report".
+ */
+export interface Report {
+  affected_assets?: AffectedAssets;
+  chain_ids?: ChainIds1;
+  confidence?: Confidence5;
+  created_at: CreatedAt12;
+  detection_ids?: DetectionIds1;
+  evidence?: Evidence4;
+  findings?: Findings1;
+  generated_at?: GeneratedAt3;
+  id: Id15;
+  incident_metadata?: IncidentMetadata;
+  kind: Kind5;
+  missing_sections?: MissingSections;
+  provenance?: Provenance3;
+  recommendations?: Recommendations1;
+  requested_by: RequestedBy;
+  status: Status4;
+  storage_key?: StorageKey;
+  subject_id: SubjectId10;
+  subject_type: ThreatSubjectType;
+  technique_ids?: TechniqueIds7;
+  tenant_id: TenantId29;
+  threat_score?: ThreatScore1;
+  timeline?: Timeline;
+  title: Title4;
+  updated_at: UpdatedAt11;
+}
+/**
+ * One affected asset referenced by a report.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "ReportAsset".
+ */
+export interface ReportAsset {
+  role: Role;
+  subject_id: SubjectId9;
+  subject_type: ThreatSubjectType;
+}
+export interface IncidentMetadata {
+  [k: string]: string;
+}
+/**
+ * Timeline point inside a report. Deliberately a separate type from
+ * `TimelineEntry` (`api/soc.py`) even though the shape is close — a
+ * report's timeline is a persisted, immutable snapshot at generation
+ * time, not a live query result, and additionally carries `tier`.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "ReportTimelineEntry".
+ */
+export interface ReportTimelineEntry {
+  at: At;
+  kind: Kind6;
+  ref_id: RefId;
+  severity?: Severity | null;
+  tier?: GroundingKind1;
+  title: Title3;
+}
+/**
+ * `report.generated` topic event (`EventType.report_generated`). Thin
+ * projection — enough to fan a notification out; the full report (and its
+ * rendered artifact) stay in Postgres / object storage.
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "ReportGeneratedPayload".
+ */
+export interface ReportGeneratedPayload {
+  generated_at: GeneratedAt4;
+  kind: Kind7;
+  report_id: ReportId;
+  status: Status5;
+  subject_id: SubjectId11;
+  subject_type: ThreatSubjectType;
+  tenant_id: TenantId30;
+}
+/**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "RiskSubject".
  */
@@ -3086,7 +3289,7 @@ export interface RiskSubject {
   computed_at: ComputedAt1;
   score: Score7;
   scoring_status: ScoringStatus;
-  subject_id: SubjectId9;
+  subject_id: SubjectId12;
   subject_type: ThreatSubjectType;
 }
 /**
@@ -3098,14 +3301,14 @@ export interface RiskSubject {
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "Role".
  */
-export interface Role {
-  created_at: CreatedAt12;
+export interface Role1 {
+  created_at: CreatedAt13;
   description: Description4;
-  id: Id15;
+  id: Id16;
   is_system: IsSystem;
   name: Name7;
-  tenant_id?: TenantId29;
-  updated_at: UpdatedAt11;
+  tenant_id?: TenantId31;
+  updated_at: UpdatedAt12;
 }
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -3121,7 +3324,7 @@ export interface RolePermission {
  */
 export interface RoleSummary {
   description: Description5;
-  id: Id16;
+  id: Id17;
   is_system: IsSystem1;
   name: Name8;
 }
@@ -3132,7 +3335,7 @@ export interface RoleSummary {
 export interface RunScenarioRequest {
   feed_pipeline?: FeedPipeline;
   intensity?: Intensity;
-  kind: Kind5;
+  kind: Kind8;
   name: Name9;
   seed?: Seed2;
   target_host: TargetHost1;
@@ -3148,7 +3351,7 @@ export interface ScenarioRunResult {
   fed_event_count?: FedEventCount;
   fed_to_pipeline?: FedToPipeline;
   intensity: Intensity1;
-  kind: Kind7;
+  kind: Kind10;
   scenario_id: ScenarioId1;
   seed: Seed3;
   synthetic?: Synthetic;
@@ -3163,7 +3366,7 @@ export interface SimEventOut {
   actor: Actor;
   at_offset_s: AtOffsetS;
   attributes?: Attributes1;
-  kind: Kind6;
+  kind: Kind9;
   scenario_id: ScenarioId;
   simulated?: Simulated;
   step: Step;
@@ -3183,14 +3386,14 @@ export interface Attributes1 {
  * via the `definition` "Sensor".
  */
 export interface Sensor {
-  created_at: CreatedAt13;
-  id: Id17;
+  created_at: CreatedAt14;
+  id: Id18;
   last_seen_at?: LastSeenAt;
   name: Name10;
   status: SensorStatus;
-  tenant_id: TenantId30;
+  tenant_id: TenantId32;
   type: SensorType;
-  updated_at: UpdatedAt12;
+  updated_at: UpdatedAt13;
 }
 /**
  * One result of a similarity search — the record plus its score. The
@@ -3201,11 +3404,11 @@ export interface Sensor {
  */
 export interface SimilarityMatch {
   exact_fallback?: ExactFallback;
-  id: Id18;
-  kind: Kind8;
+  id: Id19;
+  kind: Kind11;
   last_seen: LastSeen7;
   score: Score8;
-  technique_ids?: TechniqueIds7;
+  technique_ids?: TechniqueIds8;
 }
 /**
  * The browser-facing hunt. Exactly one of `query` (natural language, planned
@@ -3240,7 +3443,7 @@ export interface SocSummary {
   active_chains: ActiveChains;
   alerts_by_severity?: AlertsBySeverity;
   detections_24h: Detections24H;
-  generated_at: GeneratedAt3;
+  generated_at: GeneratedAt5;
   open_alerts: OpenAlerts;
   top_risk_subjects?: TopRiskSubjects;
 }
@@ -3255,18 +3458,18 @@ export interface AlertsBySeverity {
  */
 export interface TechniqueMapping {
   confidence: MappingConfidence;
-  created_at: CreatedAt14;
-  evidence?: Evidence4;
-  id: Id19;
+  created_at: CreatedAt15;
+  evidence?: Evidence5;
+  id: Id20;
   matrix_version: MatrixVersion3;
   rationale: Rationale1;
   source: MappingSource;
-  subject_id: SubjectId10;
+  subject_id: SubjectId13;
   subject_type: MappingSubjectType;
   tactic_id?: TacticId2;
   technique_id: TechniqueId2;
-  tenant_id: TenantId31;
-  updated_at: UpdatedAt13;
+  tenant_id: TenantId33;
+  updated_at: UpdatedAt14;
 }
 /**
  * One result of the mapping API — a candidate technique for a behaviour.
@@ -3291,14 +3494,14 @@ export interface TechniqueMatch {
 export interface ThreatActor {
   actor_id: ActorId3;
   aliases?: Aliases;
-  created_at: CreatedAt15;
+  created_at: CreatedAt16;
   description?: Description6;
   first_seen?: FirstSeen7;
-  id: Id20;
+  id: Id21;
   last_seen?: LastSeen8;
   name: Name12;
   source: Source4;
-  updated_at: UpdatedAt14;
+  updated_at: UpdatedAt15;
 }
 /**
  * A behavioral pattern observed for one subject — upserted as the
@@ -3308,18 +3511,18 @@ export interface ThreatActor {
  * via the `definition` "ThreatMemory".
  */
 export interface ThreatMemory {
-  created_at: CreatedAt16;
+  created_at: CreatedAt17;
   first_seen: FirstSeen8;
-  id: Id21;
+  id: Id22;
   last_seen: LastSeen9;
   occurrence_count: OccurrenceCount;
   pattern_kind: PatternKind;
   source: Source5;
-  subject_id: SubjectId11;
+  subject_id: SubjectId14;
   subject_type: ThreatSubjectType;
-  technique_ids?: TechniqueIds8;
-  tenant_id: TenantId32;
-  updated_at: UpdatedAt15;
+  technique_ids?: TechniqueIds9;
+  tenant_id: TenantId34;
+  updated_at: UpdatedAt16;
 }
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -3327,30 +3530,30 @@ export interface ThreatMemory {
  */
 export interface TiCampaign {
   actor_id?: ActorId4;
-  created_at: CreatedAt17;
+  created_at: CreatedAt18;
   description?: Description7;
   first_seen?: FirstSeen9;
-  id: Id22;
+  id: Id23;
   last_seen?: LastSeen10;
   name: Name13;
-  tenant_id: TenantId33;
-  updated_at: UpdatedAt16;
+  tenant_id: TenantId35;
+  updated_at: UpdatedAt17;
 }
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "TiSource".
  */
 export interface TiSource {
-  created_at: CreatedAt18;
+  created_at: CreatedAt19;
   enabled: Enabled;
-  id: Id23;
+  id: Id24;
   indicator_count?: IndicatorCount;
   kind: TiSourceKind;
   last_poll_at?: LastPollAt;
   last_poll_status?: LastPollStatus;
   name: Name14;
   ttl_seconds: TtlSeconds2;
-  updated_at: UpdatedAt17;
+  updated_at: UpdatedAt18;
 }
 /**
  * One point on an entity's timeline — a detection, an alert transition, or a
@@ -3360,12 +3563,12 @@ export interface TiSource {
  * via the `definition` "TimelineEntry".
  */
 export interface TimelineEntry {
-  at: At;
+  at: At1;
   detail?: Detail4;
-  kind: Kind9;
-  ref_id: RefId;
+  kind: Kind12;
+  ref_id: RefId1;
   severity?: Severity | null;
-  title: Title3;
+  title: Title5;
 }
 export interface Detail4 {
   [k: string]: string;
@@ -3376,7 +3579,7 @@ export interface Detail4 {
  */
 export interface TimelineResponse {
   entries?: Entries;
-  subject_id: SubjectId12;
+  subject_id: SubjectId15;
   subject_type: ThreatSubjectType;
 }
 /**
@@ -3385,8 +3588,8 @@ export interface TimelineResponse {
  */
 export interface TwinAssetOut {
   criticality: Criticality;
-  id: Id24;
-  kind: Kind10;
+  id: Id25;
+  kind: Kind13;
   name?: Name15;
   tags?: Tags3;
 }
@@ -3396,7 +3599,7 @@ export interface TwinAssetOut {
  */
 export interface TwinRelationOut {
   dst: Dst1;
-  kind: Kind11;
+  kind: Kind14;
   src: Src1;
   weight: Weight;
 }
@@ -3418,7 +3621,7 @@ export interface TwinSnapshot {
 export interface TwinWeaknessOut {
   asset_id: AssetId;
   detail?: Detail5;
-  kind: Kind12;
+  kind: Kind15;
   severity: Severity1;
 }
 /**
@@ -3429,15 +3632,15 @@ export interface TwinWeaknessOut {
  * via the `definition` "UserResponse".
  */
 export interface UserResponse {
-  created_at: CreatedAt19;
+  created_at: CreatedAt20;
   display_name: DisplayName2;
   email: Email3;
   external_subject?: ExternalSubject1;
-  id: Id25;
+  id: Id26;
   last_login_at?: LastLoginAt1;
   status: UserStatus;
-  tenant_id: TenantId34;
-  updated_at: UpdatedAt18;
+  tenant_id: TenantId36;
+  updated_at: UpdatedAt19;
 }
 /**
  * A role assignment. Roles are only ever added via this record — there is no

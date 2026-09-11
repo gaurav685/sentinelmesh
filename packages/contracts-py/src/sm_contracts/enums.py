@@ -81,6 +81,10 @@ class PermissionCode(StrEnum):
     # threat memory + predictive intelligence (Phase 13)
     memory_read = "memory:read"
 
+    # reporting + attack storytelling (Phase 14). `reports_generate` above
+    # (placeholder since an earlier phase) is now enforced by this phase too.
+    reports_read = "reports:read"
+
 
 class ActorType(StrEnum):
     user = "user"

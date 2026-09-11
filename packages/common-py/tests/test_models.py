@@ -48,6 +48,9 @@ EXPECTED_TABLES = {
     "threat_memory",
     "campaign",
     "adversary_fingerprint",
+    # reporting + attack storytelling (Phase 14)
+    "report",
+    "report_template",
 }
 
 
