@@ -408,6 +408,7 @@ services:
       <<: *app-env
       SM_SERVICE_NAME: ai-analyst
       SM_DEPLOYMENT_PROFILE: monolith
+      SM_CORRELATION_ENGINE_URL: http://correlation-engine:8009
     ports:
       - "8010:8010"
     healthcheck:
@@ -416,6 +417,11 @@ services:
       timeout: 3s
       retries: 3
       start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
 
   simulation-service:
     profiles: ["detect"]

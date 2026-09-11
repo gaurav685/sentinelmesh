@@ -12,9 +12,10 @@ from sm_ai_analyst.app import create_app
 from sm_ai_analyst.deps import Services
 from sm_ai_analyst.hunt import HuntPlanner
 from sm_ai_analyst.metrics import AnalystMetrics
+from sm_ai_analyst.narrative import NarrativeComposer
 from sm_common.observability import build_metrics
 
-from .conftest import build_client, build_settings, token
+from .conftest import FakeChainsClient, FakeDb, FakeNarrativeRepository, build_client, build_settings, token
 
 _VALID_PLAN_JSON = (
     '{"intent": "list_related", "selectors": [{"type": "host", "value": "web01"}], '
@@ -36,6 +37,11 @@ def client() -> Any:
         hunt_planner=planner,
         llm=None,
         llm_live_capable=False,
+        db=FakeDb(),  # type: ignore[arg-type]
+        http=None,  # type: ignore[arg-type]
+        chains=FakeChainsClient(),  # type: ignore[arg-type]
+        narrative_repo=FakeNarrativeRepository(),  # type: ignore[arg-type]
+        narrative_composer=NarrativeComposer(None, model="m", max_output_tokens=200),
     )
     with TestClient(create_app(services=services)) as c:
         yield c

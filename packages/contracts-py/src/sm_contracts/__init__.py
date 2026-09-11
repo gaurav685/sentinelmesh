@@ -46,6 +46,8 @@ from .api import (
     MetaResponse,
     MitreHeatmap,
     MitreHeatmapCell,
+    Narrative,
+    NarrativeBeat,
     NetworkBoundary,
     NextActionRequest,
     NlHuntRequest,
@@ -469,4 +471,6 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "GroundingKind",
     "ReportGeneratedPayload",
     "REPORT_PAYLOADS",
+    "Narrative",
+    "NarrativeBeat",
 ]

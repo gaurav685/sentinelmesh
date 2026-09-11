@@ -1,17 +1,27 @@
 """ai-analyst application factory.
 
-HTTP-only: no Kafka, no database. `api-gateway` gathers the evidence and calls
-`POST /api/v1/analyst/explain`; the analyst runs the grounded LLM flow (or the
+No Kafka. `api-gateway` gathers the evidence and calls `POST
+/api/v1/analyst/explain`; the analyst runs the grounded LLM flow (or the
 deterministic template when no provider key is configured) and returns an
 `Explanation`. It holds no tools and performs no action.
+
+Phase 14 (req 33) adds a Postgres `narrative` table + an internal HTTP
+client to `correlation-engine` (the only cross-service call this service
+makes) so `GET /api/v1/incidents/{chain_id}/narrative` can narrate a real
+chain's own recorded stages.
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import httpx
 from fastapi import FastAPI
 
 from sm_ai import AuditEvent, HttpLlmBoundary, LlmClient
 from sm_common.config import AppSettings, load_settings
+from sm_common.db import Database
 from sm_common.fastapi import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
@@ -22,10 +32,13 @@ from sm_common.observability import build_metrics, configure_tracing
 
 from .agents import AgentRunner
 from .analyst import IncidentAnalyst
+from .chains_client import ChainsClient
 from .deps import Services
 from .hunt import HuntPlanner
 from .metrics import AnalystMetrics
-from .routes import agents, explain, health, hunt, metrics
+from .narrative import NarrativeComposer
+from .repository import NarrativeRepository
+from .routes import agents, explain, health, hunt, metrics, narrative
 from .version import SERVICE_NAME, SERVICE_VERSION
 
 __all__ = ["build_services", "create_app"]
@@ -75,6 +88,16 @@ def build_services(settings: AppSettings) -> Services:
     )
     agent_runner = AgentRunner(llm, model=model, settings=settings)
     hunt_planner = HuntPlanner(llm, model=model)
+    narrative_composer = NarrativeComposer(
+        llm, model=model, max_output_tokens=settings.llm_max_output_tokens, audit=_analyst_event
+    )
+    db = Database.from_settings(settings)
+    http = httpx.AsyncClient(timeout=10.0)
+    chains = ChainsClient(
+        http, base_url=settings.correlation_engine_url,
+        signing_key=settings.internal_jwt_signing_key.get_secret_value(),
+    )
+    narrative_repo = NarrativeRepository(db)
     _log.info(
         "service_start",
         service=SERVICE_NAME,
@@ -91,6 +114,11 @@ def build_services(settings: AppSettings) -> Services:
         hunt_planner=hunt_planner,
         llm=llm,
         llm_live_capable=live_capable,
+        db=db,
+        http=http,
+        chains=chains,
+        narrative_repo=narrative_repo,
+        narrative_composer=narrative_composer,
     )
 
 
@@ -101,14 +129,26 @@ def create_app(
     configure_logging(resolved_settings)
     configure_tracing(resolved_settings)
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        owns = services is None
+        svc = services or build_services(resolved_settings)
+        app.state.services = svc
+        try:
+            yield
+        finally:
+            if owns:
+                await svc.http.aclose()
+                await svc.db.dispose()
+
     app = FastAPI(
         title="SentinelMesh AI Analyst",
         version=SERVICE_VERSION,
+        lifespan=lifespan,
         docs_url=None if resolved_settings.is_production else "/docs",
         redoc_url=None,
         openapi_url=None if resolved_settings.is_production else "/openapi.json",
     )
-    app.state.services = services or build_services(resolved_settings)
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     app.add_middleware(RequestContextMiddleware)
     install_exception_handlers(app)
@@ -117,4 +157,5 @@ def create_app(
     app.include_router(explain.router)
     app.include_router(agents.router)
     app.include_router(hunt.router)
+    app.include_router(narrative.router)
     return app

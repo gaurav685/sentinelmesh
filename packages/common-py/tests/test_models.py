@@ -51,6 +51,7 @@ EXPECTED_TABLES = {
     # reporting + attack storytelling (Phase 14)
     "report",
     "report_template",
+    "narrative",
 }
 
 

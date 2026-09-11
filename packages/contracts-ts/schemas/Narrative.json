@@ -1,0 +1,240 @@
+{
+  "$defs": {
+    "AnalystModelInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "from_live_provider": {
+          "default": false,
+          "title": "From Live Provider",
+          "type": "boolean"
+        },
+        "model_id": {
+          "default": "",
+          "maxLength": 128,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "prompt_sha256": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Prompt Sha256",
+          "type": "string"
+        },
+        "provider": {
+          "default": "",
+          "maxLength": 32,
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "title": "AnalystModelInfo",
+      "type": "object"
+    },
+    "AttackStage": {
+      "description": "Kill-chain stage, one per enterprise ATT&CK tactic, in kill-chain order.\n\n`unknown` is a real, first-class value: a detection whose techniques the\nplatform cannot place goes here rather than being forced onto a stage.",
+      "enum": [
+        "reconnaissance",
+        "resource_development",
+        "initial_access",
+        "execution",
+        "persistence",
+        "privilege_escalation",
+        "defense_evasion",
+        "credential_access",
+        "discovery",
+        "lateral_movement",
+        "collection",
+        "command_and_control",
+        "exfiltration",
+        "impact",
+        "unknown"
+      ],
+      "title": "AttackStage",
+      "type": "string"
+    },
+    "GroundingKind": {
+      "description": "How a statement in a report is backed. Every `GroundedStatement` and\n`ReportTimelineEntry` carries one \u2014 never left implicit (Constitution\n\u00a73).\n\n- `evidence`: a real detection/chain/telemetry record the platform\n  itself produced; `ref` points at it.\n- `inference`: a deterministic derivation from evidence (e.g. a stage\n  rollup), not a new observation.\n- `prediction`: `sm_ml.predict` output \u2014 a forecast, never fact\n  (mirrors `Prediction`, Phase 13).\n- `synthetic`: from `simulation-service` (Phase 12) demo/scenario data \u2014\n  never real, always labeled as such.",
+      "enum": [
+        "evidence",
+        "inference",
+        "prediction",
+        "synthetic"
+      ],
+      "title": "GroundingKind",
+      "type": "string"
+    },
+    "NarrativeBeat": {
+      "additionalProperties": false,
+      "description": "One kill-chain stage, narrated. Deterministic \u2014 mirrors\n`ChainStageModel` exactly, never touched by the LLM.",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "detection_count": {
+          "minimum": 0,
+          "title": "Detection Count",
+          "type": "integer"
+        },
+        "detection_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2000,
+          "title": "Detection Ids",
+          "type": "array"
+        },
+        "stage": {
+          "$ref": "#/$defs/AttackStage"
+        },
+        "technique_ids": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Technique Ids",
+          "type": "array"
+        },
+        "tier": {
+          "$ref": "#/$defs/GroundingKind"
+        },
+        "title": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "at",
+        "stage",
+        "title",
+        "detection_count",
+        "tier"
+      ],
+      "title": "NarrativeBeat",
+      "type": "object"
+    },
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A cinematic breach replay for one attack chain.",
+  "properties": {
+    "beats": {
+      "items": {
+        "$ref": "#/$defs/NarrativeBeat"
+      },
+      "maxItems": 15,
+      "title": "Beats",
+      "type": "array"
+    },
+    "chain_id": {
+      "format": "uuid",
+      "title": "Chain Id",
+      "type": "string"
+    },
+    "cited_refs": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 15,
+      "title": "Cited Refs",
+      "type": "array"
+    },
+    "confidence": {
+      "default": "low",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Confidence",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "degraded": {
+      "default": false,
+      "title": "Degraded",
+      "type": "boolean"
+    },
+    "degraded_reason": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Degraded Reason",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "model": {
+      "$ref": "#/$defs/AnalystModelInfo"
+    },
+    "simulated": {
+      "default": false,
+      "title": "Simulated",
+      "type": "boolean"
+    },
+    "subject_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "$ref": "#/$defs/ThreatSubjectType"
+    },
+    "summary": {
+      "maxLength": 8000,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "chain_id",
+    "subject_type",
+    "subject_id",
+    "summary",
+    "generated_at"
+  ],
+  "title": "Narrative",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

@@ -28,6 +28,7 @@ from .hunt import (
     SocHuntRequest,
     SocHuntResponse,
 )
+from .narrative import Narrative, NarrativeBeat
 from .pagination import CursorPage
 from .prediction import (
     AttackProgressionRequest,
@@ -100,6 +101,8 @@ __all__ = [
     "MetaResponse",
     "MitreHeatmap",
     "MitreHeatmapCell",
+    "Narrative",
+    "NarrativeBeat",
     "NetworkBoundary",
     "NextActionRequest",
     "NlHuntRequest",
