@@ -2701,7 +2701,8 @@ incident. Planned units:
    name — previously unset, a real gap the smoke test caught: without it
    the container defaults to `localhost:8009`, unreachable from inside
    its own container) and a `depends_on: postgres, migrate` it didn't
-   need before.
+   need before. **CI-VERIFIED (run `34635710315`, all five jobs, first
+   push — no follow-up fix needed).**
 4. ⬜ `api-gateway` BFF (`routes/reports.py`, `reports:read`/`reports:generate`
    enforcement incl. compliance-report role gate for `lead`/`tenant_admin`,
    migration widening `permission.code` for `reports:read`) +
