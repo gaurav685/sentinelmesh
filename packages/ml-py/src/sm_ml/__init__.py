@@ -37,6 +37,16 @@ from .models import (
     ModelUnavailable,
     StatisticalModel,
 )
+from .predict import (
+    MODEL_VERSION as PREDICT_MODEL_VERSION,
+)
+from .predict import (
+    PredictionOutcome,
+    predict_attack_progression,
+    predict_lateral_movement,
+    predict_next_action,
+    predict_threat_trajectory,
+)
 from .preprocessing import PREPROCESSING_VERSION, Preprocessor
 from .registry import ModelRef, ModelRegistry
 from .scenario import (
@@ -92,6 +102,7 @@ __all__ = [
     "FEATURE_SCHEMA_VERSION",
     "FEATURE_VECTOR_DIM",
     "GRAPH_FEATURE_SCHEMA_VERSION",
+    "PREDICT_MODEL_VERSION",
     "PREPROCESSING_VERSION",
     "AnomalyModel",
     "AnomalyScore",
@@ -115,6 +126,7 @@ __all__ = [
     "ModelRef",
     "ModelRegistry",
     "ModelUnavailable",
+    "PredictionOutcome",
     "Preprocessor",
     "ProgressionTrack",
     "RelationKind",
@@ -151,6 +163,10 @@ __all__ = [
     "cosine_similarity",
     "extract_features",
     "is_synthetic_id",
+    "predict_attack_progression",
+    "predict_lateral_movement",
+    "predict_next_action",
+    "predict_threat_trajectory",
     "replay",
     "replay_run",
     "run_scenario",

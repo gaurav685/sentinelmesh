@@ -2,9 +2,11 @@
 
 Consumes `attack_chains` (group `memory`), upserts threat-memory patterns /
 campaigns / adversary fingerprints, produces `campaign.updates`, and serves
-the internal retrieval + similarity API. The lifespan owns the DB pool, the
-HTTP client (to `correlation-engine`), the Kafka producer + consumer + one
-background consumer task, and the retention-sweep background task.
+the internal retrieval + similarity API and the predictive-intelligence API
+(`sm_ml.predict` — deterministic heuristics, no trained model). The lifespan
+owns the DB pool, the HTTP client (to `correlation-engine`), the Kafka
+producer + consumer + one background consumer task, and the retention-sweep
+background task.
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ from .ingest import MemoryIngestHandler
 from .metrics import MemoryMetrics
 from .repository import MemoryRepository
 from .retention import RetentionSweeper
-from .routes import health, memory, metrics
+from .routes import health, memory, metrics, prediction
 from .topics import CHAINS_TOPIC
 from .version import DEFAULT_CONSUMER_GROUP, SERVICE_NAME, SERVICE_VERSION
 
@@ -141,4 +143,5 @@ def create_app(
     app.include_router(health.router)
     app.include_router(metrics.router)
     app.include_router(memory.router)
+    app.include_router(prediction.router)
     return app

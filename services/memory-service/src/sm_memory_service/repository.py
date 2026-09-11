@@ -265,6 +265,23 @@ class MemoryRepository:
             ).scalar_one_or_none()
         return _fingerprint_out(row) if row is not None else None
 
+    async def list_fingerprints(
+        self, tenant_id: UUID, *, exclude_subject_type: str | None = None,
+        exclude_subject_id: str | None = None, limit: int = 200,
+    ) -> list[AdversaryFingerprint]:
+        stmt = select(AdversaryFingerprintRow).where(AdversaryFingerprintRow.tenant_id == tenant_id)
+        if exclude_subject_type is not None and exclude_subject_id is not None:
+            stmt = stmt.where(
+                ~(
+                    (AdversaryFingerprintRow.subject_type == exclude_subject_type)
+                    & (AdversaryFingerprintRow.subject_id == exclude_subject_id)
+                )
+            )
+        stmt = stmt.order_by(AdversaryFingerprintRow.last_seen.desc()).limit(min(limit, 500))
+        async with self._db.session() as s:
+            rows = (await s.execute(stmt)).scalars().all()
+        return [_fingerprint_out(r) for r in rows]
+
     # ---- similarity retrieval --------------------------------------
     async def find_similar(
         self, tenant_id: UUID, *, kind: SimilarityKind, technique_ids: Sequence[str], limit: int = 10,

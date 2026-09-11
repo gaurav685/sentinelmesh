@@ -10,7 +10,7 @@ from sm_memory_service.metrics import MemoryMetrics
 from sm_common.config import AppSettings
 from sm_common.observability import build_metrics
 from sm_common.security import mint_internal_token
-from sm_contracts import AdversaryFingerprint, Campaign, SimilarityMatch, ThreatMemory
+from sm_contracts import AdversaryFingerprint, AttackChainModel, Campaign, SimilarityMatch, ThreatMemory
 
 _TEST_JWT_KEY = "memory-service-test-signing-key-0123456789abcd"
 _NOW = datetime.now(UTC)
@@ -53,6 +53,18 @@ def campaign(tenant_id: Any, **over: Any) -> Campaign:
     return Campaign(**base)
 
 
+def full_chain(tenant_id: Any, **over: Any) -> AttackChainModel:
+    base: dict[str, Any] = dict(
+        id=uuid.uuid4(), tenant_id=tenant_id, subject_type="host", subject_id="web01",
+        status="active", window_start=_NOW, first_seen=_NOW, last_seen=_NOW, created_at=_NOW,
+        updated_at=_NOW, stages=[], distinct_stage_count=1, progression=0.2, confidence=0.5,
+        score=0.4, score_version="v1", scoring_status="ok", technique_ids=["T1110"],
+        detection_count=1,
+    )
+    base.update(over)
+    return AttackChainModel(**base)
+
+
 def fingerprint(tenant_id: Any, **over: Any) -> AdversaryFingerprint:
     base: dict[str, Any] = dict(
         id=uuid.uuid4(), tenant_id=tenant_id, subject_type="identity", subject_id="svc-backup",
@@ -68,6 +80,7 @@ class FakeMemoryRepo:
         self.similar_response: list[SimilarityMatch] = []
         self.patterns_response: list[ThreatMemory] = []
         self.fingerprint_response: AdversaryFingerprint | None = None
+        self.fingerprints_response: list[AdversaryFingerprint] = []
         self.campaigns_response: list[Campaign] = []
         self.campaign_response: Campaign | None = None
         self.calls: list[tuple[str, Any]] = []
@@ -84,6 +97,12 @@ class FakeMemoryRepo:
         self.calls.append(("get_fingerprint", tenant_id))
         return self.fingerprint_response
 
+    async def list_fingerprints(
+        self, tenant_id: Any, *, exclude_subject_type: Any = None, exclude_subject_id: Any = None,
+    ) -> Any:
+        self.calls.append(("list_fingerprints", tenant_id))
+        return self.fingerprints_response
+
     async def list_campaigns(self, tenant_id: Any, *, status: Any = None) -> Any:
         self.calls.append(("list_campaigns", tenant_id))
         return self.campaigns_response
@@ -91,6 +110,14 @@ class FakeMemoryRepo:
     async def get_campaign(self, tenant_id: Any, campaign_id: Any) -> Any:
         self.calls.append(("get_campaign", tenant_id))
         return self.campaign_response
+
+
+class FakeChainsClient:
+    def __init__(self) -> None:
+        self.chain_response: AttackChainModel | None = None
+
+    async def get_chain(self, tenant_id: Any, chain_id: Any) -> Any:
+        return self.chain_response
 
 
 class FakeProducer:
@@ -142,7 +169,12 @@ def producer() -> FakeProducer:
 
 
 @pytest.fixture
-def client(repo: FakeMemoryRepo, producer: FakeProducer) -> Any:
+def chains() -> FakeChainsClient:
+    return FakeChainsClient()
+
+
+@pytest.fixture
+def client(repo: FakeMemoryRepo, producer: FakeProducer, chains: FakeChainsClient) -> Any:
     from fastapi.testclient import TestClient
     from sm_memory_service.app import create_app
     from sm_memory_service.deps import Services
@@ -151,7 +183,7 @@ def client(repo: FakeMemoryRepo, producer: FakeProducer) -> Any:
     services = Services(
         settings=build_settings(), metrics=base, mem_metrics=MemoryMetrics(base, "memory-service"),
         db=_FakeDb(), repo=repo,  # type: ignore[arg-type]
-        http=None, chains=None,  # type: ignore[arg-type]
+        http=None, chains=chains,  # type: ignore[arg-type]
         producer=producer, consumer=_FakeConsumer(), processor=_FakeProcessor(),  # type: ignore[arg-type]
         sweeper=_FakeSweeper(),  # type: ignore[arg-type]
     )

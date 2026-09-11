@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "confidence": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Confidence",
+      "type": "number"
+    },
+    "evidence": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Evidence",
+      "type": "array"
+    },
+    "features": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ]
+      },
+      "maxProperties": 20,
+      "title": "Features",
+      "type": "object"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "attack_progression",
+        "lateral_movement",
+        "next_action",
+        "threat_trajectory"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "model_version": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Model Version",
+      "type": "string"
+    },
+    "prediction": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Prediction",
+      "type": "string"
+    },
+    "subject_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ThreatSubjectType"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "kind",
+    "subject_type",
+    "subject_id",
+    "prediction",
+    "confidence",
+    "model_version",
+    "generated_at"
+  ],
+  "title": "Prediction",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
