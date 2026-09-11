@@ -12,12 +12,10 @@ from typing import Any
 from pydantic import BaseModel
 
 from .api import (
-    AdversaryFingerprint,
     AgentRunRequest,
     AgentRunResult,
     BlastRadiusRequest,
     BlastRadiusResult,
-    Campaign,
     CreateUserRequest,
     CursorPage,
     Decoy,
@@ -43,11 +41,9 @@ from .api import (
     RoleSummary,
     RunScenarioRequest,
     ScenarioRunResult,
-    SimilarityMatch,
     SocHuntRequest,
     SocHuntResponse,
     SocSummary,
-    ThreatMemory,
     TimelineResponse,
     TwinSnapshot,
     UserResponse,
@@ -71,6 +67,7 @@ from .entities import (
 from .errors import ErrorResponse
 from .events import EventEnvelope, UserEventPayload
 from .graph import GraphCommandPayload, GraphEventPayload
+from .memory import AdversaryFingerprint, Campaign, SimilarityMatch, ThreatMemory
 from .mitre import (
     AttackMatrixVersion,
     AttackTactic,

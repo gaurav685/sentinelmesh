@@ -7,8 +7,8 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 1
-CI-VERIFIED (all five jobs, run `34582276848`).** Three distinct stores, one graph database
+**Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 2
+local green, awaiting CI.** Three distinct stores, one graph database
 (`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
 persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
 memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
@@ -22,16 +22,33 @@ pgvector is unavailable). `sm_common.db.memory_models` — `ThreatMemoryRow`
 attack chains), `AdversaryFingerprintRow` (one evolving fingerprint per
 subject) — each with a `pgvector` `vector(32)` column and an `hnsw` /
 `vector_cosine_ops` index (migration `0009`, `CREATE EXTENSION vector`).
-`sm_contracts.api.memory` (`ThreatMemory` / `Campaign` / `AdversaryFingerprint`
-/ `SimilarityMatch`) — the raw feature vector is never returned over the API,
-only a similarity score. The Postgres image (compose + CI) is now
-`pgvector/pgvector:pg16` (ADR-006 already specified pgvector; this is the
-first phase that needs it). A real-Postgres integration test
-(`tests/integration/test_memory_models_pg.py`) proves a DB-side pgvector
-nearest-neighbor query and the Python fallback agree on ordering, tenant
-scoping holds, and each CHECK constraint rejects an out-of-vocabulary value.
-**No trained model, no fabricated similarity score — a deterministic feature
-vector and real cosine distance, nothing more claimed.**
+`sm_contracts.memory` (`ThreatMemory` / `Campaign` / `AdversaryFingerprint` /
+`SimilarityMatch` / `CampaignUpdatePayload` — moved out of `api/` in Unit 2 to
+match `chains.py`'s placement of an entity + its own topic payload together)
+— the raw feature vector is never returned over the API, only a similarity
+score. The Postgres image (compose + CI) is now `pgvector/pgvector:pg16`
+(ADR-006 already specified pgvector; this is the first phase that needs it).
+A real-Postgres integration test (`tests/integration/test_memory_models_pg.py`)
+proves a DB-side pgvector nearest-neighbor query and the Python fallback
+agree on ordering, tenant scoping holds, and each CHECK constraint rejects an
+out-of-vocabulary value. **No trained model, no fabricated similarity score —
+a deterministic feature vector and real cosine distance, nothing more
+claimed.** Unit 2: `services/memory-service` (port 8012) — consumes
+`attack_chains` (group `memory`), fetches the full chain from
+`correlation-engine` (the topic event has no technique data), upserts a
+`ThreatMemory` pattern, matches-or-starts a `Campaign` (pgvector cosine
+similarity, `SM_MEMORY_CAMPAIGN_SIMILARITY_THRESHOLD`, exact-fallback on a DB
+error), upserts an `AdversaryFingerprint`, and produces `campaign.updates`.
+`POST /api/v1/memory/similar` + read routes (`/patterns`, `/fingerprints/...`,
+`/campaigns...`), internal-JWT only. A background `RetentionSweeper` ages a
+campaign `active -> dormant -> closed` on inactivity and deletes patterns /
+fingerprints / long-closed campaigns past `SM_MEMORY_RETENTION_DAYS` — the
+deletion lifecycle the phase's memory-architecture section calls for. A
+real-Postgres integration test (`tests/integration/test_memory_repository_pg.py`,
+6 tests) caught a real bug: `Database`'s sessionmaker runs `autoflush=False`
+platform-wide, so the retention sweep's in-memory campaign-status transitions
+were invisible to the same-transaction DELETE that followed until an explicit
+`flush()` was added.
 
 **Phase 12 — Simulation + Deception + Security Digital Twin. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34576850936`; see exit report
@@ -2371,32 +2388,49 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 1 CI-VERIFIED
-(run `34582276848`, all five jobs). Exact next action: Unit 2.** Three
-stores, one graph database (ADR-011);
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 2 done — local
+gauntlet green, awaiting CI.** Three stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:
-1. ✅ `sm_ml.memory` (`technique_feature_vector`, `cosine_similarity` —
-   deterministic, not a trained embedding), `sm_common.db.memory_models`
-   (`ThreatMemoryRow` / `CampaignRow` / `AdversaryFingerprintRow`, each a
-   `pgvector` `vector(32)` column + `hnsw`/`vector_cosine_ops` index),
-   migration `0009` (`CREATE EXTENSION vector`), `sm_contracts.api.memory`
-   (`ThreatMemory` / `Campaign` / `AdversaryFingerprint` / `SimilarityMatch` —
-   the feature vector itself is never returned). Postgres image swapped to
-   `pgvector/pgvector:pg16` in compose + CI. Local: ruff + `mypy --strict`
-   clean, **774 unit tests** (11 new) + `gen_contracts --check` (91 JSON
-   Schema files); real-Postgres integration test
-   (`tests/integration/test_memory_models_pg.py`, 6 tests: pgvector
-   nearest-neighbor agrees with the Python fallback, tenant scoping, upsert
-   uniqueness, CHECK-constraint rejection ×2, fingerprint uniqueness);
-   `Dockerfile.app` builds, `pgvector.sqlalchemy` imports in the image,
-   non-root uid confirmed. **CI-VERIFIED (run `34582276848`, all five
-   jobs).**
-2. `services/memory-service` (port 8012) — consumes `detections` +
-   `attack_chains`, writes/upserts threat-memory patterns, campaigns, and
-   fingerprints; internal retrieval API (`find_similar`, pgvector query with
-   an exact-fallback path when the index/extension errors); retention +
-   deletion lifecycle (a TTL sweep off `last_seen`, mirroring
-   `threat-intel-service`'s expiry sweeper); strict tenant isolation.
+1. ✅ **CI-VERIFIED (run `34582276848`, all five jobs).** `sm_ml.memory`
+   (`technique_feature_vector`, `cosine_similarity` — deterministic, not a
+   trained embedding), `sm_common.db.memory_models` (`ThreatMemoryRow` /
+   `CampaignRow` / `AdversaryFingerprintRow`, each a `pgvector` `vector(32)`
+   column + `hnsw`/`vector_cosine_ops` index), migration `0009`
+   (`CREATE EXTENSION vector`), `sm_contracts.memory` (`ThreatMemory` /
+   `Campaign` / `AdversaryFingerprint` / `SimilarityMatch` — the feature
+   vector itself is never returned). Postgres image swapped to
+   `pgvector/pgvector:pg16` in compose + CI.
+2. ✅ `services/memory-service` (port 8012) — consumes `attack_chains`
+   (group `memory`), fetches the full chain from `correlation-engine`
+   (`ChainsClient`, internal JWT — the topic event is a thin projection with
+   no technique data), upserts a `ThreatMemory` pattern, matches-or-starts a
+   `Campaign` (pgvector cosine similarity against active campaigns,
+   `SM_MEMORY_CAMPAIGN_SIMILARITY_THRESHOLD`, exact-fallback on a DB error),
+   upserts an `AdversaryFingerprint`, and produces `campaign.updates`
+   (`CampaignUpdatePayload`, a thin projection mirroring `AttackChainPayload`).
+   `POST /api/v1/memory/similar` + `GET .../patterns`, `.../fingerprints/...`,
+   `.../campaigns...` (internal-JWT only). `RetentionSweeper` — the deletion
+   lifecycle: `active -> dormant -> closed` on inactivity
+   (`SM_MEMORY_DORMANT_AFTER_DAYS` / `SM_MEMORY_CLOSE_AFTER_DAYS`), delete
+   patterns / fingerprints / long-closed campaigns past
+   `SM_MEMORY_RETENTION_DAYS`, mirroring `threat-intel-service`'s expiry
+   sweeper. `sm_contracts.memory` moved out of `api/` (Unit 1's placement)
+   to sit beside its own `campaign.updates` topic payload, matching
+   `chains.py`'s precedent.
+   Local: ruff + `mypy --strict` clean (358 files, full CI static tree),
+   **790 unit tests** (16 new: 9 route, 5 ingest, 2 retention) +
+   `gen_contracts --check`; real-Postgres integration test
+   (`tests/integration/test_memory_repository_pg.py`, 6 tests) caught a real
+   bug — `Database`'s sessionmaker runs `autoflush=False` platform-wide, so
+   the retention sweep's campaign-status transitions were invisible to the
+   same-transaction DELETE that followed until an explicit `flush()` was
+   added; full `tests/integration` suite green; `Dockerfile.app` builds,
+   `sm_memory_service` + `pgvector.sqlalchemy` import in the image, non-root
+   uid confirmed; CI + `deploy/docker/{Dockerfile.app,docker-compose.yml}`
+   wired (profile `detect`, depends on `postgres` + `migrate`;
+   `SM_CORRELATION_ENGINE_URL` overridden to the compose service name — the
+   one new cross-service call this unit introduces). **Commit, push, confirm
+   CI green.**
 3. Prediction interfaces — `sm_contracts.api.prediction` (`Prediction`:
    `prediction`, `confidence`, `evidence`, `model_version`, `timestamp` —
    never presented as fact) + deterministic heuristic predictors (attack

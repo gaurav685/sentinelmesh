@@ -1,4 +1,4 @@
-"""Threat-memory contracts (Phase 13).
+"""Threat-memory contracts (Phase 13; reqs 21, 37).
 
 `services/memory-service` owns three tenant-scoped record kinds — behavioral
 patterns, campaigns (groups of related attack chains), and adversary
@@ -7,6 +7,9 @@ duplicate the operational attack graph (`graph-service`, Neo4j) or the
 detection/chain tables (`detection-engine` / `correlation-engine`, Postgres) —
 see `docs/ARCHITECTURE_DECISIONS.md` ADR-011. The similarity feature vector
 itself is never exposed over the API; only the similarity score is.
+
+`CampaignUpdatePayload` is the thin `campaign.updates` topic projection,
+mirroring `chains.py`'s `AttackChainPayload` — the full body stays in Postgres.
 """
 
 from __future__ import annotations
@@ -17,13 +20,16 @@ from uuid import UUID
 
 from pydantic import Field, field_validator
 
-from ..common import SmBaseModel, TenantScoped, TimestampedModel, to_utc
-from ..enums import ThreatSubjectType
+from .common import SmBaseModel, TenantScoped, TimestampedModel, to_utc
+from .enums import ThreatSubjectType
+from .events import EVENT_PAYLOAD_REGISTRY, EventType
 
 __all__ = [
+    "MEMORY_PAYLOADS",
     "AdversaryFingerprint",
     "Campaign",
     "CampaignStatus",
+    "CampaignUpdatePayload",
     "MemoryPatternKind",
     "SimilarityMatch",
     "ThreatMemory",
@@ -112,3 +118,30 @@ class SimilarityMatch(SmBaseModel):
     @classmethod
     def _utc(cls, v: datetime) -> datetime:
         return to_utc(v)
+
+
+class CampaignUpdatePayload(SmBaseModel):
+    """`campaign.updates` topic event (`EventType.campaign_updated`). A thin
+    projection — enough to fan a notification out; the full campaign stays
+    in Postgres."""
+
+    campaign_id: UUID
+    tenant_id: UUID
+    status: CampaignStatus
+    chain_count: int = Field(ge=0)
+    technique_ids: list[str] = Field(default_factory=list, max_length=200)
+    first_seen: datetime
+    last_seen: datetime
+    updated_at: datetime
+
+    @field_validator("first_seen", "last_seen", "updated_at")
+    @classmethod
+    def _utc(cls, v: datetime) -> datetime:
+        return to_utc(v)
+
+
+MEMORY_PAYLOADS: dict[EventType, type[SmBaseModel]] = {
+    EventType.campaign_updated: CampaignUpdatePayload,
+}
+
+EVENT_PAYLOAD_REGISTRY.update(MEMORY_PAYLOADS)
