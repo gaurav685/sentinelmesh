@@ -28,6 +28,7 @@ from .graph import (
     SuspiciousSubgraphHeuristic,
     build_graph_sample,
 )
+from .memory import FEATURE_VECTOR_DIM, cosine_similarity, technique_feature_vector
 from .models import (
     AnomalyModel,
     AnomalyScore,
@@ -89,6 +90,7 @@ from .twin import (
 
 __all__ = [
     "FEATURE_SCHEMA_VERSION",
+    "FEATURE_VECTOR_DIM",
     "GRAPH_FEATURE_SCHEMA_VERSION",
     "PREPROCESSING_VERSION",
     "AnomalyModel",
@@ -146,6 +148,7 @@ __all__ = [
     "build_progression",
     "build_synthetic_env",
     "build_twin",
+    "cosine_similarity",
     "extract_features",
     "is_synthetic_id",
     "replay",
@@ -155,6 +158,7 @@ __all__ = [
     "schema_for",
     "stitch_sessions",
     "stress_test",
+    "technique_feature_vector",
     "twin_from_synthetic_env",
     "validate_spec",
 ]

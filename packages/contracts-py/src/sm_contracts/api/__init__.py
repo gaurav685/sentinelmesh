@@ -28,6 +28,14 @@ from .hunt import (
     SocHuntRequest,
     SocHuntResponse,
 )
+from .memory import (
+    AdversaryFingerprint,
+    Campaign,
+    CampaignStatus,
+    MemoryPatternKind,
+    SimilarityMatch,
+    ThreatMemory,
+)
 from .pagination import CursorPage
 from .simulation import (
     BlastRadiusRequest,
@@ -58,12 +66,15 @@ from .soc import (
 from .users import CreateUserRequest, GrantRoleRequest, RoleSummary, UserResponse
 
 __all__ = [
+    "AdversaryFingerprint",
     "AgentFinding",
     "AgentRunRequest",
     "AgentRunResult",
     "AnalystModelInfo",
     "BlastRadiusRequest",
     "BlastRadiusResult",
+    "Campaign",
+    "CampaignStatus",
     "CreateUserRequest",
     "CursorPage",
     "Decoy",
@@ -87,6 +98,7 @@ __all__ = [
     "LoginResponse",
     "LogoutResponse",
     "MeResponse",
+    "MemoryPatternKind",
     "MetaResponse",
     "MitreHeatmap",
     "MitreHeatmapCell",
@@ -104,9 +116,11 @@ __all__ = [
     "ScenarioKind",
     "ScenarioRunResult",
     "SimEventOut",
+    "SimilarityMatch",
     "SocHuntRequest",
     "SocHuntResponse",
     "SocSummary",
+    "ThreatMemory",
     "TimelineEntry",
     "TimelineResponse",
     "TwinAssetOut",

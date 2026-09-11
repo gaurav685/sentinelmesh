@@ -7,6 +7,32 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 1
+local green, awaiting CI.** Three distinct stores, one graph database
+(`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
+persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
+memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
+analytical/vector state, never a graph or a duplicate of the operational
+detection/chain tables. Unit 1: `sm_ml.memory.technique_feature_vector`
+(deterministic, L2-normalized, hashed-bag-of-techniques — **not a trained
+embedding**, no semantic claim beyond "shared techniques land closer
+together") + `cosine_similarity` (the Python exact-match fallback for when
+pgvector is unavailable). `sm_common.db.memory_models` — `ThreatMemoryRow`
+(a behavioral pattern per subject, upserted), `CampaignRow` (a set of related
+attack chains), `AdversaryFingerprintRow` (one evolving fingerprint per
+subject) — each with a `pgvector` `vector(32)` column and an `hnsw` /
+`vector_cosine_ops` index (migration `0009`, `CREATE EXTENSION vector`).
+`sm_contracts.api.memory` (`ThreatMemory` / `Campaign` / `AdversaryFingerprint`
+/ `SimilarityMatch`) — the raw feature vector is never returned over the API,
+only a similarity score. The Postgres image (compose + CI) is now
+`pgvector/pgvector:pg16` (ADR-006 already specified pgvector; this is the
+first phase that needs it). A real-Postgres integration test
+(`tests/integration/test_memory_models_pg.py`) proves a DB-side pgvector
+nearest-neighbor query and the Python fallback agree on ordering, tenant
+scoping holds, and each CHECK constraint rejects an out-of-vocabulary value.
+**No trained model, no fabricated similarity score — a deterministic feature
+vector and real cosine distance, nothing more claimed.**
+
 **Phase 12 — Simulation + Deception + Security Digital Twin. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34576850936`; see exit report
 below).** Unit 1 (CI-verified, run
@@ -2344,6 +2370,46 @@ integration test. Docker is still absent.
   payload must be added there when implemented.
 
 ## Exact next action
+
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 1 done — local
+gauntlet green, awaiting CI.** Three stores, one graph database (ADR-011);
+never present a prediction as fact. Planned units:
+1. ✅ `sm_ml.memory` (`technique_feature_vector`, `cosine_similarity` —
+   deterministic, not a trained embedding), `sm_common.db.memory_models`
+   (`ThreatMemoryRow` / `CampaignRow` / `AdversaryFingerprintRow`, each a
+   `pgvector` `vector(32)` column + `hnsw`/`vector_cosine_ops` index),
+   migration `0009` (`CREATE EXTENSION vector`), `sm_contracts.api.memory`
+   (`ThreatMemory` / `Campaign` / `AdversaryFingerprint` / `SimilarityMatch` —
+   the feature vector itself is never returned). Postgres image swapped to
+   `pgvector/pgvector:pg16` in compose + CI. Local: ruff + `mypy --strict`
+   clean, **774 unit tests** (11 new) + `gen_contracts --check` (91 JSON
+   Schema files); real-Postgres integration test
+   (`tests/integration/test_memory_models_pg.py`, 6 tests: pgvector
+   nearest-neighbor agrees with the Python fallback, tenant scoping, upsert
+   uniqueness, CHECK-constraint rejection ×2, fingerprint uniqueness);
+   `Dockerfile.app` builds, `pgvector.sqlalchemy` imports in the image,
+   non-root uid confirmed. **Commit, push, confirm CI green.**
+2. `services/memory-service` (port 8012) — consumes `detections` +
+   `attack_chains`, writes/upserts threat-memory patterns, campaigns, and
+   fingerprints; internal retrieval API (`find_similar`, pgvector query with
+   an exact-fallback path when the index/extension errors); retention +
+   deletion lifecycle (a TTL sweep off `last_seen`, mirroring
+   `threat-intel-service`'s expiry sweeper); strict tenant isolation.
+3. Prediction interfaces — `sm_contracts.api.prediction` (`Prediction`:
+   `prediction`, `confidence`, `evidence`, `model_version`, `timestamp` —
+   never presented as fact) + deterministic heuristic predictors (attack
+   progression via the existing kill-chain `STAGE_ORDER`; lateral movement /
+   next-action / trajectory via threat-memory + the digital twin) — **no
+   trained model exists**, so no accuracy is claimed; a model-unavailable
+   path returns no prediction, never a guess.
+4. `api-gateway` BFF + `frontend/web` (a memory/campaign browser, a
+   prediction overlay, an evidence-grounded "seen before" panel) + Phase 13
+   close (exit report + §23 + `REQUIREMENTS_TRACEABILITY` R15 / R21 / R37 +
+   `CONTRACTS.md`).
+
+Exit next action after Phase 13: **PHASE 14 — Reporting + Storytelling**
+(prompt not yet given — do NOT start speculatively; the next session resumes
+here).
 
 **PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34576850936`).** Everything synthetic,

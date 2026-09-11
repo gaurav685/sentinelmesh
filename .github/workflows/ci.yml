@@ -138,7 +138,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        # pgvector/pgvector:pg16 = postgres:16 + the pgvector extension
+        # preinstalled (ADR-006) — memory-service needs `CREATE EXTENSION vector`.
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: sentinelmesh
           POSTGRES_USER: sentinelmesh

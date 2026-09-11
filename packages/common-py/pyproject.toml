@@ -19,6 +19,7 @@ dependencies = [
     "anyio>=4",
     "sqlalchemy[asyncio]>=2.0,<3",
     "asyncpg>=0.29",
+    "pgvector>=0.3,<0.5",
     "redis>=5,<6",
     "aiokafka>=0.11,<0.13",
     "neo4j>=5.20,<6",

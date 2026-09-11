@@ -1,0 +1,88 @@
+{
+  "$defs": {
+    "ThreatSubjectType": {
+      "enum": [
+        "identity",
+        "host",
+        "ip",
+        "domain",
+        "detection"
+      ],
+      "title": "ThreatSubjectType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One evolving fingerprint per subject \u2014 the \"has this been seen\nbefore\" record `campaign_ids` links back to.",
+  "properties": {
+    "campaign_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 200,
+      "title": "Campaign Ids",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "first_seen": {
+      "format": "date-time",
+      "title": "First Seen",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "title": "Last Seen",
+      "type": "string"
+    },
+    "subject_id": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Subject Id",
+      "type": "string"
+    },
+    "subject_type": {
+      "$ref": "#/$defs/ThreatSubjectType"
+    },
+    "technique_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 200,
+      "title": "Technique Ids",
+      "type": "array"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "subject_type",
+    "subject_id",
+    "first_seen",
+    "last_seen"
+  ],
+  "title": "AdversaryFingerprint",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

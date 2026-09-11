@@ -34,7 +34,10 @@ x-app-env: &app-env
 
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector/pgvector:pg16 = upstream postgres:16 + the pgvector extension
+    # preinstalled (ADR-006) — memory-service's campaign/fingerprint similarity
+    # search needs `CREATE EXTENSION vector` to succeed.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: ${SM_PG_DB:-sentinelmesh}
       POSTGRES_USER: ${SM_PG_USER:-sentinelmesh}

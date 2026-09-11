@@ -61,6 +61,11 @@ module = "aiokafka.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# pgvector ships no py.typed marker / stubs.
+module = "pgvector.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 # Serving-only deps (installed via `sm-ml[serving]` / `sm-ml[gnn]`, absent in the base env).
 module = ["numpy.*", "sklearn.*", "joblib.*", "torch", "torch.*", "torch_geometric", "torch_geometric.*"]
 ignore_missing_imports = true
