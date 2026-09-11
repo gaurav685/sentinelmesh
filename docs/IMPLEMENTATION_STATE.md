@@ -2659,7 +2659,8 @@ incident. Planned units:
    uploaded to MinIO, downloaded via its presigned URL, and confirmed a
    valid single-page PDF. CI's `image` job import-check line extended
    (`sm_reporting_service`, `sm_common.objectstore`, `reportlab`,
-   `aioboto3`).
+   `aioboto3`). **CI-VERIFIED (run `34631135008`, all five jobs, first
+   push — no follow-up fix needed).**
 3. ⬜ Attack storytelling in `services/ai-analyst` (R33) — new `narrative`
    module + Postgres `narrative` table + migration, `GET
    /api/v1/incidents/{id}/narrative`, LLM-grounded narrative generation
