@@ -258,13 +258,17 @@ jobs:
 
       # Same constraint as Redpanda above: MinIO's image needs a start command
       # with `server /data` args, which a `services:` container cannot supply.
+      # quay.io, not Docker Hub: MinIO's Docker Hub repo no longer serves this
+      # (or any older) release tag to anonymous pulls ("pull access denied");
+      # quay.io/minio/minio is MinIO's own mirror and still does, same digest
+      # (matches deploy/docker/docker-compose.yml's `minio` service).
       - name: Start MinIO
         run: |
           docker run -d --name minio -p 9000:9000 -p 9001:9001 \
             -e MINIO_ROOT_USER=ci-minio-user \
             -e MINIO_ROOT_PASSWORD=ci-minio-password \
             -e MINIO_KMS_SECRET_KEY="sm-local-dev-key:MTIzNDU2Nzg5MGFiY2RlZjEyMzQ1Njc4OTBhYmNkZWY=" \
-            minio/minio:RELEASE.2024-10-13T13-34-11Z \
+            quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z \
             server /data --console-address :9001
           for _ in $(seq 1 30); do
             if curl -fs http://localhost:9000/minio/health/live >/dev/null 2>&1; then
