@@ -7,8 +7,8 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 2
-CI-VERIFIED (all five jobs, run `34586331308`).** Three distinct stores, one graph database
+**Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 3
+local green, awaiting CI.** Three distinct stores, one graph database
 (`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
 persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
 memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
@@ -48,7 +48,27 @@ real-Postgres integration test (`tests/integration/test_memory_repository_pg.py`
 6 tests) caught a real bug: `Database`'s sessionmaker runs `autoflush=False`
 platform-wide, so the retention sweep's in-memory campaign-status transitions
 were invisible to the same-transaction DELETE that followed until an explicit
-`flush()` was added.
+`flush()` was added. Unit 3: **prediction interfaces — no trained model
+exists, every prediction is a deterministic heuristic and says so.**
+`sm_ml.predict` (`MODEL_VERSION = "heuristic-v1"`) — `predict_attack_progression`
+(the next kill-chain stage after a chain's furthest-reached stage, confidence
+from the chain's own `confidence` + `distinct_stage_count`),
+`predict_next_action` (a technique the subject has used before but hasn't
+used yet in the current chain — grounded in that subject's own history, never
+a guess about an unobserved technique), `predict_lateral_movement` (the other
+recorded adversary fingerprint most similar by technique overlap —
+cosine similarity, not a live graph traversal), `predict_threat_trajectory`
+(escalating / active / stalling / concluded, from a campaign's own recorded
+status + chain count). Every function returns `confidence=0.0` and says why
+when the input does not support a prediction — never a guess dressed as a
+result. `sm_contracts.api.prediction.Prediction` (`prediction`, `confidence`,
+`evidence`, `features`, `model_version`, `generated_at` — `subject_type` is
+`None` for the campaign-level `threat_trajectory`, which has no single
+subject). `memory-service` gains `POST /api/v1/predict/{attack-progression,
+next-action,lateral-movement,threat-trajectory}` (internal-JWT only),
+wiring the heuristics to real data via the existing `ChainsClient` +
+`MemoryRepository` (a new `list_fingerprints` method for lateral-movement
+candidates).
 
 **Phase 12 — Simulation + Deception + Security Digital Twin. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34576850936`; see exit report
@@ -2388,9 +2408,8 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 2 CI-VERIFIED
-(run `34586331308`, all five jobs). Exact next action: Unit 3.** Three
-stores, one graph database (ADR-011);
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 3 done — local
+gauntlet green, awaiting CI.** Three stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:
 1. ✅ **CI-VERIFIED (run `34582276848`, all five jobs).** `sm_ml.memory`
    (`technique_feature_vector`, `cosine_similarity` — deterministic, not a
@@ -2432,13 +2451,23 @@ never present a prediction as fact. Planned units:
    `SM_CORRELATION_ENGINE_URL` overridden to the compose service name — the
    one new cross-service call this unit introduces). **CI-VERIFIED (run
    `34586331308`, all five jobs).**
-3. Prediction interfaces — `sm_contracts.api.prediction` (`Prediction`:
-   `prediction`, `confidence`, `evidence`, `model_version`, `timestamp` —
-   never presented as fact) + deterministic heuristic predictors (attack
-   progression via the existing kill-chain `STAGE_ORDER`; lateral movement /
-   next-action / trajectory via threat-memory + the digital twin) — **no
-   trained model exists**, so no accuracy is claimed; a model-unavailable
-   path returns no prediction, never a guess.
+3. ✅ `sm_ml.predict` (`MODEL_VERSION = "heuristic-v1"` — no trained model;
+   `predict_attack_progression` / `predict_next_action` /
+   `predict_lateral_movement` / `predict_threat_trajectory`, every one a
+   deterministic rule over data already on hand, `confidence=0.0` with a
+   stated reason when the input is underdetermined, never a guess).
+   `sm_contracts.api.prediction.Prediction` (`prediction`, `confidence`,
+   `evidence`, `features`, `model_version`, `generated_at`; `subject_type`
+   is `None` for the campaign-level `threat_trajectory`). `memory-service`
+   gains `POST /api/v1/predict/{attack-progression,next-action,
+   lateral-movement,threat-trajectory}` (internal-JWT only), wiring the
+   heuristics to `ChainsClient` + `MemoryRepository` (new
+   `list_fingerprints` for lateral-movement candidates).
+   Local: ruff + `mypy --strict` clean (363 files, full CI static tree),
+   **812 unit tests** (22 new: 14 heuristics, 8 route) +
+   `gen_contracts --check` (92 JSON Schema files); full `tests/integration`
+   suite green; `Dockerfile.app` builds, image imports clean, non-root uid
+   confirmed. **Commit, push, confirm CI green.**
 4. `api-gateway` BFF + `frontend/web` (a memory/campaign browser, a
    prediction overlay, an evidence-grounded "seen before" panel) + Phase 13
    close (exit report + §23 + `REQUIREMENTS_TRACEABILITY` R15 / R21 / R37 +

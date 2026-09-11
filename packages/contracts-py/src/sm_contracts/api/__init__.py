@@ -29,6 +29,14 @@ from .hunt import (
     SocHuntResponse,
 )
 from .pagination import CursorPage
+from .prediction import (
+    AttackProgressionRequest,
+    LateralMovementRequest,
+    NextActionRequest,
+    Prediction,
+    PredictionKind,
+    ThreatTrajectoryRequest,
+)
 from .simulation import (
     BlastRadiusRequest,
     BlastRadiusResult,
@@ -62,6 +70,7 @@ __all__ = [
     "AgentRunRequest",
     "AgentRunResult",
     "AnalystModelInfo",
+    "AttackProgressionRequest",
     "BlastRadiusRequest",
     "BlastRadiusResult",
     "CreateUserRequest",
@@ -83,6 +92,7 @@ __all__ = [
     "HealthResponse",
     "HuntExplainRequest",
     "HuntResult",
+    "LateralMovementRequest",
     "LoginRequest",
     "LoginResponse",
     "LogoutResponse",
@@ -91,8 +101,11 @@ __all__ = [
     "MitreHeatmap",
     "MitreHeatmapCell",
     "NetworkBoundary",
+    "NextActionRequest",
     "NlHuntRequest",
     "PlanResponse",
+    "Prediction",
+    "PredictionKind",
     "ProposedActionOut",
     "QueryLimits",
     "QueryPlan",
@@ -107,6 +120,7 @@ __all__ = [
     "SocHuntRequest",
     "SocHuntResponse",
     "SocSummary",
+    "ThreatTrajectoryRequest",
     "TimelineEntry",
     "TimelineResponse",
     "TwinAssetOut",

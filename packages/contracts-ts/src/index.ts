@@ -1405,9 +1405,19 @@ export type Id14 = string;
 export type ResourceType1 = string;
 export type Supported = boolean;
 export type UnsupportedReason = string;
+export type Confidence4 = number;
+/**
+ * @maxItems 20
+ */
+export type Evidence3 = string[];
+export type GeneratedAt2 = string;
+export type Kind3 = "attack_progression" | "lateral_movement" | "next_action" | "threat_trajectory";
+export type ModelVersion1 = string;
+export type Prediction1 = string;
+export type SubjectId8 = string;
 export type Dependencies = DepStatus[];
 export type Ready = boolean;
-export type Kind3 = "honeypot_host" | "honeytoken" | "decoy_credential";
+export type Kind4 = "honeypot_host" | "honeytoken" | "decoy_credential";
 export type Name6 = string;
 export type NetworkBoundary1 = "isolated" | "dmz-isolated";
 /**
@@ -1417,7 +1427,7 @@ export type Tags2 = string[];
 export type TtlSeconds1 = number;
 export type ComputedAt1 = string;
 export type Score7 = number;
-export type SubjectId8 = string;
+export type SubjectId9 = string;
 export type CreatedAt12 = string;
 export type Description4 = string;
 export type Id15 = string;
@@ -1433,7 +1443,7 @@ export type IsSystem1 = boolean;
 export type Name8 = string;
 export type FeedPipeline = boolean;
 export type Intensity = number;
-export type Kind4 = "apt" | "ransomware" | "insider" | "brute_force";
+export type Kind5 = "apt" | "ransomware" | "insider" | "brute_force";
 export type Name9 = string;
 export type Seed2 = number;
 export type TargetHost1 = string;
@@ -1441,7 +1451,7 @@ export type TargetIdentity = string;
 export type EventCount = number;
 export type Actor = string;
 export type AtOffsetS = number;
-export type Kind5 = string;
+export type Kind6 = string;
 export type ScenarioId = string;
 export type Simulated = boolean;
 export type Step = number;
@@ -1453,7 +1463,7 @@ export type Events = SimEventOut[];
 export type FedEventCount = number;
 export type FedToPipeline = boolean;
 export type Intensity1 = number;
-export type Kind6 = "apt" | "ransomware" | "insider" | "brute_force";
+export type Kind7 = "apt" | "ransomware" | "insider" | "brute_force";
 export type ScenarioId1 = string;
 export type Seed3 = number;
 export type Synthetic = boolean;
@@ -1477,7 +1487,7 @@ export type SensorType = "network" | "auth" | "dns" | "process" | "file" | "mixe
 export type UpdatedAt12 = string;
 export type ExactFallback = boolean;
 export type Id18 = string;
-export type Kind7 = "threat_memory" | "campaign" | "adversary_fingerprint";
+export type Kind8 = "threat_memory" | "campaign" | "adversary_fingerprint";
 export type LastSeen7 = string;
 export type Score8 = number;
 /**
@@ -1491,7 +1501,7 @@ export type Supported1 = boolean;
 export type UnsupportedReason1 = string;
 export type ActiveChains = number;
 export type Detections24H = number;
-export type GeneratedAt2 = string;
+export type GeneratedAt3 = string;
 export type OpenAlerts = number;
 /**
  * @maxItems 20
@@ -1501,11 +1511,11 @@ export type CreatedAt14 = string;
 /**
  * @maxItems 64
  */
-export type Evidence3 = EvidenceItem[];
+export type Evidence4 = EvidenceItem[];
 export type Id19 = string;
 export type MatrixVersion3 = string;
 export type Rationale1 = string;
-export type SubjectId9 = string;
+export type SubjectId10 = string;
 export type TacticId2 = string | null;
 export type TechniqueId2 = string;
 export type TenantId31 = string;
@@ -1539,7 +1549,7 @@ export type LastSeen9 = string;
 export type OccurrenceCount = number;
 export type PatternKind = "technique_sequence";
 export type Source5 = string;
-export type SubjectId10 = string;
+export type SubjectId11 = string;
 /**
  * @maxItems 200
  */
@@ -1568,21 +1578,21 @@ export type Name14 = string;
 export type TtlSeconds2 = number;
 export type UpdatedAt17 = string;
 export type At = string;
-export type Kind8 = string;
+export type Kind9 = string;
 export type RefId = string;
 export type Title3 = string;
 /**
  * @maxItems 500
  */
 export type Entries = TimelineEntry[];
-export type SubjectId11 = string;
+export type SubjectId12 = string;
 export type Criticality = number;
 export type Id24 = string;
-export type Kind9 = string;
+export type Kind10 = string;
 export type Name15 = string;
 export type Tags3 = string[];
 export type Dst1 = string;
-export type Kind10 = string;
+export type Kind11 = string;
 export type Src1 = string;
 export type Weight = number;
 /**
@@ -1597,7 +1607,7 @@ export type Seed4 = number;
 export type Synthetic1 = boolean;
 export type AssetId = string;
 export type Detail5 = string;
-export type Kind11 = string;
+export type Kind12 = string;
 export type Severity1 = string;
 /**
  * @maxItems 200
@@ -3028,6 +3038,24 @@ export interface PlanResponse {
   unsupported_reason?: UnsupportedReason;
 }
 /**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "Prediction".
+ */
+export interface Prediction {
+  confidence: Confidence4;
+  evidence?: Evidence3;
+  features?: Features1;
+  generated_at: GeneratedAt2;
+  kind: Kind3;
+  model_version: ModelVersion1;
+  prediction: Prediction1;
+  subject_id: SubjectId8;
+  subject_type: ThreatSubjectType | null;
+}
+export interface Features1 {
+  [k: string]: number | string;
+}
+/**
  * `GET /readyz` — readiness. `ready` is false if any *required* dependency
  * is unreachable; the service should then be pulled from rotation.
  *
@@ -3043,7 +3071,7 @@ export interface ReadyResponse {
  * via the `definition` "RegisterDecoyRequest".
  */
 export interface RegisterDecoyRequest {
-  kind: Kind3;
+  kind: Kind4;
   name: Name6;
   network_boundary: NetworkBoundary1;
   tags?: Tags2;
@@ -3057,7 +3085,7 @@ export interface RiskSubject {
   computed_at: ComputedAt1;
   score: Score7;
   scoring_status: ScoringStatus;
-  subject_id: SubjectId8;
+  subject_id: SubjectId9;
   subject_type: ThreatSubjectType;
 }
 /**
@@ -3103,7 +3131,7 @@ export interface RoleSummary {
 export interface RunScenarioRequest {
   feed_pipeline?: FeedPipeline;
   intensity?: Intensity;
-  kind: Kind4;
+  kind: Kind5;
   name: Name9;
   seed?: Seed2;
   target_host: TargetHost1;
@@ -3119,7 +3147,7 @@ export interface ScenarioRunResult {
   fed_event_count?: FedEventCount;
   fed_to_pipeline?: FedToPipeline;
   intensity: Intensity1;
-  kind: Kind6;
+  kind: Kind7;
   scenario_id: ScenarioId1;
   seed: Seed3;
   synthetic?: Synthetic;
@@ -3134,7 +3162,7 @@ export interface SimEventOut {
   actor: Actor;
   at_offset_s: AtOffsetS;
   attributes?: Attributes1;
-  kind: Kind5;
+  kind: Kind6;
   scenario_id: ScenarioId;
   simulated?: Simulated;
   step: Step;
@@ -3173,7 +3201,7 @@ export interface Sensor {
 export interface SimilarityMatch {
   exact_fallback?: ExactFallback;
   id: Id18;
-  kind: Kind7;
+  kind: Kind8;
   last_seen: LastSeen7;
   score: Score8;
   technique_ids?: TechniqueIds7;
@@ -3211,7 +3239,7 @@ export interface SocSummary {
   active_chains: ActiveChains;
   alerts_by_severity?: AlertsBySeverity;
   detections_24h: Detections24H;
-  generated_at: GeneratedAt2;
+  generated_at: GeneratedAt3;
   open_alerts: OpenAlerts;
   top_risk_subjects?: TopRiskSubjects;
 }
@@ -3227,12 +3255,12 @@ export interface AlertsBySeverity {
 export interface TechniqueMapping {
   confidence: MappingConfidence;
   created_at: CreatedAt14;
-  evidence?: Evidence3;
+  evidence?: Evidence4;
   id: Id19;
   matrix_version: MatrixVersion3;
   rationale: Rationale1;
   source: MappingSource;
-  subject_id: SubjectId9;
+  subject_id: SubjectId10;
   subject_type: MappingSubjectType;
   tactic_id?: TacticId2;
   technique_id: TechniqueId2;
@@ -3286,7 +3314,7 @@ export interface ThreatMemory {
   occurrence_count: OccurrenceCount;
   pattern_kind: PatternKind;
   source: Source5;
-  subject_id: SubjectId10;
+  subject_id: SubjectId11;
   subject_type: ThreatSubjectType;
   technique_ids?: TechniqueIds8;
   tenant_id: TenantId32;
@@ -3333,7 +3361,7 @@ export interface TiSource {
 export interface TimelineEntry {
   at: At;
   detail?: Detail4;
-  kind: Kind8;
+  kind: Kind9;
   ref_id: RefId;
   severity?: Severity | null;
   title: Title3;
@@ -3347,7 +3375,7 @@ export interface Detail4 {
  */
 export interface TimelineResponse {
   entries?: Entries;
-  subject_id: SubjectId11;
+  subject_id: SubjectId12;
   subject_type: ThreatSubjectType;
 }
 /**
@@ -3357,7 +3385,7 @@ export interface TimelineResponse {
 export interface TwinAssetOut {
   criticality: Criticality;
   id: Id24;
-  kind: Kind9;
+  kind: Kind10;
   name?: Name15;
   tags?: Tags3;
 }
@@ -3367,7 +3395,7 @@ export interface TwinAssetOut {
  */
 export interface TwinRelationOut {
   dst: Dst1;
-  kind: Kind10;
+  kind: Kind11;
   src: Src1;
   weight: Weight;
 }
@@ -3389,7 +3417,7 @@ export interface TwinSnapshot {
 export interface TwinWeaknessOut {
   asset_id: AssetId;
   detail?: Detail5;
-  kind: Kind11;
+  kind: Kind12;
   severity: Severity1;
 }
 /**
