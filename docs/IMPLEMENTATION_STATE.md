@@ -7,8 +7,9 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 13 — Threat Memory + Predictive Intelligence. Units 1–4 done —
-Unit 4 local green, awaiting CI (see exit report below).** Three distinct stores, one graph database
+**Phase 13 — Threat Memory + Predictive Intelligence. COMPLETE /
+CI-VERIFIED (all five jobs, final run `34591054542`; see exit report
+below).** Three distinct stores, one graph database
 (`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
 persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
 memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
@@ -76,8 +77,7 @@ Phase 12's operator-action permissions). `frontend/web/app/(soc)/memory` —
 campaigns (+ predict trajectory), fingerprint lookup (+ predict lateral
 movement), similarity search, chain predictions — every prediction rendered
 with its confidence, evidence, and model version, never a bare verdict. See
-the Phase 13 exit report for full detail — **this closes Phase 13** pending
-CI confirmation.
+the Phase 13 exit report for full detail — **this closes Phase 13.**
 
 **Phase 12 — Simulation + Deception + Security Digital Twin. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34576850936`; see exit report
@@ -729,10 +729,11 @@ before Phase 2 is itself declared complete.
 
 ## Phase 13 exit report
 
-**State: Units 1-4 done, local green — awaiting CI to close.** Unit 1
-`fcdcdd7`, Unit 2 `2b802aa`, Unit 3 `50c3cbc`, Unit 4 this commit. Unit-level
-CI runs: 1 = `34582276848`, 2 = `34586331308`, 3 = `34588573722` (all five
-jobs each time).
+**State: COMPLETE / CI-VERIFIED (all five jobs, final run
+[`34591054542`](https://github.com/gaurav685/sentinelmesh/actions/runs/34591054542)).**
+Unit 1 `fcdcdd7`, Unit 2 `2b802aa`, Unit 3 `50c3cbc`, Unit 4 `0893662`.
+Unit-level CI runs: 1 = `34582276848`, 2 = `34586331308`, 3 = `34588573722`,
+4 = `34591054542` (all five jobs each time).
 
 **Three distinct stores, one graph database (ADR-011).** The operational
 attack graph and the persistent knowledge graph both stay in Neo4j
@@ -774,8 +775,8 @@ reason is the honest answer whenever the input cannot support one.
 - `docker build -f deploy/docker/Dockerfile.app` builds; `sm_memory_service`
   + `pgvector.sqlalchemy` import in the image; non-root uid `10001`
   confirmed.
-- **CI: pushed, not yet confirmed green as this report is written** — the
-  doc-close commit will record the run id once it is.
+- **CI green on a clean runner — all five jobs, final run `34591054542`**
+  (earlier unit runs `34582276848` / `34586331308` / `34588573722`).
 
 ### Pre-output engineering review (Constitution §23)
 
@@ -858,7 +859,7 @@ reason is the honest answer whenever the input cannot support one.
 | Every prediction: prediction + confidence + evidence/features + model version + timestamp | ✅ `Prediction` contract, enforced by the schema itself |
 | Never present a prediction as fact | ✅ `confidence=0.0` + a stated reason when underdetermined; no bare verdict anywhere |
 | Tests: memory write/read, retention, tenant isolation, similarity, prediction schema, model failure, stale memory, evidence grounding | ✅ all covered — real-Postgres tests for retention/tenant-isolation/similarity, unit tests for prediction schema + "model failure" (underdetermined-input) paths |
-| **CI green on a clean runner** | ⏳ pushed; the doc-close commit records the run id once confirmed |
+| **CI green on a clean runner** | ✅ **all five jobs — final run `34591054542`** (unit runs `34582276848` / `34586331308` / `34588573722`) |
 
 ## Phase 12 exit report
 
@@ -2550,8 +2551,8 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Units 1-4 done, local
-green — awaiting CI to close.** Three stores, one graph database (ADR-011);
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. COMPLETE /
+CI-VERIFIED (all five jobs, final run `34591054542`).** Three stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:
 1. ✅ **CI-VERIFIED (run `34582276848`, all five jobs).** `sm_ml.memory`
    (`technique_feature_vector`, `cosine_similarity` — deterministic, not a
@@ -2621,9 +2622,9 @@ never present a prediction as fact. Planned units:
    --check` (92 JSON Schema files); full `tests/integration` suite green;
    `frontend/web`: lint clean, build OK (18 routes), **56 vitest tests** (3
    new + 2 `contract.test.ts` fixtures); `Dockerfile.app` builds, image
-   imports clean, non-root uid confirmed. **This closes Phase 13** — see
-   the exit report above for the full §23 safety review. **Commit, push,
-   confirm CI green, then a doc-close commit.**
+   imports clean, non-root uid confirmed. **CI-VERIFIED (run `34591054542`,
+   all five jobs) — closes Phase 13.** See the exit report above for the
+   full §23 safety review.
 
 Exit next action after Phase 13: **PHASE 14 — Reporting + Storytelling**
 (prompt not yet given — do NOT start speculatively; the next session resumes
