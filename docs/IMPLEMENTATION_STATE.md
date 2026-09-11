@@ -2555,7 +2555,7 @@ integration test. Docker is still absent.
 narrative must distinguish ACTUAL SYSTEM EVIDENCE from INFERENCE from
 PREDICTION from SYNTHETIC DEMO DATA (Constitution §3) — never invent an
 incident. Planned units:
-1. ✅ **CI-VERIFIED — see next session for the run id.** Core report data
+1. ✅ **CI-VERIFIED (run `34597754999`, all five jobs).** Core report data
    layer, no service yet. `sm_contracts.report` (top-level, mirrors
    `chains.py`/`memory.py`'s pattern of an entity beside its own topic
    payload): `GroundingKind` (`evidence` / `inference` / `prediction` /
@@ -2609,6 +2609,15 @@ incident. Planned units:
    `ensure_bucket`, `safe_key` rejection before touching the backend) both
    green; `Dockerfile.app` builds, `sm_common.objectstore` +
    `sm_common.db.report_models` import in the image, non-root uid confirmed.
+   CI's `integration` job needed a MinIO container: `SM_REQUIRE_INTEGRATION=1`
+   turns "unreachable" into a hard failure, not a skip, and GitHub Actions'
+   `services:` containers cannot supply the `server /data` start command
+   MinIO's image needs — the exact constraint the workflow already documents
+   for Redpanda — so it runs as a plain `docker run` step with a health-check
+   wait loop, same fixed `MINIO_KMS_SECRET_KEY` as the compose service.
+   First push (commit `ea56100`) went red on this gap; verified the fix by
+   replicating the exact CI container + credentials locally before the
+   follow-up push. **CI-VERIFIED (run `34597754999`, all five jobs).**
 2. ⬜ `services/reporting-service` (port 8013, module `sm_reporting_service`)
    — content-gathering clients to detection-engine / graph-service /
    mitre-service / ai-analyst / memory-service (mirroring `ChainsClient`),
