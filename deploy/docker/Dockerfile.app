@@ -48,6 +48,7 @@ COPY packages/ai-py/pyproject.toml packages/ai-py/README.md packages/ai-py/
 COPY services/ai-analyst/pyproject.toml services/ai-analyst/README.md services/ai-analyst/
 COPY services/simulation-service/pyproject.toml services/simulation-service/README.md services/simulation-service/
 COPY services/memory-service/pyproject.toml services/memory-service/README.md services/memory-service/
+COPY services/reporting-service/pyproject.toml services/reporting-service/README.md services/reporting-service/
 
 COPY packages/contracts-py/src packages/contracts-py/src
 COPY packages/common-py/src    packages/common-py/src
@@ -66,8 +67,9 @@ COPY packages/ai-py/src packages/ai-py/src
 COPY services/ai-analyst/src services/ai-analyst/src
 COPY services/simulation-service/src services/simulation-service/src
 COPY services/memory-service/src services/memory-service/src
+COPY services/reporting-service/src services/reporting-service/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service ./services/correlation-engine ./packages/ai-py ./services/ai-analyst ./services/simulation-service ./services/memory-service \
+RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service ./services/correlation-engine ./packages/ai-py ./services/ai-analyst ./services/simulation-service ./services/memory-service ./services/reporting-service \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #
