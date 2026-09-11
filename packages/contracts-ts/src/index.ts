@@ -302,6 +302,20 @@ export type Principal = string;
 export type SourceHost = string | null;
 export type SourceIp = string | null;
 export type TargetHost = string | null;
+export type MaxHops = number;
+export type MinWeight = number;
+export type Seed = number;
+/**
+ * @minItems 1
+ * @maxItems 20
+ */
+export type Seeds = [string, ...string[]];
+export type AmplifyingWeaknesses = string[];
+export type CriticalReached = string[];
+export type Reached = string[];
+export type Score3 = number;
+export type Seed1 = number;
+export type Seeds1 = string[];
 /**
  * Normalized verb, e.g. 'connected_to'.
  */
@@ -393,7 +407,7 @@ export type Id3 = string;
 export type LastSeen3 = string;
 export type RawEventId2 = string | null;
 export type RuleId = string | null;
-export type Score3 = number;
+export type Score4 = number;
 /**
  * Detection lifecycle (Constitution §17).
  *
@@ -427,7 +441,7 @@ export type NextCursor2 = string | null;
 export type ComputedAt = string;
 export type CreatedAt5 = string;
 export type Id5 = string;
-export type Score4 = number;
+export type Score5 = number;
 export type SubjectId3 = string;
 export type TenantId6 = string;
 export type UpdatedAt5 = string;
@@ -481,7 +495,7 @@ export type RuleId1 = string | null;
 /**
  * Composite threat score in [0,1].
  */
-export type Score5 = number;
+export type Score6 = number;
 /**
  * Primary subject value.
  */
@@ -1282,7 +1296,9 @@ export type PermissionCode =
   | "hunt:query"
   | "reports:generate"
   | "response:execute"
-  | "response:approve";
+  | "response:approve"
+  | "simulation:run"
+  | "deception:manage";
 /**
  * Effective permissions for this session, resolved server-side.
  */
@@ -1370,7 +1386,7 @@ export type NetworkBoundary1 = "isolated" | "dmz-isolated";
 export type Tags2 = string[];
 export type TtlSeconds1 = number;
 export type ComputedAt1 = string;
-export type Score6 = number;
+export type Score7 = number;
 export type SubjectId7 = string;
 export type CreatedAt10 = string;
 export type Description4 = string;
@@ -1389,7 +1405,7 @@ export type FeedPipeline = boolean;
 export type Intensity = number;
 export type Kind4 = "apt" | "ransomware" | "insider" | "brute_force";
 export type Name9 = string;
-export type Seed = number;
+export type Seed2 = number;
 export type TargetHost1 = string;
 export type TargetIdentity = string;
 export type EventCount = number;
@@ -1409,7 +1425,7 @@ export type FedToPipeline = boolean;
 export type Intensity1 = number;
 export type Kind6 = "apt" | "ransomware" | "insider" | "brute_force";
 export type ScenarioId1 = string;
-export type Seed1 = number;
+export type Seed3 = number;
 export type Synthetic = boolean;
 export type TargetHost2 = string;
 export type TargetIdentity1 = string;
@@ -1507,6 +1523,33 @@ export type Title3 = string;
  */
 export type Entries = TimelineEntry[];
 export type SubjectId9 = string;
+export type Criticality = number;
+export type Id20 = string;
+export type Kind8 = string;
+export type Name15 = string;
+export type Tags3 = string[];
+export type Dst1 = string;
+export type Kind9 = string;
+export type Src1 = string;
+export type Weight = number;
+/**
+ * @maxItems 200
+ */
+export type Assets = TwinAssetOut[];
+/**
+ * @maxItems 1000
+ */
+export type Relations = TwinRelationOut[];
+export type Seed4 = number;
+export type Synthetic1 = boolean;
+export type AssetId = string;
+export type Detail5 = string;
+export type Kind10 = string;
+export type Severity1 = string;
+/**
+ * @maxItems 200
+ */
+export type Weaknesses = TwinWeaknessOut[];
 export type CreatedAt16 = string;
 export type DisplayName2 = string;
 export type Email3 = string;
@@ -1514,7 +1557,7 @@ export type Email3 = string;
  * OIDC `sub` for federated users; null for local-only users.
  */
 export type ExternalSubject1 = string | null;
-export type Id20 = string;
+export type Id21 = string;
 export type LastLoginAt1 = string | null;
 export type TenantId31 = string;
 export type UpdatedAt15 = string;
@@ -1793,6 +1836,32 @@ export interface AuthEventPayload {
   target_host?: TargetHost;
 }
 /**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "BlastRadiusRequest".
+ */
+export interface BlastRadiusRequest {
+  max_hops?: MaxHops;
+  min_weight?: MinWeight;
+  seed?: Seed;
+  seeds: Seeds;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "BlastRadiusResult".
+ */
+export interface BlastRadiusResult {
+  amplifying_weaknesses?: AmplifyingWeaknesses;
+  critical_reached?: CriticalReached;
+  hop_of?: HopOf;
+  reached?: Reached;
+  score: Score3;
+  seed: Seed1;
+  seeds: Seeds1;
+}
+export interface HopOf {
+  [k: string]: number;
+}
+/**
  * The normalized view of one telemetry event. Written by
  * `normalization-engine`, consumed by the graph, detection and memory
  * subsystems.
@@ -1882,7 +1951,7 @@ export interface Detection {
   last_seen: LastSeen3;
   raw_event_id?: RawEventId2;
   rule_id?: RuleId;
-  score: Score3;
+  score: Score4;
   scoring_status: ScoringStatus;
   severity: Severity;
   status: DetectionStatus;
@@ -1959,7 +2028,7 @@ export interface ThreatScore {
   computed_at: ComputedAt;
   created_at: CreatedAt5;
   id: Id5;
-  score: Score4;
+  score: Score5;
   scoring_status: ScoringStatus;
   subject_id: SubjectId3;
   subject_type: ThreatSubjectType;
@@ -2031,7 +2100,7 @@ export interface DetectionPayload {
   occurred_at: OccurredAt2;
   raw_event_id?: RawEventId3;
   rule_id?: RuleId1;
-  score: Score5;
+  score: Score6;
   scoring_status: ScoringStatus;
   severity: Severity;
   subject_id?: SubjectId4;
@@ -2896,7 +2965,7 @@ export interface RegisterDecoyRequest {
  */
 export interface RiskSubject {
   computed_at: ComputedAt1;
-  score: Score6;
+  score: Score7;
   scoring_status: ScoringStatus;
   subject_id: SubjectId7;
   subject_type: ThreatSubjectType;
@@ -2946,7 +3015,7 @@ export interface RunScenarioRequest {
   intensity?: Intensity;
   kind: Kind4;
   name: Name9;
-  seed?: Seed;
+  seed?: Seed2;
   target_host: TargetHost1;
   target_identity: TargetIdentity;
 }
@@ -2962,7 +3031,7 @@ export interface ScenarioRunResult {
   intensity: Intensity1;
   kind: Kind6;
   scenario_id: ScenarioId1;
-  seed: Seed1;
+  seed: Seed3;
   synthetic?: Synthetic;
   target_host: TargetHost2;
   target_identity: TargetIdentity1;
@@ -3156,6 +3225,48 @@ export interface TimelineResponse {
   subject_type: ThreatSubjectType;
 }
 /**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "TwinAssetOut".
+ */
+export interface TwinAssetOut {
+  criticality: Criticality;
+  id: Id20;
+  kind: Kind8;
+  name?: Name15;
+  tags?: Tags3;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "TwinRelationOut".
+ */
+export interface TwinRelationOut {
+  dst: Dst1;
+  kind: Kind9;
+  src: Src1;
+  weight: Weight;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "TwinSnapshot".
+ */
+export interface TwinSnapshot {
+  assets?: Assets;
+  relations?: Relations;
+  seed: Seed4;
+  synthetic?: Synthetic1;
+  weaknesses?: Weaknesses;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "TwinWeaknessOut".
+ */
+export interface TwinWeaknessOut {
+  asset_id: AssetId;
+  detail?: Detail5;
+  kind: Kind10;
+  severity: Severity1;
+}
+/**
  * Response alias for `User` — kept as an explicit type so the API surface is
  * named independently of the internal entity.
  *
@@ -3167,7 +3278,7 @@ export interface UserResponse {
   display_name: DisplayName2;
   email: Email3;
   external_subject?: ExternalSubject1;
-  id: Id20;
+  id: Id21;
   last_login_at?: LastLoginAt1;
   status: UserStatus;
   tenant_id: TenantId31;

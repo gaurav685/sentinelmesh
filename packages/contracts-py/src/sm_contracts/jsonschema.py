@@ -14,6 +14,8 @@ from pydantic import BaseModel
 from .api import (
     AgentRunRequest,
     AgentRunResult,
+    BlastRadiusRequest,
+    BlastRadiusResult,
     CreateUserRequest,
     CursorPage,
     Decoy,
@@ -43,6 +45,7 @@ from .api import (
     SocHuntResponse,
     SocSummary,
     TimelineResponse,
+    TwinSnapshot,
     UserResponse,
 )
 from .chains import AttackChainModel, AttackChainPayload, ChainStageModel
@@ -171,6 +174,9 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "RegisterDecoyRequest": RegisterDecoyRequest,
     "Decoy": Decoy,
     "DecoyInteraction": DecoyInteraction,
+    "TwinSnapshot": TwinSnapshot,
+    "BlastRadiusRequest": BlastRadiusRequest,
+    "BlastRadiusResult": BlastRadiusResult,
     "CursorPage_Detection": DetectionPage,
     "CursorPage_SecurityAlert": AlertPage,
     "CursorPage_AttackChain": ChainPage,

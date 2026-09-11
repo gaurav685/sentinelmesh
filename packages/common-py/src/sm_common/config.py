@@ -94,6 +94,8 @@ class AppSettings(BaseSettings):
     # bounded regardless of what the plan (or the LLM that produced it) asked.
     hunt_max_rows: int = Field(default=200, ge=1, le=2_000)
     hunt_max_depth: int = Field(default=3, ge=1, le=5)
+    # Simulation + deception (Phase 12) — api-gateway's SOC BFF proxy target.
+    simulation_service_url: str = "http://localhost:8011"
 
     # ---- kafka (event bus; ADR-008) -----------------------------------
     kafka_bootstrap_servers: str = "localhost:9092"

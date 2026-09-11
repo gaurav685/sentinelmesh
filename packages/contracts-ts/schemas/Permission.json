@@ -16,7 +16,9 @@
         "hunt:query",
         "reports:generate",
         "response:execute",
-        "response:approve"
+        "response:approve",
+        "simulation:run",
+        "deception:manage"
       ],
       "title": "PermissionCode",
       "type": "string"

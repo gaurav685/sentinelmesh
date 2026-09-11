@@ -330,7 +330,26 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** **invariant: no route from deception segment into production data planes or credentials**; decoy data cannot auto-trigger response.
 - **Test:** isolation tests (assert no reachability to prod services), export-path tests, injection-from-decoy handling.
 - **Verification method:** network-policy tests in k8s (later); local isolation simulated.
-- **Phase:** P9. **Status:** ARCHITECTURE DEFINED. **EXTERNALLY DEPENDENT** for real decoy infra.
+- **Phase:** P9. **Status:** IMPLEMENTED (P12). **Deviations, all deliberate:**
+  decoys live in `services/simulation-service` (not a separate
+  `deception-service`) — `DecoyRepository` over Postgres `decoy` /
+  `decoy_interaction` (migration `0007`); `network_boundary` is
+  schema-**and**-DB-CHECK-constrained to `isolated` / `dmz-isolated` —
+  `'production'` is not a legal value at either layer, which is the isolation
+  invariant this row calls for. No `adversary_profile` table / clustering —
+  that piece is genuinely not built (adversary profiling was optional in the
+  original spec). API is
+  `POST/GET/DELETE /api/v1/deception/decoys...` (role-gated via
+  `deception:manage`, proxied through `api-gateway`'s SOC BFF at
+  `/api/v1/soc/deception/...`), not an admin-only surface — this build has no
+  separate "admin API" tier yet. Export is one-way (`POST .../interactions`
+  captures, nothing pushes data back out); decoys carry no credential field at
+  all, so "limited credentials" is "no credentials." Teardown is idempotent;
+  interaction history survives it for audit. `frontend/web/app/(soc)/deception`
+  — register / list / teardown / view interactions, badged "SIMULATION".
+  **Not verified:** no decoy has faced a real attacker; a k8s network-policy
+  isolation test is out of scope for this build (there is no k8s deployment
+  yet) — isolation here is enforced by the data model, not a network boundary.
 
 ### R17 — Attack Simulation Mode
 - **Purpose:** APT/ransomware/insider/brute-force simulations, synthetic attack generation, interactive replay — isolated and safe.
@@ -346,9 +365,27 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** **invariant: never generates real traffic/attacks; cannot emit `response.actions`; all output labeled `SIMULATION`; deterministic + reproducible**.
 - **Test:** determinism tests (same seed → same events), label-propagation tests, "cannot emit response.action" test, isolation test.
 - **Verification method:** unit + integration; determinism assertions.
-- **Phase:** P9. **Status:** ARCHITECTURE DEFINED.
-
-### R18 — Threat Hunting Panel
+- **Phase:** P9. **Status:** IMPLEMENTED (P12). `sm_ml.scenario` — four
+  deterministic templates (apt / ransomware / insider / brute_force) run
+  against a seeded `SyntheticEnvironment` (every entity id `sim-`-prefixed);
+  `validate_spec` raises `ScenarioIsolationError` unless every target is a
+  synthetic id present in that env — a real-looking id is refused before a
+  single event is produced. `services/simulation-service`
+  `POST /api/v1/sim/scenarios/run` (proxied at
+  `/api/v1/soc/simulation/run`, role-gated via `simulation:run`) runs a
+  scenario; every emitted `SimEvent` carries `simulated=True` + its
+  `scenario_id`. With `feed_pipeline: true`, `pipeline.py` produces the events
+  onto the real `telemetry.raw` topic with `source.type = "simulation"` — so a
+  drill exercises real normalization → detection → correlation → graph,
+  labelled at every hop — never a code path to an external system.
+  `replay_run` gives a deterministic read-only slice of a completed run.
+  **Same-seed runs are byte-identical** (test-asserted). **Deviations:** no
+  separate `simulation` / `simulation_run` / `scenario` Postgres tables — a
+  run's events are returned in the response and, if requested, streamed into
+  the existing telemetry pipeline; nothing about a run is persisted
+  server-side today (a gap, not a safety issue — decoys and their
+  interactions *are* persisted). `frontend/web/app/(soc)/simulation`, badged
+  "SIMULATION".
 - **Purpose:** IOC exploration, graph pivoting, advanced graph querying, search users/devices/chains/indicators.
 - **Subsystem:** Frontend / Graph / API.
 - **Service:** `frontend/web` + `api-gateway` + `graph-service` (+ `ai-analyst-service` for NL, R32).
@@ -521,7 +558,15 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** **invariant: demo activity is never presented as a real incident; demo data isolated to a demo tenant**.
 - **Test:** determinism tests, label tests, "no real-incident classification" test.
 - **Verification method:** e2e demo run assertions.
-- **Phase:** P9. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P9. **Status:** FOUNDATION IMPLEMENTED (P12) — **not fully
+  implemented, stated plainly.** The engine a demo mode would drive now
+  exists and is reachable end to end (R17's `simulation-service`, deterministic
+  and clearly labelled `simulated`), so a guided demo could be built on top of
+  it. **Not built:** a dedicated demo tenant, a guided walkthrough UI, or any
+  "investor-ready" polish layer — `frontend/web/app/(soc)/simulation` is an
+  operator tool (a form + a twin view), not a scripted demo experience. No
+  "demo-flagged" scenario table exists (see R17's deviation note — no
+  scenario table exists at all yet). Do not report this row as complete.
 
 ### R27 — Documentation Ecosystem
 - **Purpose:** API docs, README optimization, infra flowcharts, architecture diagrams, demo GIFs, benchmarks, ATT&CK mapping docs, setup instructions — accurate to implementation status.
@@ -679,9 +724,25 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-7; twin runs cannot affect production detection or emit response actions; predictions labeled probabilistic.
 - **Test:** isolation tests, reproducibility, "no production impact" tests.
 - **Verification method:** unit + integration; **predictions are not accuracy-claimed**.
-- **Phase:** P9. **Status:** ARCHITECTURE DEFINED.
-
-### R36 — AI-Powered Root Cause Engine
+- **Phase:** P9. **Status:** IMPLEMENTED (P12). `sm_ml.twin` — `TwinModel`
+  (`TwinAsset` + `TwinRelation` + `TwinWeakness`, deterministic stdlib, no
+  ML/GNN involved despite the row's original "ML/AI" note — this is a
+  structural graph, not a learned model, so there is nothing probabilistic to
+  state uncertainty for). `attack_paths` (bounded simple paths, feasibility =
+  product of relation weights), `blast_radius` → reached set + per-hop
+  distance + a criticality-weighted `score` ∈ [0,1] + amplifying weaknesses,
+  `stress_test` + `DefensiveControl` → which paths a control set breaks + the
+  most valuable control. `sm_ml.twin.synthetic.twin_from_synthetic_env` reads
+  the twin directly off the same `SyntheticEnvironment` a scenario runs
+  against — no separate, independently-maintained asset inventory to drift
+  from reality. `services/simulation-service`
+  `GET /api/v1/sim/twin` + `POST /api/v1/sim/twin/blast-radius` (proxied at
+  `/api/v1/soc/simulation/twin` + `.../blast-radius`, role-gated via
+  `simulation:run`); `frontend/web/app/(soc)/simulation` renders the asset /
+  relation / weakness table and a per-asset blast-radius view. **Deviations:**
+  no `digital_twin_model` Postgres table — the twin is a pure function of a
+  seed, computed on read, not stored; there is no twin over anything but the
+  synthetic environment (no real-asset digital twin exists in this build).
 - **Purpose:** entry-point analysis, misconfiguration discovery, breach causality mapping — evidence-based, no false certainty.
 - **Subsystem:** AI Analyst.
 - **Service:** `ai-analyst-service` (`rca/`).

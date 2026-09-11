@@ -28,7 +28,7 @@ from sm_common.observability import build_metrics, configure_tracing, shutdown_t
 from .deps import Services
 from .metrics import SimulationMetrics
 from .repository import DecoyRepository
-from .routes import deception, health, metrics, scenarios
+from .routes import deception, health, metrics, scenarios, twin
 from .version import SERVICE_NAME, SERVICE_VERSION
 
 __all__ = ["build_services", "create_app"]
@@ -92,5 +92,6 @@ def create_app(
     app.include_router(health.router)
     app.include_router(metrics.router)
     app.include_router(scenarios.router)
+    app.include_router(twin.router)
     app.include_router(deception.router)
     return app

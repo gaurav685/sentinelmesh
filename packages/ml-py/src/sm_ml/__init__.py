@@ -84,6 +84,7 @@ from .twin import (
     blast_radius,
     build_twin,
     stress_test,
+    twin_from_synthetic_env,
 )
 
 __all__ = [
@@ -154,5 +155,6 @@ __all__ = [
     "schema_for",
     "stitch_sessions",
     "stress_test",
+    "twin_from_synthetic_env",
     "validate_spec",
 ]

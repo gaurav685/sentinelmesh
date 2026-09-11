@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "amplifying_weaknesses": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Amplifying Weaknesses",
+      "type": "array"
+    },
+    "critical_reached": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Critical Reached",
+      "type": "array"
+    },
+    "hop_of": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Hop Of",
+      "type": "object"
+    },
+    "reached": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Reached",
+      "type": "array"
+    },
+    "score": {
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Score",
+      "type": "number"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "seeds": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Seeds",
+      "type": "array"
+    }
+  },
+  "required": [
+    "seed",
+    "seeds",
+    "score"
+  ],
+  "title": "BlastRadiusResult",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

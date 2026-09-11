@@ -74,6 +74,10 @@ class PermissionCode(StrEnum):
     response_execute = "response:execute"
     response_approve = "response:approve"
 
+    # simulation + deception (Phase 12)
+    simulation_run = "simulation:run"
+    deception_manage = "deception:manage"
+
 
 class ActorType(StrEnum):
     user = "user"
