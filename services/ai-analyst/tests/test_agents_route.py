@@ -11,10 +11,19 @@ from sm_ai_analyst.analyst import IncidentAnalyst
 from sm_ai_analyst.app import create_app
 from sm_ai_analyst.deps import Services
 from sm_ai_analyst.metrics import AnalystMetrics
+from sm_ai_analyst.narrative import NarrativeComposer
 from sm_common.observability import build_metrics
 from sm_contracts import AgentRunRequest, EvidenceRef
 
-from .conftest import build_client, build_settings, canned_client, token
+from .conftest import (
+    FakeChainsClient,
+    FakeDb,
+    FakeNarrativeRepository,
+    build_client,
+    build_settings,
+    canned_client,
+    token,
+)
 
 
 def _req(agent: str) -> dict[str, Any]:
@@ -45,6 +54,11 @@ def _services(runner: AgentRunner) -> Services:
         hunt_planner=HuntPlanner(None, model="m"),
         llm=None,
         llm_live_capable=False,
+        db=FakeDb(),  # type: ignore[arg-type]
+        http=None,  # type: ignore[arg-type]
+        chains=FakeChainsClient(),  # type: ignore[arg-type]
+        narrative_repo=FakeNarrativeRepository(),  # type: ignore[arg-type]
+        narrative_composer=NarrativeComposer(None, model="m", max_output_tokens=200),
     )
 
 

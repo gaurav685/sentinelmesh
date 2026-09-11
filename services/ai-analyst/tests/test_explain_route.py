@@ -10,9 +10,18 @@ from sm_ai_analyst.analyst import IncidentAnalyst
 from sm_ai_analyst.app import create_app
 from sm_ai_analyst.deps import Services
 from sm_ai_analyst.metrics import AnalystMetrics
+from sm_ai_analyst.narrative import NarrativeComposer
 from sm_common.observability import build_metrics
 
-from .conftest import build_settings, canned_client, make_request, token
+from .conftest import (
+    FakeChainsClient,
+    FakeDb,
+    FakeNarrativeRepository,
+    build_settings,
+    canned_client,
+    make_request,
+    token,
+)
 
 
 @pytest.fixture
@@ -36,6 +45,11 @@ def client() -> Any:
         hunt_planner=HuntPlanner(None, model="test-model"),
         llm=None,
         llm_live_capable=False,
+        db=FakeDb(),  # type: ignore[arg-type]
+        http=None,  # type: ignore[arg-type]
+        chains=FakeChainsClient(),  # type: ignore[arg-type]
+        narrative_repo=FakeNarrativeRepository(),  # type: ignore[arg-type]
+        narrative_composer=NarrativeComposer(None, model="test-model", max_output_tokens=400),
     )
     with TestClient(create_app(services=services)) as c:
         yield c

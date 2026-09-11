@@ -2661,12 +2661,47 @@ incident. Planned units:
    (`sm_reporting_service`, `sm_common.objectstore`, `reportlab`,
    `aioboto3`). **CI-VERIFIED (run `34631135008`, all five jobs, first
    push — no follow-up fix needed).**
-3. ⬜ Attack storytelling in `services/ai-analyst` (R33) — new `narrative`
-   module + Postgres `narrative` table + migration, `GET
-   /api/v1/incidents/{id}/narrative`, LLM-grounded narrative generation
-   (every beat cites evidence via `GroundedStatement`-shaped output),
-   simulation-sourced narratives labeled `SIMULATION` (Phase 12's badge
-   convention), grounding + no-fabricated-events tests.
+3. ✅ Attack storytelling in `services/ai-analyst` (R33). "Incident" in
+   `GET /api/v1/incidents/{chain_id}/narrative` is an attack chain — this
+   platform has no separate `Incident` entity (§3 still lists one
+   PLANNED) — so the path id is `correlation-engine`'s own chain id.
+   `chains_client.py` (copied from `sm_memory_service`'s, audience
+   `correlation-engine`) fetches the chain; `narrative.py`'s
+   `NarrativeComposer` builds one `NarrativeBeat` per `ChainStageModel`
+   **deterministically** — stage, detection_ids, technique_ids, straight
+   from the chain, never touched by the LLM — then composes ONE grounded
+   summary paragraph reusing `IncidentAnalyst.explain`'s exact
+   citation-and-retry mechanism (every sentence must cite a beat's
+   `stage` value, one repair turn, then a deterministic factual template
+   with `degraded=True` — never a third try to invent a stage). A chain
+   whose `subject_id` is simulation-generated
+   (`sm_ml.scenario.is_synthetic_id`) narrates with every beat tagged
+   `GroundingKind.synthetic` and `Narrative.simulated=True` — the
+   contract-level version of Phase 12's "SIMULATION" badge, not a
+   separate ad hoc flag. New Postgres `narrative` table (migration
+   `0012`, ai-analyst's first — this service had no database before),
+   upserted per `(tenant_id, chain_id)` on every `GET` (a narrative is a
+   snapshot, not append-only). ai-analyst gained `sm-ml` (base install
+   only — `is_synthetic_id`) and `httpx` as direct dependencies.
+   Local: ruff + `mypy --strict` clean (390 files, full CI static tree),
+   **873 unit tests** (13 new: 9 composer incl. grounding-tier and
+   no-fabrication assertions, 4 route) + `gen_contracts --check` (99 JSON
+   Schema files, 2 new: `Narrative`, `NarrativeBeat`); new real-Postgres
+   integration test (`tests/integration/test_narrative_repository_pg.py`,
+   4 tests: tenant-scoped get, upsert-replaces-not-duplicates, simulated
+   round trip); full `tests/integration` suite green. Manually verified
+   end to end against the real compose stack: inserted a real
+   `attack_chain`/`attack_chain_stage` row, called the narrative endpoint
+   through the real `correlation-engine` over the network, got back a
+   beat matching the stage exactly and a `degraded=True` factual summary
+   (no LLM key configured in the smoke environment) — then repeated with
+   a `sim-`-prefixed subject id and confirmed every beat came back tagged
+   `synthetic` with `simulated: true`. Wiring: `docker-compose.yml`'s
+   `ai-analyst` block gained `SM_CORRELATION_ENGINE_URL` (compose service
+   name — previously unset, a real gap the smoke test caught: without it
+   the container defaults to `localhost:8009`, unreachable from inside
+   its own container) and a `depends_on: postgres, migrate` it didn't
+   need before.
 4. ⬜ `api-gateway` BFF (`routes/reports.py`, `reports:read`/`reports:generate`
    enforcement incl. compliance-report role gate for `lead`/`tenant_admin`,
    migration widening `permission.code` for `reports:read`) +
