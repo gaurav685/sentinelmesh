@@ -96,6 +96,14 @@ class AppSettings(BaseSettings):
     hunt_max_depth: int = Field(default=3, ge=1, le=5)
     # Simulation + deception (Phase 12) — api-gateway's SOC BFF proxy target.
     simulation_service_url: str = "http://localhost:8011"
+    # Threat memory (Phase 13) — api-gateway's SOC BFF proxy target, and
+    # memory-service's own retention / campaign-matching policy.
+    memory_service_url: str = "http://localhost:8012"
+    memory_retention_sweep_seconds: int = Field(default=3_600, ge=60, le=86_400)
+    memory_dormant_after_days: int = Field(default=14, ge=1, le=365)
+    memory_close_after_days: int = Field(default=60, ge=1, le=730)
+    memory_retention_days: int = Field(default=180, ge=1, le=3_650)
+    memory_campaign_similarity_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
 
     # ---- kafka (event bus; ADR-008) -----------------------------------
     kafka_bootstrap_servers: str = "localhost:9092"

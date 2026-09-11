@@ -12,15 +12,12 @@ Import surface is intentionally flat for consumers:
 from __future__ import annotations
 
 from .api import (
-    AdversaryFingerprint,
     AgentFinding,
     AgentRunRequest,
     AgentRunResult,
     AnalystModelInfo,
     BlastRadiusRequest,
     BlastRadiusResult,
-    Campaign,
-    CampaignStatus,
     CreateUserRequest,
     CursorPage,
     Decoy,
@@ -43,7 +40,6 @@ from .api import (
     LoginRequest,
     LoginResponse,
     LogoutResponse,
-    MemoryPatternKind,
     MeResponse,
     MetaResponse,
     MitreHeatmap,
@@ -62,11 +58,9 @@ from .api import (
     ScenarioKind,
     ScenarioRunResult,
     SimEventOut,
-    SimilarityMatch,
     SocHuntRequest,
     SocHuntResponse,
     SocSummary,
-    ThreatMemory,
     TimelineEntry,
     TimelineResponse,
     TwinAssetOut,
@@ -164,6 +158,16 @@ from .graph import (
     graph_command_id,
     graph_node_uid,
     normalize_label,
+)
+from .memory import (
+    MEMORY_PAYLOADS,
+    AdversaryFingerprint,
+    Campaign,
+    CampaignStatus,
+    CampaignUpdatePayload,
+    MemoryPatternKind,
+    SimilarityMatch,
+    ThreatMemory,
 )
 from .mitre import (
     AttackMatrixVersion,
@@ -422,10 +426,13 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "TwinWeaknessOut",
     "BlastRadiusRequest",
     "BlastRadiusResult",
+    # threat memory (Phase 13)
     "ThreatMemory",
     "Campaign",
     "CampaignStatus",
     "AdversaryFingerprint",
     "SimilarityMatch",
     "MemoryPatternKind",
+    "CampaignUpdatePayload",
+    "MEMORY_PAYLOADS",
 ]
