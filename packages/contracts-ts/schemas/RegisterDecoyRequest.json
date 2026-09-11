@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "enum": [
+        "honeypot_host",
+        "honeytoken",
+        "decoy_credential"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 120,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "network_boundary": {
+      "enum": [
+        "isolated",
+        "dmz-isolated"
+      ],
+      "title": "Network Boundary",
+      "type": "string"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Tags",
+      "type": "array"
+    },
+    "ttl_seconds": {
+      "default": 86400,
+      "maximum": 2592000,
+      "minimum": 60,
+      "title": "Ttl Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "kind",
+    "network_boundary"
+  ],
+  "title": "RegisterDecoyRequest",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

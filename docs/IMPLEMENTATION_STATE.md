@@ -8,7 +8,7 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 12 — Simulation + Deception + Security Digital Twin. IN PROGRESS —
-Units 1–2 done (Unit 2 local green, awaiting CI).** Unit 1 (CI-verified, run
+Units 1–3 done (Unit 3 local green, awaiting CI).** Unit 1 (CI-verified, run
 `34449930913`): `sm_ml.twin` — `build_twin(assets, relations, weaknesses) ->
 TwinModel` (frozen, sorted, validated — deterministic, stdlib).
 `attack_paths(twin, sources=, targets=, max_depth=)` (bounded, simple paths,
@@ -17,14 +17,27 @@ ordered by feasibility), `blast_radius(twin, seeds=, max_hops=, min_weight=)` �
 criticality-weighted score + amplifying weaknesses), `stress_test(twin, ...,
 controls=[DefensiveControl])` → which attack paths a control set
 (`block_relation_kind` / `isolate_asset` / `harden_asset`) would break, the
-residual risk, and the single most valuable control. Unit 2: `sm_ml.scenario` —
-`build_synthetic_env(seed)` (deterministic, every id `sim-`-prefixed, never
-real), `ScenarioSpec` (apt / ransomware / insider / brute_force),
-`validate_spec` (raises `ScenarioIsolationError` unless every target is a
-synthetic id present in the env), `run_scenario` (deterministic ordered
-`SimEvent`s, each `simulated=True` + its `scenario_id`), `replay_run`
-(deterministic read-only slice). **Scenario execution and blast-radius analysis
-run against this model, never against real systems.**
+residual risk, and the single most valuable control. Unit 2 (CI-verified, run
+`34569040279`): `sm_ml.scenario` — `build_synthetic_env(seed)` (deterministic,
+every id `sim-`-prefixed, never real), `ScenarioSpec` (apt / ransomware /
+insider / brute_force), `validate_spec` (raises `ScenarioIsolationError` unless
+every target is a synthetic id present in the env), `run_scenario`
+(deterministic ordered `SimEvent`s, each `simulated=True` + its `scenario_id`),
+`replay_run` (deterministic read-only slice). Unit 3 (local green, awaiting
+CI): `services/simulation-service` (port 8011) — `POST
+/api/v1/sim/scenarios/run` runs a scenario against a fresh synthetic
+environment built from the request's own seed and, when `feed_pipeline: true`,
+produces every mappable event onto `telemetry.raw` (`source.type =
+"simulation"`) via `pipeline.py`; `sm_contracts.api.simulation`
+(`RunScenarioRequest` / `ScenarioRunResult` / `RegisterDecoyRequest` / `Decoy` /
+`DecoyInteractionIn` / `DecoyInteraction`, `NetworkBoundary` excludes
+`"production"`); the deception decoy registry (`/api/v1/deception/decoys...`,
+`DecoyRepository` over Postgres tables `decoy` / `decoy_interaction`, migration
+`0007`, `network_boundary` CHECK-constrained the same way at the DB level —
+verified against real Postgres in `tests/integration/test_simulation_pg.py`);
+idempotent teardown; a torn-down decoy captures no further interactions.
+**Scenario execution and blast-radius analysis run against this model, never
+against real systems.**
 
 **Phase 11 — Threat Hunting + Natural Language Querying. COMPLETE / CI-VERIFIED**
 (all five jobs, final run `34448406595`; unit runs `34446018571` /
@@ -2167,7 +2180,7 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Unit 2 done — local
+**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Unit 3 done — local
 gauntlet green, awaiting CI.** Everything synthetic, isolated, deterministic;
 scenarios run against a model, never real systems. Planned units:
 1. ✅ **CI-VERIFIED (run `34449930913`).** `sm_ml.twin` — `TwinModel`
@@ -2191,12 +2204,29 @@ scenarios run against a model, never real systems. Planned units:
    `replay_run` (deterministic read-only slice; an inverted window raises).
    Local: ruff + `mypy --strict` clean (42 files), **723 unit tests** (17 new)
    + `gen_contracts --check`; `Dockerfile.app` builds + `sm_ml.scenario`
-   imports. **Commit, push, confirm CI green.**
-3. `services/simulation-service` — a scenario-run endpoint + a deception decoy
-   registry (`decoy` / `decoy_interaction`, migration `0007`; isolation
-   invariants: a `network_boundary` is required, never `production`, one-way
-   export, teardown, audit). Simulation events are fed to the pipeline labelled
-   `simulated`.
+   imports. **CI-VERIFIED (run `34569040279`).**
+3. ✅ `services/simulation-service` (port 8011) — `POST
+   /api/v1/sim/scenarios/run` (isolation-refused target → 422, `feed_pipeline`
+   without the event bus → 422, deterministic run given the same seed) + a
+   deception decoy registry (`POST/GET/DELETE /api/v1/deception/decoys...`,
+   `decoy` / `decoy_interaction` tables, migration `0007`; isolation
+   invariants: `network_boundary` is schema- and DB-CHECK-constrained to
+   `isolated` / `dmz-isolated`, never `production`; decoys carry no credential
+   field; interaction capture is one-way; teardown is idempotent and a
+   torn-down decoy captures nothing further). `sm_contracts.api.simulation`
+   added (6 models, wired into `jsonschema.py` — 84 JSON Schema files).
+   Local: ruff + `mypy --strict` clean (92 files across contracts-py /
+   common-py / simulation-service), **739 unit tests** (23 new) +
+   `gen_contracts --check`; real-Postgres integration test
+   (`tests/integration/test_simulation_pg.py`, 4 tests: tenant isolation,
+   idempotent teardown keeps history, torn-down decoy captures nothing, the
+   `network_boundary` CHECK rejects `'production'` at the database level, not
+   just the schema); full `tests/integration` suite (all real infra) green;
+   `Dockerfile.app` builds, `sm_simulation_service` imports in the image,
+   non-root uid 10001 confirmed; CI (`.github/workflows/ci.yml`) and
+   `deploy/docker/{Dockerfile.app,docker-compose.yml}` wired (profile
+   `detect`, depends on `postgres` + `migrate`). **Commit, push, confirm CI
+   green.**
 4. `api-gateway` BFF + `frontend/web` (a simulation page badged "SIMULATION", a
    blast-radius view, a deception page) + Phase 12 close (exit report + §23 +
    `REQUIREMENTS_TRACEABILITY` R16 / R17 / R26 / R35 + `CONTRACTS.md`).

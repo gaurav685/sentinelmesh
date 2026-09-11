@@ -1,0 +1,142 @@
+{
+  "$defs": {
+    "SimEventOut": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Actor",
+          "type": "string"
+        },
+        "at_offset_s": {
+          "minimum": 0,
+          "title": "At Offset S",
+          "type": "integer"
+        },
+        "attributes": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Attributes",
+          "type": "object"
+        },
+        "kind": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "scenario_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "simulated": {
+          "default": true,
+          "title": "Simulated",
+          "type": "boolean"
+        },
+        "step": {
+          "minimum": 0,
+          "title": "Step",
+          "type": "integer"
+        },
+        "target": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step",
+        "at_offset_s",
+        "kind",
+        "actor",
+        "target",
+        "scenario_id"
+      ],
+      "title": "SimEventOut",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "event_count": {
+      "minimum": 0,
+      "title": "Event Count",
+      "type": "integer"
+    },
+    "events": {
+      "items": {
+        "$ref": "#/$defs/SimEventOut"
+      },
+      "maxItems": 2000,
+      "title": "Events",
+      "type": "array"
+    },
+    "fed_event_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Fed Event Count",
+      "type": "integer"
+    },
+    "fed_to_pipeline": {
+      "default": false,
+      "title": "Fed To Pipeline",
+      "type": "boolean"
+    },
+    "intensity": {
+      "title": "Intensity",
+      "type": "integer"
+    },
+    "kind": {
+      "enum": [
+        "apt",
+        "ransomware",
+        "insider",
+        "brute_force"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "scenario_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "synthetic": {
+      "default": true,
+      "title": "Synthetic",
+      "type": "boolean"
+    },
+    "target_host": {
+      "title": "Target Host",
+      "type": "string"
+    },
+    "target_identity": {
+      "title": "Target Identity",
+      "type": "string"
+    }
+  },
+  "required": [
+    "scenario_id",
+    "kind",
+    "seed",
+    "target_host",
+    "target_identity",
+    "intensity",
+    "event_count"
+  ],
+  "title": "ScenarioRunResult",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
