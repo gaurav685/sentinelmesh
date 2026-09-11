@@ -2618,15 +2618,48 @@ incident. Planned units:
    First push (commit `ea56100`) went red on this gap; verified the fix by
    replicating the exact CI container + credentials locally before the
    follow-up push. **CI-VERIFIED (run `34597754999`, all five jobs).**
-2. ⬜ `services/reporting-service` (port 8013, module `sm_reporting_service`)
-   — content-gathering clients to detection-engine / graph-service /
-   mitre-service / ai-analyst / memory-service (mirroring `ChainsClient`),
-   report assembly against `_TEMPLATES`' section lists (a missing content
-   dependency lands the section in `missing_sections` and the report as
-   `partial`, never fabricated), PDF rendering (library TBD — `reportlab`
-   confirmed pip-installable, no system deps, not yet added to any
-   `pyproject.toml`), `POST /api/v1/reports` + `GET /api/v1/reports/{id}`
-   (pre-signed download via `ObjectStore`), produces `report.generated`.
+2. ✅ `services/reporting-service` (port 8013, module `sm_reporting_service`,
+   HTTP-triggered — no Kafka consumer). Content gathering hits every
+   dependency `docs/architecture/service-catalog.md` names for this
+   service: `detection-engine` (`content_repository.py`, direct Postgres
+   read — it exposes no read API of its own, mirroring `api-gateway`'s own
+   `SqlSocRepository`), `graph-service` / `mitre-service` / `ai-analyst` /
+   `memory-service` (`content_client.py`, internal HTTP, mirrors
+   `api-gateway`'s `InternalServiceClient`). `ai-analyst`'s grounded
+   `/explain` narrative is only called when the report's subject *is* a
+   detection (`ExplainRequest`'s subject type has no host/ip/domain/
+   identity variant); `memory-service`'s lateral-movement prediction is
+   folded into `findings` tier `prediction`, dropped entirely when
+   `confidence == 0.0` (mirrors `sm_ml.predict`'s own convention — never
+   present a non-prediction as a result). Every dependency's failure lands
+   its section in `missing_sections` -> report `partial`, filtered against
+   the report kind's own `report_template.sections` first (a section the
+   template never asked for is not a gap). PDF rendering
+   (`renderer.py`, `reportlab`, added to `services/reporting-service`'s own
+   `pyproject.toml` — not `sm_common`, since PDF rendering is
+   reporting-service-specific). `POST /api/v1/reports` + `GET
+   /api/v1/reports/{id}` (pre-signed download via `sm_common.objectstore`,
+   5-minute TTL). Object-storage failure (never a content-dependency
+   failure) is the only thing that makes a report `failed`, per
+   service-catalog. Produces `report.generated`.
+   Local: ruff + `mypy --strict` clean (384 files, full CI static tree),
+   **860 unit tests** (27 new: 9 generator, 6 content-client (`respx`), 5
+   renderer (`pypdf`-verified text extraction), 7 route) + `gen_contracts
+   --check`; new real-Postgres integration test
+   (`tests/integration/test_reporting_repositories_pg.py`, 6 tests:
+   tenant-scoped detection/report reads, the app-level entity filter over
+   `detection.entities`, the `report`/`report_template` round trip through
+   JSONB); full `tests/integration` suite (real Postgres/Redis/Neo4j/
+   MinIO/Kafka) green; `Dockerfile.app` + `docker-compose.yml` wired
+   (profile `detect`, port 8013, depends on `postgres` + `migrate`) and
+   manually smoke-tested end to end against the real compose stack — a
+   `POST /api/v1/reports` for a subject with no telemetry came back
+   `partial` (graph-service/memory-service unreachable in the smoke
+   environment, correctly listed in `missing_sections`) with a real PDF
+   uploaded to MinIO, downloaded via its presigned URL, and confirmed a
+   valid single-page PDF. CI's `image` job import-check line extended
+   (`sm_reporting_service`, `sm_common.objectstore`, `reportlab`,
+   `aioboto3`).
 3. ⬜ Attack storytelling in `services/ai-analyst` (R33) — new `narrative`
    module + Postgres `narrative` table + migration, `GET
    /api/v1/incidents/{id}/narrative`, LLM-grounded narrative generation

@@ -19,6 +19,7 @@ tables:
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String
@@ -83,7 +84,11 @@ class ReportRow(TimestampMixin, Base):
     generated_at: Mapped[datetime | None] = mapped_column(nullable=True)
     #: The assembled `sm_contracts.report.Report` body (everything but the
     #: identity/status columns above), stored whole — see module docstring.
-    body: Mapped[dict[str, object]] = mapped_column(_JSONB, nullable=False, server_default=sa_text("'{}'::jsonb"))
+    #: `dict[str, Any]`, not a stricter type: non-authoritative JSON,
+    #: validated at the trust boundary (`ReportRepository._report_out`
+    #: rebuilds each field through its Pydantic type), not in the type
+    #: system (mirrors `metadata`/`settings` elsewhere in the platform).
+    body: Mapped[dict[str, Any]] = mapped_column(_JSONB, nullable=False, server_default=sa_text("'{}'::jsonb"))
     missing_sections: Mapped[list[str]] = mapped_column(
         _JSONB, nullable=False, server_default=sa_text("'[]'::jsonb")
     )
