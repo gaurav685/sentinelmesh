@@ -1,0 +1,161 @@
+{
+  "$defs": {
+    "TwinAssetOut": {
+      "additionalProperties": false,
+      "properties": {
+        "criticality": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Criticality",
+          "type": "number"
+        },
+        "id": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "default": "",
+          "title": "Name",
+          "type": "string"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "criticality"
+      ],
+      "title": "TwinAssetOut",
+      "type": "object"
+    },
+    "TwinRelationOut": {
+      "additionalProperties": false,
+      "properties": {
+        "dst": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Dst",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "src": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Src",
+          "type": "string"
+        },
+        "weight": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Weight",
+          "type": "number"
+        }
+      },
+      "required": [
+        "src",
+        "dst",
+        "kind",
+        "weight"
+      ],
+      "title": "TwinRelationOut",
+      "type": "object"
+    },
+    "TwinWeaknessOut": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "maxLength": 96,
+          "minLength": 1,
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 32,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "severity": {
+          "maxLength": 16,
+          "minLength": 1,
+          "title": "Severity",
+          "type": "string"
+        }
+      },
+      "required": [
+        "asset_id",
+        "kind",
+        "severity"
+      ],
+      "title": "TwinWeaknessOut",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assets": {
+      "items": {
+        "$ref": "#/$defs/TwinAssetOut"
+      },
+      "maxItems": 200,
+      "title": "Assets",
+      "type": "array"
+    },
+    "relations": {
+      "items": {
+        "$ref": "#/$defs/TwinRelationOut"
+      },
+      "maxItems": 1000,
+      "title": "Relations",
+      "type": "array"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "synthetic": {
+      "default": true,
+      "title": "Synthetic",
+      "type": "boolean"
+    },
+    "weaknesses": {
+      "items": {
+        "$ref": "#/$defs/TwinWeaknessOut"
+      },
+      "maxItems": 200,
+      "title": "Weaknesses",
+      "type": "array"
+    }
+  },
+  "required": [
+    "seed"
+  ],
+  "title": "TwinSnapshot",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

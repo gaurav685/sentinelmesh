@@ -23,6 +23,7 @@ from .model import (
     build_twin,
 )
 from .stress import DefensiveControl, StressReport, apply_controls, stress_test
+from .synthetic import twin_from_synthetic_env
 
 __all__ = [
     "AssetKind",
@@ -41,4 +42,5 @@ __all__ = [
     "blast_radius",
     "build_twin",
     "stress_test",
+    "twin_from_synthetic_env",
 ]

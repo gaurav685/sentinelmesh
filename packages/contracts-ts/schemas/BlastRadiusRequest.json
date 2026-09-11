@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "max_hops": {
+      "default": 4,
+      "maximum": 12,
+      "minimum": 1,
+      "title": "Max Hops",
+      "type": "integer"
+    },
+    "min_weight": {
+      "default": 0.0,
+      "maximum": 1.0,
+      "minimum": 0.0,
+      "title": "Min Weight",
+      "type": "number"
+    },
+    "seed": {
+      "default": 1,
+      "minimum": 0,
+      "title": "Seed",
+      "type": "integer"
+    },
+    "seeds": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Seeds",
+      "type": "array"
+    }
+  },
+  "required": [
+    "seeds"
+  ],
+  "title": "BlastRadiusRequest",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

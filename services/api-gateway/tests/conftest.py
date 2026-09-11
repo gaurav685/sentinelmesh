@@ -103,10 +103,14 @@ class FakeInternalClient:
         self.calls: list[tuple[str, Any]] = []
         self.responses: dict[str, Any] = {}
         self.fail = False
+        #: Queued 422s: dependency understood the request and rejected it.
+        self.validation_errors: dict[str, str] = {}
 
     async def _answer(self, name: str, tenant_id: UUID) -> Any:
-        from sm_common.errors import DependencyUnavailable
+        from sm_common.errors import DependencyUnavailable, ValidationFailed
         self.calls.append((name, tenant_id))
+        if name in self.validation_errors:
+            raise ValidationFailed(self.validation_errors[name])
         if self.fail:
             raise DependencyUnavailable(f"{name} unreachable")
         return self.responses.get(name)
@@ -154,6 +158,30 @@ class FakeInternalClient:
 
     async def mitre_techniques(self, tenant_id: UUID) -> Any:
         return await self._answer("mitre_techniques", tenant_id)
+
+    async def sim_run_scenario(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("sim_run_scenario", tenant_id)
+
+    async def sim_twin(self, tenant_id: UUID, *, seed: int) -> Any:
+        return await self._answer("sim_twin", tenant_id)
+
+    async def sim_blast_radius(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("sim_blast_radius", tenant_id)
+
+    async def register_decoy(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("register_decoy", tenant_id)
+
+    async def list_decoys(self, tenant_id: UUID, *, status: str | None = None) -> Any:
+        return await self._answer("list_decoys", tenant_id)
+
+    async def get_decoy(self, tenant_id: UUID, decoy_id: str) -> Any:
+        return await self._answer("get_decoy", tenant_id)
+
+    async def teardown_decoy(self, tenant_id: UUID, decoy_id: str) -> Any:
+        return await self._answer("teardown_decoy", tenant_id)
+
+    async def list_decoy_interactions(self, tenant_id: UUID, decoy_id: str) -> Any:
+        return await self._answer("list_decoy_interactions", tenant_id)
 
 
 # --------------------------------------------------------------------------- #
@@ -574,7 +602,12 @@ def fixture() -> Fixture:
         PermissionCode.roles_grant,
         PermissionCode.ops_read,
     ]
-    analyst_perms = [PermissionCode.detections_read, PermissionCode.hunt_query]
+    analyst_perms = [
+        PermissionCode.detections_read,
+        PermissionCode.hunt_query,
+        PermissionCode.simulation_run,
+        PermissionCode.deception_manage,
+    ]
     for code in {*admin_perms, *analyst_perms}:
         perm = _permission(code)
         store.permissions[perm.id] = perm

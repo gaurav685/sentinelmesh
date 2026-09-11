@@ -7,8 +7,8 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 12 — Simulation + Deception + Security Digital Twin. IN PROGRESS —
-Units 1–3 done (Unit 3 CI-verified, run `34572530014`).** Unit 1 (CI-verified, run
+**Phase 12 — Simulation + Deception + Security Digital Twin. Units 1–4 done —
+Unit 4 local green, awaiting CI (see exit report below).** Unit 1 (CI-verified, run
 `34449930913`): `sm_ml.twin` — `build_twin(assets, relations, weaknesses) ->
 TwinModel` (frozen, sorted, validated — deterministic, stdlib).
 `attack_paths(twin, sources=, targets=, max_depth=)` (bounded, simple paths,
@@ -37,7 +37,19 @@ produces every mappable event onto `telemetry.raw` (`source.type =
 verified against real Postgres in `tests/integration/test_simulation_pg.py`);
 idempotent teardown; a torn-down decoy captures no further interactions.
 **Scenario execution and blast-radius analysis run against this model, never
-against real systems.**
+against real systems.** Unit 4 (local green, awaiting CI):
+`sm_ml.twin.twin_from_synthetic_env(env) -> TwinModel` (reads the twin off the
+same synthetic environment a scenario runs against — a fixed role-dependency
+graph, no separate asset inventory); `GET /api/v1/sim/twin?seed=` +
+`POST /api/v1/sim/twin/blast-radius` on `simulation-service`; new permissions
+`simulation:run` / `deception:manage` (migration `0008`); `api-gateway`
+`routes/simulation.py` proxies scenario-run + twin + blast-radius + the full
+deception decoy registry under `/api/v1/soc/{simulation,deception}/...`
+(`require_permission` + CSRF on writes; a downstream `422` is now
+`ValidationFailed`, not a misleading `DependencyUnavailable`);
+`frontend/web/app/(soc)/{simulation,deception}`, both badged "SIMULATION". See
+the Phase 12 exit report for full detail — **this closes Phase 12** pending
+CI confirmation.
 
 **Phase 11 — Threat Hunting + Natural Language Querying. COMPLETE / CI-VERIFIED**
 (all five jobs, final run `34448406595`; unit runs `34446018571` /
@@ -642,6 +654,158 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 12 exit report
+
+**State: Units 1-4 done, local green — awaiting CI to close.** Unit 1 `dd175ad`,
+Unit 2 `6506b05`, Unit 3 `c976438` (+ CI fix `59d5991`), Unit 4 this commit.
+Unit-level CI runs: 1 = `34449930913`, 2 = `34569040279`, 3 = `34572530014`
+(all five jobs each time).
+
+**Simulation stays isolated. There is no code path from a scenario or a decoy
+to a real system.** A scenario's target must be a synthetic (`sim-`-prefixed)
+id present in a synthetic environment generated from the request's own seed —
+`ScenarioIsolationError` refuses anything else before a single event is
+produced. `feed_pipeline: true` only ever produces onto the one `telemetry.raw`
+topic every other producer already writes to, with `source.type = "simulation"`
+on every envelope — there is no other topic, queue, or network call a scenario
+can reach. A decoy's `network_boundary` can only be `isolated` or
+`dmz-isolated` — `'production'` is not a legal value at the API schema layer
+**or** the database `CHECK` constraint, so it cannot be recorded even if a
+caller bypasses the API. A decoy carries no credential field at all.
+Interaction capture is one-way (there is no endpoint that pushes anything
+from a decoy back out). Teardown is idempotent and the interaction history
+survives it for audit.
+
+### Delivered (Units 1-4)
+
+| Area | State |
+|---|---|
+| Digital twin (Unit 1) | `sm_ml.twin` — `TwinModel` (`TwinAsset` / `TwinRelation` / `TwinWeakness`, `build_twin` validates + freezes + sorts, deterministic stdlib). `attack_paths` (bounded simple paths, feasibility-ordered), `blast_radius` → `BlastRadiusReport` (reached set, per-hop, critical-reached, criticality-weighted score, amplifying weaknesses), `stress_test` + `DefensiveControl` → which paths a control set breaks + residual risk + most-valuable control. |
+| Synthetic scenario engine (Unit 2) | `sm_ml.scenario` — `build_synthetic_env(seed)` (deterministic, every id `sim-`-prefixed), `ScenarioSpec` (apt / ransomware / insider / brute_force, Pydantic frozen + `extra=forbid`), `validate_spec` (`ScenarioIsolationError` unless every target is synthetic and present), `run_scenario` (seeded-RNG deterministic ordered `SimEvent`s, each `simulated=True` + `scenario_id`), `replay_run` (deterministic read-only slice). |
+| Simulation service + deception registry (Unit 3) | `services/simulation-service` (port 8011): `POST /api/v1/sim/scenarios/run` (isolation-refused → 422, `feed_pipeline` with no bus → 422); `pipeline.py` maps `SimEvent` → the closest real telemetry payload and produces it with `source.type = "simulation"`. Deception: `POST/GET/DELETE /api/v1/deception/decoys...`, `DecoyRepository` over Postgres `decoy` / `decoy_interaction` (migration `0007`); idempotent teardown; a torn-down decoy captures nothing further. `sm_contracts.api.simulation` (`RunScenarioRequest` / `ScenarioRunResult` / `RegisterDecoyRequest` / `Decoy` / `DecoyInteractionIn` / `DecoyInteraction`). |
+| Twin surfaced + BFF + frontend (Unit 4) | `sm_ml.twin.twin_from_synthetic_env(env) -> TwinModel` — a deterministic twin read off the *same* synthetic environment a scenario runs against (a fixed role-dependency graph: `web → app → db/file`, `workstation → dc`, `dc trusts` every other host; `dc`/`db` get seeded weaknesses) — no second, independently-maintained asset inventory to drift from it. `GET /api/v1/sim/twin?seed=` + `POST /api/v1/sim/twin/blast-radius` on `simulation-service`. New permissions `simulation:run` / `deception:manage` (migration `0008`: widens the `permission.code` CHECK, seeds both codes, grants to `platform_operator` / `tenant_admin` / `lead` / `analyst` — deliberately not `read_only`). `api-gateway` `routes/simulation.py` — full BFF proxy (`/api/v1/soc/simulation/{run,twin,blast-radius}`, `/api/v1/soc/deception/decoys...`), every route `require_permission` + CSRF on writes, tenant from the session `Principal`; `InternalServiceClient._request` now re-raises a downstream `422` as `ValidationFailed` (previously flattened into a misleading `DependencyUnavailable` 503 — an isolation refusal is not an outage). `frontend/web/app/(soc)/simulation` (run form, twin asset/relation/weakness tables, per-asset blast-radius view) and `.../deception` (register / list / teardown / interactions), both badged "SIMULATION"; nav entries gated on the new permissions. |
+
+### Verification performed (local, 2026-09-11)
+
+- `ruff check` clean over `packages services tests migrations scripts`;
+  `mypy --strict` over all 17 static trees CI checks (339 files) clean.
+- **763 unit tests** (24 new this unit: 7 `sm_ml.twin` synthetic-twin tests, 5
+  `simulation-service` twin-route tests, 12 `api-gateway` simulation/deception
+  BFF tests) + `gen_contracts.py --check` (87 JSON Schema files, up from 84).
+- Real infra: `tests/integration` full suite green against real
+  PostgreSQL 16 + Redis + Neo4j 5 (`SM_REQUIRE_INTEGRATION=1` — a skip fails
+  the run); `test_migrations_pg.py` updated for the new head (`0008`) and
+  permission/grant counts (16 permissions; `platform_operator` holds all 16).
+- `frontend/web`: `npm run lint` clean, `npm run build` OK (17 routes,
+  `/simulation` + `/deception` new), **51 vitest tests** (9 new: 2 simulation
+  page, 5 deception page, 3 `contract.test.ts` fixtures for
+  `ScenarioRunResult` / `TwinSnapshot` + `BlastRadiusResult` / `Decoy`).
+- `docker build -f deploy/docker/Dockerfile.app` builds; `sm_simulation_service`
+  (and every other service module) imports in the image; non-root uid `10001`
+  confirmed; the production fail-fast guards still refuse an unsafe config.
+- **CI: pushed, not yet confirmed green as this report is written** — the
+  doc-close commit will record the run id once it is.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Never build uncontrolled offensive tooling; never let simulation attack
+  arbitrary external systems (the phase's SAFETY clause).** A scenario's
+  `target_host` / `target_identity` must be `is_synthetic_id` **and** present
+  in the seed-derived `SyntheticEnvironment`, checked by `validate_spec`
+  before `run_scenario` produces a single event — a real-looking id
+  (`web01`) or an id from a different seed's environment is refused (422).
+  There is no HTTP client, socket, or subprocess anywhere in
+  `sm_ml.scenario` or `services/simulation-service`'s scenario path; the only
+  network egress `feed_pipeline` performs is a `Kafka` produce onto
+  `telemetry.raw`, the same topic `ingestion-gateway` already writes to.
+- **Deception isolation, explicit boundaries, limited credentials, capture,
+  audit, teardown.** `NetworkBoundary = Literal["isolated", "dmz-isolated"]`
+  — `'production'` is absent from the type, so a request for it is a 422
+  before any handler runs; the same allow-list is a Postgres `CHECK`
+  (`ck_decoy_network_boundary`), verified against real Postgres in
+  `tests/integration/test_simulation_pg.py::test_network_boundary_check_
+  rejects_production_at_the_database_level` (a raw `INSERT ... 'production'`
+  raises `IntegrityError`). `Decoy` / `RegisterDecoyRequest` have no
+  credential-shaped field at all. `DecoyInteractionIn` captures
+  attacker-supplied `source` / `technique_hint` / `detail` for **display
+  only** — never parsed as anything executable, never fed back anywhere.
+  `DELETE .../decoys/{id}` (teardown) is idempotent and a torn-down decoy's
+  `record_interaction` returns `None` (404 at the API), so it captures
+  nothing further; interaction history is retained (never deleted) for audit.
+- **Twin runs cannot affect production detection or emit a response action.**
+  `twin_from_synthetic_env` only ever reads a `SyntheticEnvironment` — it has
+  no code path to Neo4j, Postgres, or any other service; `blast_radius` /
+  `attack_paths` are pure functions over that in-memory model. Nothing in
+  Phase 12 calls `sm_ai.agents.action_gate` or produces a `response.action` —
+  there is no path from a twin or scenario result to an autonomous action.
+- **Authorization + audit.** Every new BFF route is behind
+  `require_permission(PermissionCode.simulation_run |
+  PermissionCode.deception_manage)` (deny-by-default, metered + audited on
+  denial) plus CSRF double-submit on every write; a test asserts
+  `globex_admin` (neither permission) gets 403 on both surfaces. `simulation:run`
+  and `deception:manage` are new, closed-vocabulary permission codes (a
+  migration widens the `permission.code` CHECK — the same pattern `0002`
+  established, never a free-text column) and are not granted to `read_only`.
+- **A downstream validation failure is not disguised as an outage.**
+  `InternalServiceClient._request` previously flattened every non-2xx,
+  non-404 status (including a legitimate 422 isolation refusal) into
+  `DependencyUnavailable` (503) — technically safe (the UI never fabricates
+  a result) but misleading (a 503 reads as "the service is down", not "your
+  request was invalid"). Fixed to re-raise a `422` as `ValidationFailed`,
+  carrying the dependency's own message; a test
+  (`test_run_scenario_isolation_refusal_is_422_not_503`) asserts the BFF now
+  returns 422, not 503, for an isolation refusal.
+- **No fabricated metrics, no fabricated attack activity.** `TwinModel`'s
+  criticality / weight / severity values are fixed constants attached to a
+  synthetic role graph, never presented as a measured or trained figure.
+  Every scenario response has `synthetic: true`; every emitted event has
+  `simulated: true`; both frontend pages carry a visible "SIMULATION" badge.
+  `docs/REQUIREMENTS_TRACEABILITY.md` R26 is marked **FOUNDATION
+  IMPLEMENTED**, not complete — no demo-tenant or guided-walkthrough layer
+  was built, and the doc says so rather than rounding up.
+- **The twin has no separate, independently-maintained asset inventory to
+  drift from reality.** `twin_from_synthetic_env` is a pure read of the same
+  `SyntheticEnvironment` object a scenario run is validated against — there
+  is exactly one source of truth for "what synthetic entities exist," not two
+  that could silently disagree.
+
+### Deferred (deliberately)
+
+- **A twin over anything but the synthetic environment.** There is no
+  real-asset digital twin in this build — R35's "environment representation"
+  is the synthetic estate only; a production asset inventory feeding a twin
+  is future work.
+- **Persisting a scenario run.** A run's events are returned in the response
+  and, optionally, streamed into the telemetry pipeline; nothing about the
+  run itself (its spec, its id, when it ran) is written to Postgres. Decoys
+  and their interactions *are* persisted — this gap is scenario-runs only.
+- **`stress_test` / `DefensiveControl` are not exposed through any API yet.**
+  `sm_ml.twin.stress_test` exists and is unit-tested (Unit 1) but
+  `simulation-service` only surfaces `blast_radius` and `attack_paths`
+  indirectly (via the reached-set in the blast-radius response); a
+  dedicated "what would blocking X break" endpoint is future work.
+- **R26's demo-tenant / guided-walkthrough layer.** The engine it would run
+  on exists (R17); the demo-specific UI and tenant isolation do not.
+- **Adversary profiling (R16's optional clustering).** Never in scope for
+  this build; interaction capture is the full extent of "profiling" here.
+- **A k8s network-policy isolation test.** There is no k8s deployment yet;
+  isolation is enforced by the data model (schema + DB CHECK), not a network
+  boundary — stated as a limitation, not hidden.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| Synthetic attack scenarios: APT / ransomware / insider-threat / brute-force | ✅ four deterministic templates, `sm_ml.scenario` |
+| Attack replay | ✅ `replay_run` (deterministic read-only slice) |
+| Deception / honeypot architecture: isolation, explicit boundaries, limited credentials, capture, audit, teardown | ✅ schema + DB-CHECK boundary allow-list, no credential field, one-way capture, idempotent teardown, retained history |
+| Never uncontrolled offensive tooling; never attack arbitrary external systems | ✅ synthetic-id-only targets, `ScenarioIsolationError`, no network egress beyond one Kafka topic |
+| Never connect deception infra to production without explicit controls | ✅ `'production'` is not a legal `network_boundary` value at schema **or** DB level |
+| Digital twin: assets, relationships, dependencies, vulnerabilities/misconfigs, attack paths, blast radius | ✅ `sm_ml.twin` + `twin_from_synthetic_env`; scenario execution runs against the model, never real systems |
+| Defensive stress testing | ✅ `stress_test` + `DefensiveControl` (library-level; no dedicated API yet) |
+| Tests: deterministic scenarios, isolation, replay, blast-radius calculation, deception event capture, teardown, authorization | ✅ all covered, incl. real-Postgres CHECK-constraint verification |
+| **CI green on a clean runner** | ⏳ pushed; the doc-close commit records the run id once confirmed |
 
 ## Phase 11 exit report
 
@@ -2180,8 +2344,8 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Units 1-3 done and
-CI-verified. Exact next action: Unit 4.** Everything synthetic, isolated,
+**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Units 1-4 done,
+local green — awaiting CI to close.** Everything synthetic, isolated,
 deterministic; scenarios run against a model, never real systems. Planned units:
 1. ✅ **CI-VERIFIED (run `34449930913`).** `sm_ml.twin` — `TwinModel`
    (`TwinAsset` / `TwinRelation` / `TwinWeakness`, `build_twin` validates +
@@ -2227,10 +2391,26 @@ deterministic; scenarios run against a model, never real systems. Planned units:
    `deploy/docker/{Dockerfile.app,docker-compose.yml}` wired (profile
    `detect`, depends on `postgres` + `migrate`). **CI-VERIFIED (run
    `34572530014`, all five jobs).**
-4. `api-gateway` BFF + `frontend/web` (a simulation page badged "SIMULATION", a
-   blast-radius view, a deception page) + Phase 12 close (exit report + §23 +
-   `REQUIREMENTS_TRACEABILITY` R16 / R17 / R26 / R35 + `CONTRACTS.md`). **This
-   is the next unit to implement.**
+4. ✅ `sm_ml.twin.twin_from_synthetic_env` + `GET /api/v1/sim/twin` +
+   `POST /api/v1/sim/twin/blast-radius` on `simulation-service`; new
+   permissions `simulation:run` / `deception:manage` (migration `0008`,
+   widens the `permission.code` CHECK, seeds + grants both — not to
+   `read_only`); `api-gateway` `routes/simulation.py` — full BFF proxy for
+   scenario-run + twin + blast-radius + the deception registry under
+   `/api/v1/soc/{simulation,deception}/...`, every route `require_permission`
+   + CSRF on writes; a downstream `422` is now `ValidationFailed` (was a
+   misleading `DependencyUnavailable`). `frontend/web/app/(soc)/simulation`
+   (run form, twin table, per-asset blast-radius) and `.../deception`
+   (register/list/teardown/interactions), both badged "SIMULATION"; nav gated
+   on the new permissions. Local: ruff + `mypy --strict` clean (339 files,
+   full CI static tree), **763 unit tests** (24 new) + `gen_contracts --check`
+   (87 JSON Schema files); `tests/integration` full suite green (real
+   Postgres/Redis/Neo4j) incl. updated `test_migrations_pg.py` (head `0008`,
+   16 permissions); `frontend/web`: lint clean, build OK (17 routes), **51
+   vitest tests** (9 new + 3 `contract.test.ts` fixtures); `Dockerfile.app`
+   rebuilds, image imports clean, non-root uid 10001 confirmed. **This closes
+   Phase 12** — see the exit report below for the full §23 safety review.
+   **Commit, push, confirm CI green, then a doc-close commit.**
 
 Exit next action after Phase 12: **PHASE 13 — Memory + Predictive Intelligence**
 (prompt not yet given — do NOT start speculatively; the next session resumes

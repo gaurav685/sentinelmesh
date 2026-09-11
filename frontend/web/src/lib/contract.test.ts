@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type {
   AttackChainModel,
+  BlastRadiusResult,
+  Decoy,
   Detection,
+  ScenarioRunResult,
   SocHuntResponse,
   SocSummary,
+  TwinSnapshot,
 } from "@sentinelmesh/contracts";
 
 /**
@@ -83,5 +87,54 @@ describe("generated contract types", () => {
       },
     };
     expect(res.result?.intent).toBe("list_related");
+  });
+
+  it("ScenarioRunResult matches a BFF /soc/simulation/run response", () => {
+    const result: ScenarioRunResult = {
+      scenario_id: "scn-1",
+      kind: "brute_force",
+      seed: 1,
+      target_host: "sim-host-00",
+      target_identity: "sim-id-alice",
+      intensity: 2,
+      event_count: 1,
+      events: [
+        { step: 0, at_offset_s: 0, kind: "auth_failed", actor: "sim-ip-00", target: "sim-id-alice" },
+      ],
+      synthetic: true,
+      fed_to_pipeline: false,
+      fed_event_count: 0,
+    };
+    expect(result.synthetic).toBe(true);
+  });
+
+  it("TwinSnapshot and BlastRadiusResult match /soc/simulation/twin + /blast-radius", () => {
+    const snapshot: TwinSnapshot = {
+      seed: 1,
+      synthetic: true,
+      assets: [{ id: "sim-host-00", kind: "host", name: "web00", criticality: 0.3, tags: ["web"] }],
+      relations: [{ src: "sim-host-00", dst: "sim-ip-00", kind: "connects_to", weight: 0.9 }],
+      weaknesses: [{ asset_id: "sim-host-00", kind: "public_exposure", severity: "high", detail: "" }],
+    };
+    const blast: BlastRadiusResult = {
+      seed: 1,
+      seeds: ["sim-host-00"],
+      reached: ["sim-host-00", "sim-ip-00"],
+      hop_of: { "sim-host-00": 0, "sim-ip-00": 1 },
+      critical_reached: [],
+      score: 0.25,
+      amplifying_weaknesses: [],
+    };
+    expect(snapshot.assets?.length).toBe(1);
+    expect(blast.score).toBe(0.25);
+  });
+
+  it("Decoy's network_boundary excludes 'production' at the type level", () => {
+    const decoy: Decoy = {
+      id: "d1", tenant_id: "t1", name: "ssh-honeypot", kind: "honeypot_host",
+      network_boundary: "isolated", status: "active", ttl_seconds: 3600,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    expect(decoy.network_boundary).not.toBe("production");
   });
 });

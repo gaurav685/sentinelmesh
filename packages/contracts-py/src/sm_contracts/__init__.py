@@ -16,6 +16,8 @@ from .api import (
     AgentRunRequest,
     AgentRunResult,
     AnalystModelInfo,
+    BlastRadiusRequest,
+    BlastRadiusResult,
     CreateUserRequest,
     CursorPage,
     Decoy,
@@ -61,6 +63,10 @@ from .api import (
     SocSummary,
     TimelineEntry,
     TimelineResponse,
+    TwinAssetOut,
+    TwinRelationOut,
+    TwinSnapshot,
+    TwinWeaknessOut,
     UserResponse,
 )
 from .chains import (
@@ -404,4 +410,10 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "ScenarioKind",
     "ScenarioRunResult",
     "SimEventOut",
+    "TwinAssetOut",
+    "TwinRelationOut",
+    "TwinSnapshot",
+    "TwinWeaknessOut",
+    "BlastRadiusRequest",
+    "BlastRadiusResult",
 ]

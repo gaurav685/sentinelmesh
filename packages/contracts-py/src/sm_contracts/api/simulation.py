@@ -17,6 +17,8 @@ from pydantic import Field, field_validator
 from ..common import SmBaseModel, to_utc
 
 __all__ = [
+    "BlastRadiusRequest",
+    "BlastRadiusResult",
     "Decoy",
     "DecoyInteraction",
     "DecoyInteractionIn",
@@ -27,6 +29,10 @@ __all__ = [
     "ScenarioKind",
     "ScenarioRunResult",
     "SimEventOut",
+    "TwinAssetOut",
+    "TwinRelationOut",
+    "TwinSnapshot",
+    "TwinWeaknessOut",
 ]
 
 ScenarioKind = Literal["apt", "ransomware", "insider", "brute_force"]
@@ -129,3 +135,55 @@ class DecoyInteraction(SmBaseModel):
     @classmethod
     def _utc(cls, v: datetime) -> datetime:
         return to_utc(v)
+
+
+class TwinAssetOut(SmBaseModel):
+    id: str = Field(min_length=1, max_length=96)
+    kind: str = Field(min_length=1, max_length=32)
+    name: str = ""
+    criticality: float = Field(ge=0.0, le=1.0)
+    tags: list[str] = Field(default_factory=list)
+
+
+class TwinRelationOut(SmBaseModel):
+    src: str = Field(min_length=1, max_length=96)
+    dst: str = Field(min_length=1, max_length=96)
+    kind: str = Field(min_length=1, max_length=32)
+    weight: float = Field(ge=0.0, le=1.0)
+
+
+class TwinWeaknessOut(SmBaseModel):
+    asset_id: str = Field(min_length=1, max_length=96)
+    kind: str = Field(min_length=1, max_length=32)
+    severity: str = Field(min_length=1, max_length=16)
+    detail: str = ""
+
+
+class TwinSnapshot(SmBaseModel):
+    #: The seed the synthetic environment (and therefore the twin) was built
+    #: from — same seed, same twin, every time.
+    seed: int
+    assets: list[TwinAssetOut] = Field(default_factory=list, max_length=200)
+    relations: list[TwinRelationOut] = Field(default_factory=list, max_length=1000)
+    weaknesses: list[TwinWeaknessOut] = Field(default_factory=list, max_length=200)
+    #: Always true — this twin is read off the synthetic environment, never a
+    #: real asset inventory.
+    synthetic: bool = True
+
+
+class BlastRadiusRequest(SmBaseModel):
+    seed: int = Field(default=1, ge=0)
+    #: Synthetic asset ids an attacker is assumed to already hold.
+    seeds: list[str] = Field(min_length=1, max_length=20)
+    max_hops: int = Field(default=4, ge=1, le=12)
+    min_weight: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+class BlastRadiusResult(SmBaseModel):
+    seed: int
+    seeds: list[str]
+    reached: list[str] = Field(default_factory=list)
+    hop_of: dict[str, int] = Field(default_factory=dict)
+    critical_reached: list[str] = Field(default_factory=list)
+    score: float = Field(ge=0.0, le=1.0)
+    amplifying_weaknesses: list[str] = Field(default_factory=list)

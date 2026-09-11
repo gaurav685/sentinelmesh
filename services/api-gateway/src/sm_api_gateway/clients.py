@@ -9,7 +9,10 @@ scope.
 
 Any transport failure or non-2xx from a dependency is surfaced as
 `DependencyUnavailable` (HTTP 503) — the SOC UI shows an error state, it never
-sees a raw 500 or a fabricated result.
+sees a raw 500 or a fabricated result. The one exception is a `422` (the
+dependency understood the request and rejected it as invalid — an isolation
+refusal, say): that is a real client error, not an outage, so it is re-raised
+as `ValidationFailed` with the dependency's own message.
 """
 
 from __future__ import annotations
@@ -19,7 +22,7 @@ from uuid import UUID
 
 import httpx
 
-from sm_common.errors import DependencyUnavailable
+from sm_common.errors import DependencyUnavailable, ValidationFailed
 from sm_common.security import mint_internal_token
 
 __all__ = ["InternalServiceClient"]
@@ -32,6 +35,7 @@ class InternalServiceClient:
         self, http: httpx.AsyncClient, *, signing_key: str, ttl_seconds: int,
         correlation_url: str, graph_url: str, ti_url: str, mitre_url: str,
         ai_analyst_url: str = "http://localhost:8010",
+        simulation_url: str = "http://localhost:8011",
     ) -> None:
         self._http = http
         self._key = signing_key
@@ -42,6 +46,7 @@ class InternalServiceClient:
             "threat-intel-service": ti_url.rstrip("/"),
             "mitre-service": mitre_url.rstrip("/"),
             "ai-analyst": ai_analyst_url.rstrip("/"),
+            "simulation-service": simulation_url.rstrip("/"),
         }
 
     def _token(self, audience: str, tenant_id: UUID) -> str:
@@ -64,6 +69,13 @@ class InternalServiceClient:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 404:
                 return None
+            if exc.response.status_code == 422:
+                message = f"{audience} rejected the request"
+                try:
+                    message = exc.response.json()["error"]["message"]
+                except (ValueError, KeyError, TypeError):
+                    pass
+                raise ValidationFailed(message) from exc
             raise DependencyUnavailable(f"{audience} returned {exc.response.status_code}") from exc
         except httpx.HTTPError as exc:
             raise DependencyUnavailable(f"{audience} unreachable: {exc}") from exc
@@ -143,4 +155,47 @@ class InternalServiceClient:
     async def explain(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
         return await self._request(
             "ai-analyst", "POST", "/api/v1/analyst/explain", tenant_id, json=payload
+        )
+
+    # ---- simulation-service: scenarios + digital twin --------
+    async def sim_run_scenario(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "simulation-service", "POST", "/api/v1/sim/scenarios/run", tenant_id, json=payload
+        )
+
+    async def sim_twin(self, tenant_id: UUID, *, seed: int) -> Any:
+        return await self._request(
+            "simulation-service", "GET", "/api/v1/sim/twin", tenant_id, params={"seed": seed}
+        )
+
+    async def sim_blast_radius(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "simulation-service", "POST", "/api/v1/sim/twin/blast-radius", tenant_id, json=payload
+        )
+
+    # ---- simulation-service: deception decoy registry --------
+    async def register_decoy(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request(
+            "simulation-service", "POST", "/api/v1/deception/decoys", tenant_id, json=payload
+        )
+
+    async def list_decoys(self, tenant_id: UUID, *, status: str | None = None) -> Any:
+        return await self._request(
+            "simulation-service", "GET", "/api/v1/deception/decoys", tenant_id,
+            params={"status": status} if status else None,
+        )
+
+    async def get_decoy(self, tenant_id: UUID, decoy_id: str) -> Any:
+        return await self._request(
+            "simulation-service", "GET", f"/api/v1/deception/decoys/{decoy_id}", tenant_id
+        )
+
+    async def teardown_decoy(self, tenant_id: UUID, decoy_id: str) -> Any:
+        return await self._request(
+            "simulation-service", "DELETE", f"/api/v1/deception/decoys/{decoy_id}", tenant_id
+        )
+
+    async def list_decoy_interactions(self, tenant_id: UUID, decoy_id: str) -> Any:
+        return await self._request(
+            "simulation-service", "GET", f"/api/v1/deception/decoys/{decoy_id}/interactions", tenant_id
         )

@@ -11,14 +11,21 @@
 
 import type {
   AttackChainModel,
+  BlastRadiusRequest,
+  BlastRadiusResult,
   CursorPageDetection,
   CursorPageSecurityAlert,
+  Decoy,
+  DecoyInteraction,
   Detection,
   ErrorResponse,
   GraphNeighborhood,
   GraphPath,
   MeResponse,
   MitreHeatmap,
+  RegisterDecoyRequest,
+  RunScenarioRequest,
+  ScenarioRunResult,
   SecurityAlert,
   SocHuntRequest,
   SocHuntResponse,
@@ -26,6 +33,7 @@ import type {
   ThreatIndicator,
   ThreatScore,
   TimelineResponse,
+  TwinSnapshot,
 } from "@sentinelmesh/contracts";
 
 export interface ChainListEnvelope {
@@ -187,4 +195,28 @@ export const api = {
 
   hunt: (body: SocHuntRequest, csrfToken: string | null, signal?: AbortSignal) =>
     apiFetch<SocHuntResponse>("/soc/hunt", { method: "POST", body, csrfToken, signal }),
+
+  runScenario: (body: RunScenarioRequest, csrfToken: string | null) =>
+    apiFetch<ScenarioRunResult>("/soc/simulation/run", { method: "POST", body, csrfToken }),
+
+  twin: (seed: number, signal?: AbortSignal) =>
+    apiFetch<TwinSnapshot>("/soc/simulation/twin", { query: { seed }, signal }),
+
+  blastRadius: (body: BlastRadiusRequest, csrfToken: string | null) =>
+    apiFetch<BlastRadiusResult>("/soc/simulation/blast-radius", { method: "POST", body, csrfToken }),
+
+  registerDecoy: (body: RegisterDecoyRequest, csrfToken: string | null) =>
+    apiFetch<Decoy>("/soc/deception/decoys", { method: "POST", body, csrfToken }),
+
+  decoys: (query: { status?: string } = {}, signal?: AbortSignal) =>
+    apiFetch<Decoy[]>("/soc/deception/decoys", { query, signal }),
+
+  decoy: (id: string, signal?: AbortSignal) =>
+    apiFetch<Decoy>(`/soc/deception/decoys/${id}`, { signal }),
+
+  teardownDecoy: (id: string, csrfToken: string | null) =>
+    apiFetch<Decoy>(`/soc/deception/decoys/${id}`, { method: "DELETE", csrfToken }),
+
+  decoyInteractions: (id: string, signal?: AbortSignal) =>
+    apiFetch<DecoyInteraction[]>(`/soc/deception/decoys/${id}/interactions`, { signal }),
 };

@@ -30,6 +30,8 @@ from .hunt import (
 )
 from .pagination import CursorPage
 from .simulation import (
+    BlastRadiusRequest,
+    BlastRadiusResult,
     Decoy,
     DecoyInteraction,
     DecoyInteractionIn,
@@ -40,6 +42,10 @@ from .simulation import (
     ScenarioKind,
     ScenarioRunResult,
     SimEventOut,
+    TwinAssetOut,
+    TwinRelationOut,
+    TwinSnapshot,
+    TwinWeaknessOut,
 )
 from .soc import (
     MitreHeatmap,
@@ -56,6 +62,8 @@ __all__ = [
     "AgentRunRequest",
     "AgentRunResult",
     "AnalystModelInfo",
+    "BlastRadiusRequest",
+    "BlastRadiusResult",
     "CreateUserRequest",
     "CursorPage",
     "Decoy",
@@ -101,5 +109,9 @@ __all__ = [
     "SocSummary",
     "TimelineEntry",
     "TimelineResponse",
+    "TwinAssetOut",
+    "TwinRelationOut",
+    "TwinSnapshot",
+    "TwinWeaknessOut",
     "UserResponse",
 ]
