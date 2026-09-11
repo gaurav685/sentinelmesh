@@ -18,7 +18,8 @@
         "response:execute",
         "response:approve",
         "simulation:run",
-        "deception:manage"
+        "deception:manage",
+        "memory:read"
       ],
       "title": "PermissionCode",
       "type": "string"

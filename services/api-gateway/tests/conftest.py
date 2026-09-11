@@ -183,6 +183,35 @@ class FakeInternalClient:
     async def list_decoy_interactions(self, tenant_id: UUID, decoy_id: str) -> Any:
         return await self._answer("list_decoy_interactions", tenant_id)
 
+    async def mem_similar(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("mem_similar", tenant_id)
+
+    async def mem_patterns(
+        self, tenant_id: UUID, *, subject_type: str | None = None, subject_id: str | None = None,
+    ) -> Any:
+        return await self._answer("mem_patterns", tenant_id)
+
+    async def mem_fingerprint(self, tenant_id: UUID, subject_type: str, subject_id: str) -> Any:
+        return await self._answer("mem_fingerprint", tenant_id)
+
+    async def mem_campaigns(self, tenant_id: UUID, *, status: str | None = None) -> Any:
+        return await self._answer("mem_campaigns", tenant_id)
+
+    async def mem_campaign(self, tenant_id: UUID, campaign_id: str) -> Any:
+        return await self._answer("mem_campaign", tenant_id)
+
+    async def predict_attack_progression(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("predict_attack_progression", tenant_id)
+
+    async def predict_next_action(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("predict_next_action", tenant_id)
+
+    async def predict_lateral_movement(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("predict_lateral_movement", tenant_id)
+
+    async def predict_threat_trajectory(self, tenant_id: UUID, payload: Any) -> Any:
+        return await self._answer("predict_threat_trajectory", tenant_id)
+
 
 # --------------------------------------------------------------------------- #
 # fake infrastructure
@@ -607,6 +636,7 @@ def fixture() -> Fixture:
         PermissionCode.hunt_query,
         PermissionCode.simulation_run,
         PermissionCode.deception_manage,
+        PermissionCode.memory_read,
     ]
     for code in {*admin_perms, *analyst_perms}:
         perm = _permission(code)

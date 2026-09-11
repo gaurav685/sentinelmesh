@@ -7,8 +7,8 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 13 — Threat Memory + Predictive Intelligence. IN PROGRESS — Unit 3
-CI-VERIFIED (all five jobs, run `34588573722`).** Three distinct stores, one graph database
+**Phase 13 — Threat Memory + Predictive Intelligence. Units 1–4 done —
+Unit 4 local green, awaiting CI (see exit report below).** Three distinct stores, one graph database
 (`docs/ARCHITECTURE_DECISIONS.md` ADR-011): the operational graph and the
 persistent knowledge graph both stay in Neo4j (`graph-service`); **threat
 memory** is new this phase — Postgres + pgvector, owned by `memory-service`,
@@ -68,7 +68,16 @@ subject). `memory-service` gains `POST /api/v1/predict/{attack-progression,
 next-action,lateral-movement,threat-trajectory}` (internal-JWT only),
 wiring the heuristics to real data via the existing `ChainsClient` +
 `MemoryRepository` (a new `list_fingerprints` method for lateral-movement
-candidates).
+candidates). Unit 4: `api-gateway` `routes/memory.py` — the full BFF proxy
+for threat-memory retrieval + predictions under `/api/v1/soc/{memory,
+predict}/...`, new permission `memory:read` (migration `0010`, granted to
+every role including `read_only` — read-only analytical information, unlike
+Phase 12's operator-action permissions). `frontend/web/app/(soc)/memory` —
+campaigns (+ predict trajectory), fingerprint lookup (+ predict lateral
+movement), similarity search, chain predictions — every prediction rendered
+with its confidence, evidence, and model version, never a bare verdict. See
+the Phase 13 exit report for full detail — **this closes Phase 13** pending
+CI confirmation.
 
 **Phase 12 — Simulation + Deception + Security Digital Twin. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34576850936`; see exit report
@@ -717,6 +726,139 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 13 exit report
+
+**State: Units 1-4 done, local green — awaiting CI to close.** Unit 1
+`fcdcdd7`, Unit 2 `2b802aa`, Unit 3 `50c3cbc`, Unit 4 this commit. Unit-level
+CI runs: 1 = `34582276848`, 2 = `34586331308`, 3 = `34588573722` (all five
+jobs each time).
+
+**Three distinct stores, one graph database (ADR-011).** The operational
+attack graph and the persistent knowledge graph both stay in Neo4j
+(`graph-service`) — unchanged this phase. **Threat memory** is new:
+Postgres + pgvector, owned by `memory-service`, analytical/vector state that
+duplicates neither the graph nor the detection/chain tables. **Every
+prediction is a deterministic heuristic, never a trained model, and says
+so** — `sm_ml.predict`'s `MODEL_VERSION = "heuristic-v1"` is not decoration;
+there is no dataset, no training run, and `confidence=0.0` with a stated
+reason is the honest answer whenever the input cannot support one.
+
+### Delivered (Units 1-4)
+
+| Area | State |
+|---|---|
+| Threat-memory core (Unit 1) | `sm_ml.memory.technique_feature_vector` (deterministic, L2-normalized, hashed-bag-of-techniques — not a trained embedding) + `cosine_similarity` (the Python exact-match fallback). `sm_common.db.memory_models` — `ThreatMemoryRow` / `CampaignRow` / `AdversaryFingerprintRow`, each a `pgvector` `vector(32)` column + `hnsw`/`vector_cosine_ops` index (migration `0009`, `CREATE EXTENSION vector`). `sm_contracts.memory` — the raw feature vector is never returned over the API, only a similarity score. Postgres image swapped to `pgvector/pgvector:pg16` (ADR-006). |
+| memory-service ingestion + campaigns + retention (Unit 2) | `services/memory-service` (port 8012) consumes `attack_chains` (group `memory`), fetches the full chain from `correlation-engine` (`ChainsClient` — the topic event has no technique data), upserts a `ThreatMemory` pattern, matches-or-starts a `Campaign` (pgvector cosine similarity, exact-fallback on a DB error), upserts an `AdversaryFingerprint`, produces `campaign.updates`. `POST /api/v1/memory/similar` + read routes. `RetentionSweeper` — the deletion lifecycle: `active -> dormant -> closed` on inactivity, deleted past `SM_MEMORY_RETENTION_DAYS`. |
+| Prediction interfaces (Unit 3) | `sm_ml.predict` — `predict_attack_progression`, `predict_next_action`, `predict_lateral_movement`, `predict_threat_trajectory`, each a documented deterministic rule. `sm_contracts.api.prediction.Prediction` (`prediction`, `confidence`, `evidence`, `features`, `model_version`, `generated_at`; `subject_type` is `None` for the campaign-level `threat_trajectory`). `memory-service` `POST /api/v1/predict/{attack-progression,next-action,lateral-movement,threat-trajectory}`. |
+| BFF + frontend + close (Unit 4) | `api-gateway` `routes/memory.py` — full proxy for threat-memory retrieval + predictions under `/api/v1/soc/{memory,predict}/...`, `require_permission(memory:read)` (new permission, migration `0010`, granted to every role including `read_only` — this is read-only analytical information, unlike the operator-action permissions in Phase 12). `frontend/web/app/(soc)/memory` — campaigns (+ predict trajectory), fingerprint lookup (+ predict lateral movement), similarity search, chain predictions (progression / next action) — every prediction rendered with its confidence, evidence, and model version, never a bare verdict. |
+
+### Verification performed (local, 2026-09-11)
+
+- `ruff check` clean over `packages services tests migrations scripts`;
+  `mypy --strict` over all 18 static trees (364 files) clean.
+- **822 unit tests** total (60 new across the phase: 11 feature-vector, 16
+  memory-service Unit 2, 22 prediction Unit 3, 10 BFF Unit 4 — plus the
+  memory-model tests already counted in the 774→790→812→822 progression)
+  + `gen_contracts.py --check` (92 JSON Schema files).
+- Real infra: `tests/integration/test_memory_models_pg.py` (6, Unit 1),
+  `test_memory_repository_pg.py` (6, Unit 2 — caught a real
+  `autoflush=False` bug in the retention sweep), `test_migrations_pg.py`
+  updated three times (heads `0009` then `0010`; 17 permissions,
+  `platform_operator` holds all 17). Full `tests/integration` suite green
+  against real PostgreSQL 16 (`pgvector/pgvector:pg16`) + Redis + Neo4j 5
+  after every unit.
+- `frontend/web`: `npm run lint` clean, `npm run build` OK (18 routes,
+  `/memory` new), **56 vitest tests** (3 new memory-page + 2 new
+  `contract.test.ts` fixtures).
+- `docker build -f deploy/docker/Dockerfile.app` builds; `sm_memory_service`
+  + `pgvector.sqlalchemy` import in the image; non-root uid `10001`
+  confirmed.
+- **CI: pushed, not yet confirmed green as this report is written** — the
+  doc-close commit will record the run id once it is.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Never present a prediction as fact (the phase's explicit instruction).**
+  Every `Prediction` carries `confidence`, `evidence`, `model_version`, and
+  `generated_at` as required fields — there is no code path that returns a
+  bare string verdict. `model_version = "heuristic-v1"` names a rule set,
+  never a training run; nothing in `sm_ml.predict` imports a ML framework or
+  loads an artifact. When an input cannot support a prediction (an empty
+  candidate set, an unmapped stage, no shared technique), every function
+  returns `confidence=0.0` with a human-readable reason in `prediction`
+  rather than a low-confidence guess — a unit test asserts this for each of
+  the four functions.
+- **Three distinct stores, never duplicated (the memory-architecture
+  instruction).** ADR-011's split is followed, not just cited: `graph-service`
+  owns the operational + knowledge graph (Neo4j, unchanged this phase);
+  `memory-service` owns threat memory (Postgres + pgvector) — a behavioral
+  pattern, a campaign, and a fingerprint are three distinct row kinds, never
+  one shared "memory" table; `detection-engine` / `correlation-engine` keep
+  owning the detection/chain tables memory-service only reads from (via
+  `correlation-engine`'s API, never a direct table read — no cross-service
+  Postgres access anywhere in this build). R37's fingerprint similarity
+  introduces no fourth store — `campaign_ids` on the fingerprint row is the
+  only "similarity" linkage, exactly as ADR-011 specifies.
+- **Storage / indexing / retention / retrieval / provenance / tenant
+  isolation / deletion lifecycle — all defined, not just storage.**
+  Indexing: `hnsw`/`vector_cosine_ops` per vector column. Retention +
+  deletion: `RetentionSweeper` ages `active -> dormant -> closed` then
+  deletes past `SM_MEMORY_RETENTION_DAYS` — real-Postgres-tested. Retrieval:
+  `POST /api/v1/memory/similar` with a documented fallback path. Provenance:
+  `ThreatMemory.source` is always `"attack_chain:<uuid>"` — traceable back to
+  a real chain, never fabricated. Tenant isolation: every repository query
+  filters `tenant_id = :tenant` from the verified internal token; a
+  real-Postgres test proves a second tenant sees nothing.
+- **Similarity is real, and its limits are visible.** `SimilarityMatch.
+  exact_fallback` tells a caller whether pgvector or the bounded Python scan
+  answered — never silently one or the other. The raw feature vector is
+  never part of any response (contracts and a route test both enforce this).
+- **Authorization + audit.** Every new BFF route is behind
+  `require_permission(PermissionCode.memory_read)` (deny-by-default, metered
+  + audited on denial); a test asserts `globex_admin` (lacking the
+  permission) gets 403. Unlike Phase 12's operator-action permissions,
+  `memory:read` is granted to `read_only` too — this is passive observation,
+  not an action.
+- **No fabricated metrics, no fabricated attack activity, no fabricated
+  similarity score.** `technique_feature_vector` and `cosine_similarity` are
+  named and documented as a deterministic rule, not an embedding model,
+  everywhere they appear (docstrings, `docs/CONTRACTS.md`, this report).
+  `docs/REQUIREMENTS_TRACEABILITY.md` R15 is marked IMPLEMENTED **as
+  heuristics**, with the deviation from a trained sequence model stated
+  plainly rather than rounded up.
+
+### Deferred (deliberately)
+
+- **A trained predictive model.** R15's original shape
+  (`{predicted_action, probability, horizon, confidence}` from a sequence
+  model, MLflow-tracked) remains future work — no dataset/training run has
+  produced one. The four heuristic interfaces this phase delivers are what
+  the phase prompt actually asked for ("implement prediction interfaces"),
+  and they are real, tested, and honest about not being ML.
+- **A live graph-based lateral-movement predictor.** `predict_lateral_movement`
+  uses fingerprint technique-overlap, not a Neo4j traversal from the
+  operational graph — self-contained within `memory-service`'s own data,
+  deliberately not a new cross-service graph query this phase.
+- **Wiring "similar past campaigns" into an AI-analyst explanation.** The
+  retrieval + prediction API is real; nothing in `ai-analyst` or an
+  agent automatically calls it yet (R37's stated deviation).
+- **A `campaign_similarity` table.** R37's spec named one; ADR-011 already
+  said this would introduce no new store, and the build holds to that —
+  `AdversaryFingerprintRow.campaign_ids` is the only similarity linkage.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| Threat memory: behavioral pattern persistence, campaign evolution, attacker fingerprinting, similarity analysis | ✅ `ThreatMemoryRow` / `CampaignRow` / `AdversaryFingerprintRow`, pgvector similarity + exact fallback |
+| Memory architecture: clearly separate Knowledge Graph / Threat Memory / Operational Incident State / AI Context, no unnecessary duplication | ✅ ADR-011's three-store split, held to; no shared "memory" table, no cross-service table reads |
+| Storage / indexing / retention / retrieval / provenance / tenant isolation / deletion lifecycle | ✅ all defined and real-Postgres-tested |
+| Prediction interfaces: attack progression, lateral movement, next attacker action, threat trajectory | ✅ all four, `sm_ml.predict` |
+| Every prediction: prediction + confidence + evidence/features + model version + timestamp | ✅ `Prediction` contract, enforced by the schema itself |
+| Never present a prediction as fact | ✅ `confidence=0.0` + a stated reason when underdetermined; no bare verdict anywhere |
+| Tests: memory write/read, retention, tenant isolation, similarity, prediction schema, model failure, stale memory, evidence grounding | ✅ all covered — real-Postgres tests for retention/tenant-isolation/similarity, unit tests for prediction schema + "model failure" (underdetermined-input) paths |
+| **CI green on a clean runner** | ⏳ pushed; the doc-close commit records the run id once confirmed |
 
 ## Phase 12 exit report
 
@@ -2408,9 +2550,8 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Unit 3 CI-VERIFIED
-(run `34588573722`, all five jobs). Exact next action: Unit 4.** Three
-stores, one graph database (ADR-011);
+**PHASE 13 — THREAT MEMORY + PREDICTIVE INTELLIGENCE. Units 1-4 done, local
+green — awaiting CI to close.** Three stores, one graph database (ADR-011);
 never present a prediction as fact. Planned units:
 1. ✅ **CI-VERIFIED (run `34582276848`, all five jobs).** `sm_ml.memory`
    (`technique_feature_vector`, `cosine_similarity` — deterministic, not a
@@ -2469,10 +2610,20 @@ never present a prediction as fact. Planned units:
    `gen_contracts --check` (92 JSON Schema files); full `tests/integration`
    suite green; `Dockerfile.app` builds, image imports clean, non-root uid
    confirmed. **CI-VERIFIED (run `34588573722`, all five jobs).**
-4. `api-gateway` BFF + `frontend/web` (a memory/campaign browser, a
-   prediction overlay, an evidence-grounded "seen before" panel) + Phase 13
-   close (exit report + §23 + `REQUIREMENTS_TRACEABILITY` R15 / R21 / R37 +
-   `CONTRACTS.md`).
+4. ✅ `api-gateway` `routes/memory.py` — full BFF proxy for threat-memory
+   retrieval + predictions under `/api/v1/soc/{memory,predict}/...`, new
+   permission `memory:read` (migration `0010`, granted to every role
+   including `read_only`). `frontend/web/app/(soc)/memory` — campaigns (+
+   predict trajectory), fingerprint lookup (+ predict lateral movement),
+   similarity search, chain predictions — every prediction rendered with
+   its confidence/evidence/model version. Local: ruff + `mypy --strict`
+   clean (364 files), **822 unit tests** (10 new BFF) + `gen_contracts
+   --check` (92 JSON Schema files); full `tests/integration` suite green;
+   `frontend/web`: lint clean, build OK (18 routes), **56 vitest tests** (3
+   new + 2 `contract.test.ts` fixtures); `Dockerfile.app` builds, image
+   imports clean, non-root uid confirmed. **This closes Phase 13** — see
+   the exit report above for the full §23 safety review. **Commit, push,
+   confirm CI green, then a doc-close commit.**
 
 Exit next action after Phase 13: **PHASE 14 — Reporting + Storytelling**
 (prompt not yet given — do NOT start speculatively; the next session resumes

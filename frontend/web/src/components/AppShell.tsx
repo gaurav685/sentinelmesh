@@ -18,6 +18,7 @@ const NAV: { href: string; label: string; perm: string }[] = [
   { href: "/intel", label: "Threat intel", perm: "detections:read" },
   { href: "/simulation", label: "Simulation", perm: "simulation:run" },
   { href: "/deception", label: "Deception", perm: "deception:manage" },
+  { href: "/memory", label: "Threat memory", perm: "memory:read" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

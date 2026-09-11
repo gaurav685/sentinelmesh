@@ -168,10 +168,10 @@ async def test_head_is_the_expected_revision(alembic):
     # `heads` reads the migration scripts, not the database, so it does not
     # depend on an upgrade having run first.
     out = alembic("heads").stdout
-    assert "0009" in out
+    assert "0010" in out
 
     alembic("upgrade", "head")
-    assert "0009" in alembic("current").stdout
+    assert "0010" in alembic("current").stdout
 
 
 @pytest.mark.asyncio
@@ -179,7 +179,7 @@ async def test_seed_rows_are_present_and_idempotent(alembic, migration_database:
     alembic("upgrade", "head")
     dsn = migration_database.pg_dsn
 
-    assert await _scalar(dsn, "SELECT count(*) FROM permission") == 16
+    assert await _scalar(dsn, "SELECT count(*) FROM permission") == 17
     assert await _scalar(dsn, "SELECT count(*) FROM role WHERE is_system") == 5
     assert await _scalar(dsn, "SELECT count(*) FROM role_permission") > 0
 
@@ -192,7 +192,7 @@ async def test_seed_rows_are_present_and_idempotent(alembic, migration_database:
         WHERE r.name = 'platform_operator'
         """,
     )
-    assert granted == 16
+    assert granted == 17
 
     # read_only must not hold a write permission.
     writes = await _scalar(
@@ -210,7 +210,7 @@ async def test_seed_rows_are_present_and_idempotent(alembic, migration_database:
     alembic("downgrade", "0001")
     assert await _scalar(dsn, "SELECT count(*) FROM permission") == 0
     alembic("upgrade", "head")
-    assert await _scalar(dsn, "SELECT count(*) FROM permission") == 16
+    assert await _scalar(dsn, "SELECT count(*) FROM permission") == 17
 
 
 @pytest.mark.asyncio

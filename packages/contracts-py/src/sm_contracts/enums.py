@@ -78,6 +78,9 @@ class PermissionCode(StrEnum):
     simulation_run = "simulation:run"
     deception_manage = "deception:manage"
 
+    # threat memory + predictive intelligence (Phase 13)
+    memory_read = "memory:read"
+
 
 class ActorType(StrEnum):
     user = "user"
