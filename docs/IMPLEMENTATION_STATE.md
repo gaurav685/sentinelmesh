@@ -7,8 +7,9 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 12 — Simulation + Deception + Security Digital Twin. Units 1–4 done —
-Unit 4 local green, awaiting CI (see exit report below).** Unit 1 (CI-verified, run
+**Phase 12 — Simulation + Deception + Security Digital Twin. COMPLETE /
+CI-VERIFIED (all five jobs, final run `34576850936`; see exit report
+below).** Unit 1 (CI-verified, run
 `34449930913`): `sm_ml.twin` — `build_twin(assets, relations, weaknesses) ->
 TwinModel` (frozen, sorted, validated — deterministic, stdlib).
 `attack_paths(twin, sources=, targets=, max_depth=)` (bounded, simple paths,
@@ -48,8 +49,7 @@ deception decoy registry under `/api/v1/soc/{simulation,deception}/...`
 (`require_permission` + CSRF on writes; a downstream `422` is now
 `ValidationFailed`, not a misleading `DependencyUnavailable`);
 `frontend/web/app/(soc)/{simulation,deception}`, both badged "SIMULATION". See
-the Phase 12 exit report for full detail — **this closes Phase 12** pending
-CI confirmation.
+the Phase 12 exit report for full detail — **this closes Phase 12.**
 
 **Phase 11 — Threat Hunting + Natural Language Querying. COMPLETE / CI-VERIFIED**
 (all five jobs, final run `34448406595`; unit runs `34446018571` /
@@ -657,10 +657,11 @@ before Phase 2 is itself declared complete.
 
 ## Phase 12 exit report
 
-**State: Units 1-4 done, local green — awaiting CI to close.** Unit 1 `dd175ad`,
-Unit 2 `6506b05`, Unit 3 `c976438` (+ CI fix `59d5991`), Unit 4 this commit.
-Unit-level CI runs: 1 = `34449930913`, 2 = `34569040279`, 3 = `34572530014`
-(all five jobs each time).
+**State: COMPLETE / CI-VERIFIED (all five jobs, final run
+[`34576850936`](https://github.com/gaurav685/sentinelmesh/actions/runs/34576850936)).**
+Unit 1 `dd175ad`, Unit 2 `6506b05`, Unit 3 `c976438` (+ CI fix `59d5991`),
+Unit 4 `88d37d2`. Unit-level CI runs: 1 = `34449930913`, 2 = `34569040279`,
+3 = `34572530014`, 4 = `34576850936` (all five jobs each time).
 
 **Simulation stays isolated. There is no code path from a scenario or a decoy
 to a real system.** A scenario's target must be a synthetic (`sim-`-prefixed)
@@ -704,8 +705,8 @@ survives it for audit.
 - `docker build -f deploy/docker/Dockerfile.app` builds; `sm_simulation_service`
   (and every other service module) imports in the image; non-root uid `10001`
   confirmed; the production fail-fast guards still refuse an unsafe config.
-- **CI: pushed, not yet confirmed green as this report is written** — the
-  doc-close commit will record the run id once it is.
+- **CI green on a clean runner — all five jobs, final run `34576850936`**
+  (earlier unit runs `34449930913` / `34569040279` / `34572530014`).
 
 ### Pre-output engineering review (Constitution §23)
 
@@ -805,7 +806,7 @@ survives it for audit.
 | Digital twin: assets, relationships, dependencies, vulnerabilities/misconfigs, attack paths, blast radius | ✅ `sm_ml.twin` + `twin_from_synthetic_env`; scenario execution runs against the model, never real systems |
 | Defensive stress testing | ✅ `stress_test` + `DefensiveControl` (library-level; no dedicated API yet) |
 | Tests: deterministic scenarios, isolation, replay, blast-radius calculation, deception event capture, teardown, authorization | ✅ all covered, incl. real-Postgres CHECK-constraint verification |
-| **CI green on a clean runner** | ⏳ pushed; the doc-close commit records the run id once confirmed |
+| **CI green on a clean runner** | ✅ **all five jobs — final run `34576850936`** (unit runs `34449930913` / `34569040279` / `34572530014`) |
 
 ## Phase 11 exit report
 
@@ -2344,9 +2345,10 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. Units 1-4 done,
-local green — awaiting CI to close.** Everything synthetic, isolated,
-deterministic; scenarios run against a model, never real systems. Planned units:
+**PHASE 12 — SIMULATION + DECEPTION + SECURITY DIGITAL TWIN. COMPLETE /
+CI-VERIFIED (all five jobs, final run `34576850936`).** Everything synthetic,
+isolated, deterministic; scenarios run against a model, never real systems.
+Units delivered:
 1. ✅ **CI-VERIFIED (run `34449930913`).** `sm_ml.twin` — `TwinModel`
    (`TwinAsset` / `TwinRelation` / `TwinWeakness`, `build_twin` validates +
    freezes + sorts → deterministic, stdlib), `attack_paths` (bounded simple
@@ -2408,11 +2410,11 @@ deterministic; scenarios run against a model, never real systems. Planned units:
    Postgres/Redis/Neo4j) incl. updated `test_migrations_pg.py` (head `0008`,
    16 permissions); `frontend/web`: lint clean, build OK (17 routes), **51
    vitest tests** (9 new + 3 `contract.test.ts` fixtures); `Dockerfile.app`
-   rebuilds, image imports clean, non-root uid 10001 confirmed. **This closes
-   Phase 12** — see the exit report below for the full §23 safety review.
-   **Commit, push, confirm CI green, then a doc-close commit.**
+   rebuilds, image imports clean, non-root uid 10001 confirmed. **CI-VERIFIED
+   (run `34576850936`, all five jobs) — closes Phase 12.** See the exit
+   report above for the full §23 safety review.
 
-Exit next action after Phase 12: **PHASE 13 — Memory + Predictive Intelligence**
+**Exact next action: PHASE 13 — Memory + Predictive Intelligence**
 (prompt not yet given — do NOT start speculatively; the next session resumes
 here).
 
