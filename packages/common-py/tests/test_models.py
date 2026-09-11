@@ -44,6 +44,10 @@ EXPECTED_TABLES = {
     # simulation + deception (Phase 12)
     "decoy",
     "decoy_interaction",
+    # threat memory (Phase 13)
+    "threat_memory",
+    "campaign",
+    "adversary_fingerprint",
 }
 
 

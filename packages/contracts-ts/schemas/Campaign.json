@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "A set of attack chains judged related by shared technique usage \u2014\nthreat memory's cross-incident view.",
+  "properties": {
+    "chain_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 500,
+      "title": "Chain Ids",
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "first_seen": {
+      "format": "date-time",
+      "title": "First Seen",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "title": "Last Seen",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "dormant",
+        "closed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "technique_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 200,
+      "title": "Technique Ids",
+      "type": "array"
+    },
+    "tenant_id": {
+      "format": "uuid",
+      "title": "Tenant Id",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "created_at",
+    "updated_at",
+    "tenant_id",
+    "id",
+    "status",
+    "first_seen",
+    "last_seen"
+  ],
+  "title": "Campaign",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

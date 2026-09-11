@@ -17,6 +17,7 @@ from .intel_models import (
     TiCampaignRow,
     TiSourceRow,
 )
+from .memory_models import AdversaryFingerprintRow, CampaignRow, ThreatMemoryRow
 from .models import (
     AuditLog,
     Permission,
@@ -32,6 +33,7 @@ from .simulation_models import DecoyInteractionRow, DecoyRow
 
 __all__ = [
     "NAMING_CONVENTION",
+    "AdversaryFingerprintRow",
     "Anomaly",
     "AttackChainRow",
     "AttackChainStageRow",
@@ -40,6 +42,7 @@ __all__ = [
     "AttackTechniqueRow",
     "AuditLog",
     "Base",
+    "CampaignRow",
     "Database",
     "DecoyInteractionRow",
     "DecoyRow",
@@ -54,6 +57,7 @@ __all__ = [
     "Tenant",
     "ThreatActorRow",
     "ThreatIndicatorRow",
+    "ThreatMemoryRow",
     "ThreatScore",
     "TiCampaignRow",
     "TiSourceRow",

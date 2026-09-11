@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One result of a similarity search \u2014 the record plus its score. The\nunderlying feature vector is never returned.",
+  "properties": {
+    "exact_fallback": {
+      "default": false,
+      "title": "Exact Fallback",
+      "type": "boolean"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "threat_memory",
+        "campaign",
+        "adversary_fingerprint"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "last_seen": {
+      "format": "date-time",
+      "title": "Last Seen",
+      "type": "string"
+    },
+    "score": {
+      "maximum": 1.0,
+      "minimum": -1.0,
+      "title": "Score",
+      "type": "number"
+    },
+    "technique_ids": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 200,
+      "title": "Technique Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "id",
+    "score",
+    "last_seen"
+  ],
+  "title": "SimilarityMatch",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}
