@@ -104,6 +104,8 @@ class AppSettings(BaseSettings):
     memory_close_after_days: int = Field(default=60, ge=1, le=730)
     memory_retention_days: int = Field(default=180, ge=1, le=3_650)
     memory_campaign_similarity_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Reporting + attack storytelling (Phase 14) — api-gateway's SOC BFF proxy target.
+    reporting_service_url: str = "http://localhost:8013"
 
     # ---- kafka (event bus; ADR-008) -----------------------------------
     kafka_bootstrap_servers: str = "localhost:9092"

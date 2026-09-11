@@ -37,6 +37,7 @@ class InternalServiceClient:
         ai_analyst_url: str = "http://localhost:8010",
         simulation_url: str = "http://localhost:8011",
         memory_url: str = "http://localhost:8012",
+        reporting_url: str = "http://localhost:8013",
     ) -> None:
         self._http = http
         self._key = signing_key
@@ -49,6 +50,7 @@ class InternalServiceClient:
             "ai-analyst": ai_analyst_url.rstrip("/"),
             "simulation-service": simulation_url.rstrip("/"),
             "memory-service": memory_url.rstrip("/"),
+            "reporting-service": reporting_url.rstrip("/"),
         }
 
     def _token(self, audience: str, tenant_id: UUID) -> str:
@@ -252,4 +254,19 @@ class InternalServiceClient:
     async def predict_threat_trajectory(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
         return await self._request(
             "memory-service", "POST", "/api/v1/predict/threat-trajectory", tenant_id, json=payload
+        )
+
+    # ---- reporting-service ------------------------------------
+    async def create_report(self, tenant_id: UUID, payload: dict[str, Any]) -> Any:
+        return await self._request("reporting-service", "POST", "/api/v1/reports", tenant_id, json=payload)
+
+    async def get_report(self, tenant_id: UUID, report_id: str) -> Any:
+        return await self._request(
+            "reporting-service", "GET", f"/api/v1/reports/{report_id}", tenant_id
+        )
+
+    # ---- ai-analyst: attack storytelling -----------------------
+    async def get_narrative(self, tenant_id: UUID, chain_id: str) -> Any:
+        return await self._request(
+            "ai-analyst", "GET", f"/api/v1/incidents/{chain_id}/narrative", tenant_id
         )

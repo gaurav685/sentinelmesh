@@ -249,3 +249,21 @@ table.data tr:hover td { background: var(--panel-2); }
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+
+/* Grounding tier (Phase 14, Constitution §3): every generated statement is
+   tagged evidence / inference / prediction / synthetic — never left
+   implicit. `synthetic` deliberately reuses `.demo-badge`'s exact colour —
+   it is the same "not real" signal as the simulation badge above. */
+.tier-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid currentColor;
+}
+.tier-badge--evidence { color: var(--sev-low); }
+.tier-badge--inference { color: var(--accent); }
+.tier-badge--prediction { color: var(--sev-high); }
+.tier-badge--synthetic { color: var(--sev-medium); }

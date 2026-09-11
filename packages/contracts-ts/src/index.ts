@@ -1555,6 +1555,10 @@ export type Title4 = string;
 export type Timeline = ReportTimelineEntry[];
 export type Title5 = string;
 export type UpdatedAt12 = string;
+/**
+ * Presigned; None until the report is `complete` or `partial`.
+ */
+export type DownloadUrl = string | null;
 export type GeneratedAt5 = string;
 export type Kind7 = "incident" | "executive_summary" | "soc" | "compliance";
 export type ReportId = string;
@@ -3334,6 +3338,18 @@ export interface ReportTimelineEntry {
   severity?: Severity | null;
   tier?: GroundingKind1;
   title: Title4;
+}
+/**
+ * `GET /api/v1/reports/{id}` response — the report plus a fresh,
+ * time-limited presigned download URL (ADR-019: never a public bucket,
+ * never a raw path a caller could manipulate).
+ *
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "ReportDownload".
+ */
+export interface ReportDownload {
+  download_url?: DownloadUrl;
+  report: Report;
 }
 /**
  * `report.generated` topic event (`EventType.report_generated`). Thin

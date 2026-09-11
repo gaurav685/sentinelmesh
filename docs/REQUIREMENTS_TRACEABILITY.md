@@ -531,7 +531,20 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** role-gated (compliance reports `lead`/`tenant_admin`); tenant-scoped content; pre-signed URLs, no public buckets.
 - **Test:** template-render tests, `PARTIAL` handling (missing content dep), authorization tests.
 - **Verification method:** integration tests producing a PDF to MinIO.
-- **Phase:** P8. **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P8 (architecture), **P14** (implementation). **Status:** IMPLEMENTED.
+- **Deviation:** the LLM-generated narrative section (`ai-analyst`'s `/explain`)
+  only fires when the report's subject *is* a detection — `ExplainRequest`'s
+  subject type has no host/ip/domain/identity variant. For any other subject,
+  `findings` is populated from deterministic content (technique mappings,
+  memory-service patterns, a lateral-movement prediction) without an LLM
+  pass, never fabricated in its place. Compliance-report role gating
+  (`lead`/`tenant_admin`) is enforced in `api-gateway`'s route code on
+  `kind == "compliance"`, not by a second permission code. There is no
+  server-side report *listing* endpoint yet — only create-by-id and
+  get-by-id; the frontend's "library" is session-local. Verified end to end
+  against the real compose stack (real PDF uploaded to MinIO, downloaded via
+  its presigned URL) rather than in CI (MinIO runs in CI too, but the E2E
+  browser flow was exercised manually, not as an automated CI check).
 
 ### R23 — Observability & Monitoring
 - **Purpose:** infra observability, model monitoring, threat-trend dashboards, detection-latency metrics, false-positive tracking, graph-growth analytics.
@@ -736,7 +749,17 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** TB-4; no fabricated events in narratives; grounding enforced like R14.
 - **Test:** grounding tests, label tests (simulation vs real), fallback tests.
 - **Verification method:** contract + grounding tests; sample review.
-- **Phase:** P6 (narrative), P9 (cinematic polish). **Status:** ARCHITECTURE DEFINED.
+- **Phase:** P6 (narrative), P9 (cinematic polish), **P14** (implementation).
+  **Status:** IMPLEMENTED.
+- **Deviation:** "incident" is `correlation-engine`'s own attack-chain id —
+  this platform has no separate `Incident` entity yet (§3 still lists one
+  PLANNED). A `NarrativeBeat`'s factual fields (`stage`, `detection_ids`,
+  `technique_ids`) mirror `ChainStageModel` exactly and are deterministic,
+  never touched by the LLM; only the one `summary` paragraph is LLM-composed,
+  grounded by the same citation-and-retry mechanism `IncidentAnalyst.explain`
+  (R14) uses. `simulated`/`GroundingKind.synthetic` is the contract-level form
+  of the "label `SIMULATION`" requirement — verified end to end with a real
+  simulation-sourced chain narrating as `synthetic` throughout.
 
 ### R34 — Federated Threat Intelligence Mesh
 - **Purpose:** federated learning, distributed anomaly learning, collective defense — with participant trust, privacy, model/update exchange, aggregation, poisoning defenses, tenant isolation, provenance.

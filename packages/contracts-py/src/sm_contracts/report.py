@@ -33,6 +33,7 @@ __all__ = [
     "GroundingKind",
     "Report",
     "ReportAsset",
+    "ReportDownload",
     "ReportGeneratedPayload",
     "ReportKind",
     "ReportStatus",
@@ -164,6 +165,17 @@ class ReportGeneratedPayload(SmBaseModel):
     @classmethod
     def _utc(cls, v: datetime) -> datetime:
         return to_utc(v)
+
+
+class ReportDownload(SmBaseModel):
+    """`GET /api/v1/reports/{id}` response — the report plus a fresh,
+    time-limited presigned download URL (ADR-019: never a public bucket,
+    never a raw path a caller could manipulate)."""
+
+    report: Report
+    download_url: str | None = Field(
+        default=None, description="Presigned; None until the report is `complete` or `partial`."
+    )
 
 
 REPORT_PAYLOADS: dict[EventType, type[SmBaseModel]] = {
