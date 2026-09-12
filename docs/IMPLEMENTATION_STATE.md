@@ -7,11 +7,10 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 16 — Kubernetes + Enterprise Deployment. Local gauntlet complete
-(no application code changed — this phase is infra-only: Helm chart,
-namespace manifests, docs); real evidence-backed `kind`-cluster
-verification performed (see exit report below for exactly what was and
-was not verified). Exact next action: PHASE 17 — TESTING + CI/CD +
+**Phase 16 — Kubernetes + Enterprise Deployment. COMPLETE / CI-VERIFIED
+(commit `6212918`, CI run `34715598564`, all five jobs green; see exit
+report below for the real `kind`-cluster verification detail — what was
+and was not verified). Exact next action: PHASE 17 — TESTING + CI/CD +
 SECURITY HARDENING (prompt not yet given — do not start).**
 
 **Phase 15 — Observability + Benchmarking + Evaluation. COMPLETE /
@@ -964,14 +963,18 @@ before Phase 2 is itself declared complete.
 
 ## Phase 16 exit report
 
-**State: LOCAL GAUNTLET COMPLETE — infra-only phase, no application code
-touched (`ruff`/`mypy`/pytest/`gen_contracts.py --check`/Docker build all
-unaffected and unchanged from Phase 15's clean state, confirmed by
-`git status` showing only new files under `deploy/helm/`, `deploy/k8s/`,
-and `docs/`). Real, evidence-backed `kind` cluster verification
-performed — see below for the exact, itemized result. No fabricated
-capacity number or "production-ready" claim appears anywhere in this
-phase's output, per the phase prompt's explicit instruction.**
+**State: COMPLETE / CI-VERIFIED. Commit `6212918`, CI run `34715598564`
+(all five jobs green — lint/type-check, integration tests, frontend
+build/tests, image build, unit/contract tests). Infra-only phase, no
+application code touched (confirmed by `git status` before commit
+showing only new files under `deploy/helm/`, `deploy/k8s/`, and `docs/`
+plus doc edits) — `ruff`/`gen_contracts.py --check` re-run locally and
+clean; CI's own `mypy`/pytest/Docker-build jobs are the independent
+confirmation nothing else regressed. Real, evidence-backed `kind`
+cluster verification performed separately (`kind`/`helm` are not part of
+CI) — see below for the exact, itemized result. No fabricated capacity
+number or "production-ready" claim appears anywhere in this phase's
+output, per the phase prompt's explicit instruction.**
 
 Delivered a single, values-driven Helm chart (`deploy/helm/sentinelmesh`)
 rather than 14 near-identical sub-charts — judged that this satisfies
