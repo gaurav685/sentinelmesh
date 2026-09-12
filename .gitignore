@@ -53,7 +53,10 @@ mlartifacts/
 ml/datasets/**/data/
 ml/notebooks/**/*.ipynb_checkpoints/
 # Benchmark datasets live outside the repo (C:\Sentinel_Mesh). Never commit them.
-datasets/
+# Anchored to the repo root so it does NOT also match ml/datasets/<name>/ —
+# that directory holds committed adapters + MANIFEST.md (R24), never raw data
+# (ml/datasets/**/data/ above already excludes any raw data placed under it).
+/datasets/
 *.pcap
 *.binetflow
 *.jsonl

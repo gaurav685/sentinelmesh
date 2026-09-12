@@ -17,12 +17,16 @@ or a metric. No benchmark number is claimed without a registered dataset
 from __future__ import annotations
 
 from .artifacts import write_artifact
+from .benchmark import BenchmarkRun, run_benchmark
+from .benchmark.nsl_kdd import BenchmarkDataset, load_nsl_kdd
 from .config import DatasetKind, ModelKind, TrainingConfig
 from .dataset import GraphDataset, LabelledSample, load_dataset, synthetic_fixture_dataset
 from .metadata import EvaluationReport, ModelMetadata
 from .pipeline import PipelineResult, PipelineSkipped, TrainedStructural, TrainingPipeline
 
 __all__ = [
+    "BenchmarkDataset",
+    "BenchmarkRun",
     "DatasetKind",
     "EvaluationReport",
     "GraphDataset",
@@ -35,6 +39,8 @@ __all__ = [
     "TrainingConfig",
     "TrainingPipeline",
     "load_dataset",
+    "load_nsl_kdd",
+    "run_benchmark",
     "synthetic_fixture_dataset",
     "write_artifact",
 ]
