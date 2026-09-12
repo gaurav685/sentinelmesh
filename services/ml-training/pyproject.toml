@@ -16,6 +16,11 @@ dependencies = [
 [project.optional-dependencies]
 # GNN training needs torch; pulls sm-ml[gnn]. Not installed in CI.
 gnn = ["sm-ml[gnn]"]
+# The tabular benchmark's baseline-comparison model (scikit-learn
+# IsolationForest, trained directly in the harness, not via the
+# already-trained-artifact-only IsolationForestModel serving wrapper).
+# Installed in CI (unlike [gnn]) — numpy+scikit-learn are light enough.
+benchmark = ["sm-ml[serving]"]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",

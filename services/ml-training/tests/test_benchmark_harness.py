@@ -67,6 +67,60 @@ def test_run_benchmark_reports_real_metrics_never_a_placeholder(dataset) -> None
     assert run.environment["python_version"]
 
 
+def test_isolation_forest_is_reproducible_given_the_same_seed(dataset) -> None:
+    train, test = dataset
+    try:
+        import sklearn  # noqa: F401
+    except ImportError:
+        pytest.skip("sm-ml[serving] not installed")
+    a = run_benchmark(train, test, model="isolation_forest", seed=7)
+    b = run_benchmark(train, test, model="isolation_forest", seed=7)
+    timing_key = "mean_detection_latency_ms"
+    a_metrics = {k: v for k, v in a.metrics.items() if k != timing_key}
+    b_metrics = {k: v for k, v in b.metrics.items() if k != timing_key}
+    assert a_metrics == b_metrics
+    assert a.model_name == "isolation_forest"
+    assert a.params["random_state"] == 7
+
+
+def test_isolation_forest_is_a_different_real_method_not_a_relabeling(dataset) -> None:
+    train, test = dataset
+    try:
+        import sklearn  # noqa: F401
+    except ImportError:
+        pytest.skip("sm-ml[serving] not installed")
+    statistical = run_benchmark(train, test, model="statistical", seed=1337)
+    forest = run_benchmark(train, test, model="isolation_forest", seed=1337)
+    assert statistical.model_name != forest.model_name
+    assert statistical.params != forest.params
+
+
+def test_isolation_forest_raises_model_unavailable_without_sklearn(
+    dataset, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import builtins
+
+    from sm_ml.errors import ModelUnavailable
+
+    real_import = builtins.__import__
+
+    def _blocked_import(name: str, *args: object, **kwargs: object) -> object:
+        if name in ("sklearn", "sklearn.ensemble"):
+            raise ImportError(f"blocked for test: {name}")
+        return real_import(name, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(builtins, "__import__", _blocked_import)
+    train, test = dataset
+    with pytest.raises(ModelUnavailable, match="sm-ml\\[serving\\]"):
+        run_benchmark(train, test, model="isolation_forest", seed=1337)
+
+
+def test_unknown_model_name_raises(dataset) -> None:
+    train, test = dataset
+    with pytest.raises(ValueError, match="unknown model"):
+        run_benchmark(train, test, model="not-a-real-model", seed=1337)  # type: ignore[arg-type]
+
+
 def test_run_benchmark_raises_when_the_train_split_has_no_benign_rows(dataset) -> None:
     train, test = dataset
     all_attack_labels = tuple(1 for _ in train.labels)

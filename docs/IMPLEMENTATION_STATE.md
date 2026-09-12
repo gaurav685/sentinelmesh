@@ -8,7 +8,8 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Units
-1-2 of 4 CI-VERIFIED; Unit 1 run `34698614073`, commit `7eee2c1`; Unit 2 run
+1-2 of 4 CI-VERIFIED, Unit 3 commit pending; Unit 1 run `34698614073`,
+commit `7eee2c1`; Unit 2 run
 `34699923546`, commit `80a0996`).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
 Loki; this phase closes the gaps between that spec and what actually runs.
 Unit 1: real per-request tracing — every service already bootstrapped an
@@ -101,9 +102,38 @@ metrics.py`, `test_benchmark_nsl_kdd.py`, `test_benchmark_harness.py` —
 including a reproducibility test that separates the deterministic metrics
 from the real, run-to-run-variable wall-clock timing field rather than
 asserting timing equality). MLflow experiment tracking and a Postgres
-`benchmark_experiment` table are explicitly deferred (Unit 3/4) — this unit
+`benchmark_experiment` table are explicitly deferred (Unit 4) — this unit
 follows `ml-training`'s existing artifact-on-disk precedent, not a new
 cross-service Postgres write path.
+Unit 3: the baseline IDS comparison R24 asks for. `run_benchmark`'s `model`
+parameter gained `"isolation_forest"` — scikit-learn's `IsolationForest`
+trained directly in the harness (a genuine second, independently-implemented
+method, not a relabeling of the statistical one), fit on the same
+benign-only train rows, scored one row at a time against the same test
+split — matching `sm_ml.models.AnomalyModel`'s real one-event-at-a-time
+serving contract rather than an unrealistic batch score that production
+never takes. Absent `sm-ml[serving]`, `run_benchmark(model="isolation_
+forest")` raises `ModelUnavailable` (never silently degrades or fabricates
+a result) — verified with a real test that blocks the import via
+`monkeypatch`, mirroring `sm_ml.graph.models.gnn`'s existing
+optional-dependency test convention. New `ml-training[benchmark]` extra
+(`sm-ml[serving]`) added to all three `ci.yml` install blocks — unlike the
+GNN/torch boundary, this dependency is light enough to install in CI, so
+the comparison is exercised by CI's own fixture-based tests, not only by
+hand locally.
+**Real, executed comparison** (same NSL-KDD files/hashes as Unit 2):
+Isolation Forest → **ROC-AUC 0.935499, precision 0.961297, recall 0.621289,
+F1 0.754769, false-positive rate 0.033055, mean detection latency
+24.836165 ms/row.** Head-to-head against Unit 2's statistical baseline
+(ROC-AUC 0.639039, FPR 0.649367, latency 0.054062 ms/row): Isolation Forest
+is substantially more accurate (AUC +0.296, FPR 20x lower) but ~460x slower
+per row — a real, measured accuracy/latency tradeoff. Re-checked local
+dataset availability for CICIDS2017/UNSW-NB15/LANL — unchanged from Unit 2
+(none locally usable in labeled form) — so no adapter was built for any of
+them this unit either; still no number claimed for any of them.
+Local: ruff + mypy --strict clean, **4 new unit tests** (reproducibility,
+"a genuinely different method not a relabeling", the real `ModelUnavailable`
+path, an unknown-model-name `ValueError`) — 30 total in `ml-training/tests`.
 
 **Phase 14 — Reporting + Attack Storytelling. COMPLETE / CI-VERIFIED (all
 five jobs, final run `34641513223`; see exit report below).** Every
@@ -2874,10 +2904,18 @@ Planned units:
    `benchmark_experiment` table deferred (Unit 3/4) — this unit follows
    `ml-training`'s existing artifact-on-disk precedent, not a new
    cross-service DB write path. See "Current phase" above for full detail.
-3. ⬜ Baseline IDS comparison on whichever dataset(s) Unit 2 actually
-   executed against; the remaining named-dataset adapters (CICIDS2017/
-   UNSW-NB15/LANL) if by then downloaded/labeled locally, else left
-   documented as deferred with the concrete reason.
+3. ✅ Baseline IDS comparison (R24): `run_benchmark(..., model=
+   "isolation_forest")` — scikit-learn's `IsolationForest` trained directly
+   in the harness (`sm-ml[serving]`, new `ml-training[benchmark]` extra,
+   installed in CI), fit on the same benign-only NSL-KDD train rows, scored
+   one row at a time against the same test split. Real, executed run:
+   ROC-AUC 0.935499, precision 0.961297, recall 0.621289, F1 0.754769,
+   false-positive rate 0.033055, mean detection latency 24.836165 ms/row —
+   vs. the statistical baseline's 0.639039 AUC / 0.649367 FPR / 0.054062
+   ms/row: substantially more accurate, ~460x slower per row, a real
+   measured tradeoff. Re-checked CICIDS2017/UNSW-NB15/LANL local
+   availability — unchanged, still not usable in labeled form, no adapter
+   built, no number claimed. See "Current phase" above for full detail.
 4. ⬜ Grafana dashboard provisioning (`deploy/grafana` is currently an empty
    placeholder dir) + a frontend benchmark-results page (populated only
    from real runs, per R24) + BFF + phase close.

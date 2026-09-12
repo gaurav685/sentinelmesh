@@ -578,8 +578,9 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Verification method:** run harness → real metrics. MLflow experiment
   tracking + a Postgres `benchmark_experiment` table remain future work (no
   code writes to either yet — see Status).
-- **Phase:** P15 (Unit 2). **Status:** IMPLEMENTED for NSL-KDD, **REAL METRIC
-  EXISTS** — `services/ml-training/src/sm_ml_training/benchmark/` (dataset
+- **Phase:** P15 (Units 2-3). **Status:** IMPLEMENTED for NSL-KDD (two real
+  methods), **REAL METRICS EXIST** — `services/ml-training/src/
+  sm_ml_training/benchmark/` (dataset
   adapter `nsl_kdd.py`, metrics `metrics.py` — stdlib ROC-AUC/precision/
   recall/F1/FPR, no numpy/sklearn — and the reproducible run `harness.py`).
   `sm_ml.models.StatisticalModel` (the platform's own always-available
@@ -603,11 +604,25 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
   CICIDS2017 was never downloaded (only a `.md5` stub exists); UNSW-NB15 is
   only raw, unlabeled, partial Argus/BRO captures (not the official labeled
   feature CSVs); LANL's `auth.txt`/`proc.txt`/`flows.txt`/`dns.txt` have no
-  paired `redteam.txt` ground truth staged. Their adapters are deferred to
-  Unit 3, to be built when/if a genuinely labeled copy is staged —
-  **no number will be claimed for any of them until then.** MLflow tracking,
-  the `benchmark_experiment` table, and a baseline-ML-method comparison
-  (e.g. an Isolation Forest) are Unit 3/4 work.
+  paired `redteam.txt` ground truth staged. Their adapters remain deferred
+  (Unit 3 re-checked local availability — unchanged — and did not build
+  them for a dataset that cannot be genuinely evaluated) —
+  **no number is claimed for any of them.** MLflow tracking and the
+  `benchmark_experiment` table remain future work (Unit 4).
+  **Baseline IDS comparison added (Unit 3):** `run_benchmark(..., model=
+  "isolation_forest")` trains scikit-learn's `IsolationForest` directly in
+  the harness (`sm-ml[serving]`, now installed in CI too) on the same
+  benign-only NSL-KDD train rows, scored one row at a time against the same
+  test split — a genuine second, independently-implemented method, not a
+  relabeling of the first. Real, executed run (2026-09-12, commit
+  `14ddb1d`, same files/hashes as the statistical run) — **ROC-AUC 0.935499,
+  precision 0.961297, recall 0.621289, F1 0.754769, false-positive rate
+  0.033055, mean detection latency 24.836165 ms/row.** Head-to-head against
+  the statistical baseline: Isolation Forest is substantially more accurate
+  (AUC +0.296, FPR 20x lower) but ~460x slower per row (24.8 ms vs 0.054 ms)
+  — a real, measured accuracy/latency tradeoff, not an assumption. Neither
+  number is more "correct" to report than the other; both are real and both
+  are kept, which is the entire point of a baseline comparison.
 
 ### R25 — Beautiful Enterprise UI
 - **Purpose:** professional SOC dashboard, advanced graph visualization, security analytics dashboards; accessibility + security + performance preserved.
