@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type {
   AdversaryFingerprint,
   AttackChainModel,
+  BenchmarkExperiment,
   BlastRadiusResult,
   Campaign,
   Decoy,
@@ -198,5 +199,20 @@ describe("generated contract types", () => {
     };
     expect(narrative.simulated).toBe(true);
     expect(narrative.beats?.[0].tier).toBe("synthetic");
+  });
+
+  it("BenchmarkExperiment carries both dataset hashes and a real environment, never a placeholder metric", () => {
+    const exp: BenchmarkExperiment = {
+      id: "e1", dataset_id: "nsl-kdd", train_sha256: "a".repeat(64), test_sha256: "b".repeat(64),
+      preprocessing_version: "nsl-kdd-v1", model_name: "mad_zscore", n_train: 125973,
+      n_train_benign_used_for_fit: 67343, n_test: 22544, n_test_anomalous: 12833,
+      params: { z_threshold: 3.5 }, seed: 1337,
+      metrics: { roc_auc: 0.639039, precision: 0.581191 },
+      environment: { python_version: "3.11.5", git_commit: "deadbeef" },
+      executed: true, generated_at: "2026-09-12T15:42:36Z", created_at: "2026-09-12T15:42:36Z",
+    };
+    expect(exp.executed).toBe(true);
+    expect(exp.metrics.roc_auc).toBeCloseTo(0.639039);
+    expect(exp.train_sha256).not.toBe(exp.test_sha256);
   });
 });

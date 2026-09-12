@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .base import NAMING_CONVENTION, Base, TimestampMixin
+from .benchmark_models import BenchmarkExperimentRow
 from .chain_models import AttackChainRow, AttackChainStageRow
 from .detection_models import Anomaly, Detection, SecurityAlert, ThreatScore
 from .engine import build_engine
@@ -44,6 +45,7 @@ __all__ = [
     "AttackTechniqueRow",
     "AuditLog",
     "Base",
+    "BenchmarkExperimentRow",
     "CampaignRow",
     "Database",
     "DecoyInteractionRow",

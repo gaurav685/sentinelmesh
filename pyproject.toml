@@ -75,6 +75,11 @@ ignore_missing_imports = true
 module = ["aioboto3.*", "aiobotocore.*", "boto3.*", "botocore.*", "reportlab.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# ml-training[persist]'s plain-asyncpg write to benchmark_experiment (R24) ships no py.typed marker.
+module = "asyncpg.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 asyncio_mode = "auto"

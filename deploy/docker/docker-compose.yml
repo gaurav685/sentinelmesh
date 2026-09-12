@@ -549,6 +549,12 @@ services:
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${SM_GRAFANA_ADMIN_PASSWORD:-admin}
       GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      # A second bind mount nested inside this one's target (e.g. at
+      # .../dashboards/files) fails on Docker Desktop ("read-only file
+      # system" creating the nested mountpoint) — the dashboard JSON lives
+      # under provisioning/ itself instead, one mount, no nesting.
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3001:3000"
     depends_on:

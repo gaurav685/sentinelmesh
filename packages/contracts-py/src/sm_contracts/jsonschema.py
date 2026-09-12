@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from .api import (
     AgentRunRequest,
     AgentRunResult,
+    BenchmarkExperiment,
     BlastRadiusRequest,
     BlastRadiusResult,
     CreateUserRequest,
@@ -202,6 +203,7 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "ReportGeneratedPayload": ReportGeneratedPayload,
     "Narrative": Narrative,
     "NarrativeBeat": NarrativeBeat,
+    "BenchmarkExperiment": BenchmarkExperiment,
     "CursorPage_Detection": DetectionPage,
     "CursorPage_SecurityAlert": AlertPage,
     "CursorPage_AttackChain": ChainPage,

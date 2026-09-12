@@ -18,6 +18,7 @@ from sm_common.bus import EventBusProducer
 from sm_common.config import AppSettings, load_settings
 from sm_common.db import Database
 from sm_common.fastapi import (
+    MetricsMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
     TracingMiddleware,
@@ -90,6 +91,7 @@ def create_app(
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     app.add_middleware(RequestContextMiddleware)
     app.add_middleware(TracingMiddleware)
+    app.add_middleware(MetricsMiddleware)
     install_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(metrics.router)

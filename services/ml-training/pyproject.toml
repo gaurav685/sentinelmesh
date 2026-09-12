@@ -21,6 +21,10 @@ gnn = ["sm-ml[gnn]"]
 # already-trained-artifact-only IsolationForestModel serving wrapper).
 # Installed in CI (unlike [gnn]) — numpy+scikit-learn are light enough.
 benchmark = ["sm-ml[serving]"]
+# Persist a real BenchmarkRun to Postgres (benchmark_experiment, R24).
+# Plain asyncpg, not sm-common — ml-training stays an offline CLI tool,
+# not a service with sm-common's full dependency graph.
+persist = ["asyncpg>=0.29,<1"]
 dev = [
     "pytest>=8",
     "pytest-asyncio>=0.24",

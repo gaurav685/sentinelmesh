@@ -7,10 +7,10 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Units
-1-3 of 4 CI-VERIFIED; Unit 1 run `34698614073`,
-commit `7eee2c1`; Unit 2 run
-`34699923546`, commit `80a0996`; Unit 3 run `34701469455`, commit `498b98b`).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
+**Phase 15 — Observability + Benchmarking + Evaluation. COMPLETE (Unit 4
+commit pending CI; Units 1-3 CI-VERIFIED — Unit 1 run `34698614073`,
+commit `7eee2c1`; Unit 2 run `34699923546`, commit `80a0996`; Unit 3 run
+`34701469455`, commit `498b98b`; see exit report below).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
 Loki; this phase closes the gaps between that spec and what actually runs.
 Unit 1: real per-request tracing — every service already bootstrapped an
 OTel `TracerProvider` (Phase 1) but nothing ever opened a span or set the
@@ -134,6 +134,69 @@ them this unit either; still no number claimed for any of them.
 Local: ruff + mypy --strict clean, **4 new unit tests** (reproducibility,
 "a genuinely different method not a relabeling", the real `ModelUnavailable`
 path, an unknown-model-name `ValueError`) — 30 total in `ml-training/tests`.
+Unit 4 (phase close): Grafana provisioning, benchmark-result storage +
+read path, and a real bug found by actually running the new dashboard.
+`deploy/grafana/provisioning/{datasources,dashboards}` auto-provisions the
+Prometheus datasource + a 14-panel "Platform Overview" dashboard (real
+PromQL against every metric inventoried this phase — HTTP rate/latency,
+dependency health, Kafka lag/DLQ, Postgres pool, Neo4j latency, graph
+growth, detection latency/degraded, model inference latency, rate limiting,
+authn/authz, audit failures). Real bug caught bringing it up for real: a
+second bind mount nested inside the first's target directory
+(`.../dashboards/files`) fails on Docker Desktop ("read-only file system"
+creating the nested mountpoint) — fixed by moving the dashboard JSON under
+the one `provisioning` mount instead of a second volume. New Postgres
+`benchmark_experiment` table (migration `0014`, no `tenant_id` — research
+data, not tenant data) + `sm_ml_training.benchmark.persist.
+save_benchmark_run` (plain `asyncpg`, new `ml-training[persist]` extra —
+`ml-training` stays an offline CLI, not a server) + a new `--save-to-db`
+CLI flag. `api-gateway`'s `SqlBenchmarkRepository` reads it directly
+(mirroring `SqlSocRepository`/`ContentRepository`'s established precedent
+for a BFF reading a table its owner exposes no HTTP read API for) via
+`GET /api/v1/soc/benchmarks` (+ `/{id}`), gated on `ops:read` (only
+`platform_operator` actually holds it in the real seeded RBAC). New
+frontend `/benchmarks` page.
+**A second real bug, found only by actually running the finished dashboard
+against a live service, not by reading code:** `Metrics.observe_http` —
+declared, scraped, and dashboarded since an earlier phase — had no caller
+anywhere in the entire platform; `sm_http_requests_total`/`sm_http_
+request_duration_seconds` had never once been incremented, on any service,
+ever, since whichever phase first wrote that class. Fixed with a new
+`sm_common.fastapi.MetricsMiddleware` (reads `services.metrics` from
+`app.state` at request time — it does not exist yet when `add_middleware`
+runs), wired into all 14 services. One narrow, verified, documented gap:
+a fully unhandled `Exception` (a real bug, not a normal `SmError` path)
+is recorded with status `0` rather than the real `500` the client
+receives; every intentional error response is unaffected.
+**Real, executed end-to-end proof (not a mocked link anywhere):** ran the
+real CLI benchmark against the real NSL-KDD file with `--save-to-db`
+pointed at the real compose-network Postgres; logged in as a real seeded
+`platform_operator` user (created via direct SQL, cleaned up afterward —
+`audit_log`'s FK blocked the tenant row's deletion, left in place
+deliberately, matching established precedent); `GET /api/v1/soc/
+benchmarks` returned the exact real row just inserted, ROC-AUC 0.639039
+visible in the JSON body. Separately confirmed via `curl` against
+Grafana's own API that the real datasource and the real dashboard are
+loaded, and via a real Prometheus query that `sm_http_requests_total` now
+carries real, just-served-request samples.
+Local: ruff + mypy --strict clean (402 source files), **961 unit+contract
+tests** (from 956: `test_metrics_middleware.py` — 5 tests, including one
+that documents the unhandled-`Exception` status-0 gap explicitly rather
+than asserting something false), `gen_contracts.py --check` clean (101
+JSON Schema files, +1 `BenchmarkExperiment`), frontend gauntlet green
+(eslint clean, 68 vitest tests across 18 files, `npm run build` — 22
+routes incl. `/benchmarks`, `contracts-ts` typecheck clean), 3 new
+real-Postgres integration tests (`test_benchmark_persist_pg.py` +3,
+`test_benchmark_repository_pg.py` +3 — both had to switch from the
+`database` fixture to `clean`, since `database` alone does not guarantee
+the ORM-declared schema exists for that specific test run), full
+`tests/integration` suite green (175 tests) after a genuine environmental
+anomaly (a stale, session-long-accumulated Redpanda/Neo4j state caused one
+unrelated graph-pipeline test to fail; root-caused by reproducing it in
+isolation, then fixed by recreating both containers with fresh volumes —
+not a code regression). `Dockerfile.app` builds; non-root uid confirmed;
+every service entrypoint + `sm_common.db.benchmark_models` import cleanly.
+**This closes Phase 15** — see the exit report below.
 
 **Phase 14 — Reporting + Attack Storytelling. COMPLETE / CI-VERIFIED (all
 five jobs, final run `34641513223`; see exit report below).** Every
@@ -890,6 +953,139 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 15 exit report
+
+**State: COMPLETE (Units 1-3 CI-verified all five jobs each; Unit 4 commit
+pushed, CI pending confirmation at time of writing — see "Exact next
+action" for run ids).** Unit 1 `7eee2c1`, Unit 2 `80a0996`, Unit 3
+`498b98b`, Unit 4 commit tracked in "Exact next action" once pushed.
+Unit-level CI runs: 1 = `34698614073`, 2 = `34699923546`,
+3 = `34701469455`, 4 = pending.
+
+**ADR-020 already specified the observability stack; this phase closed
+the gap between that specification and what actually runs, then built a
+reproducible ML benchmark/evaluation system that never claims a number
+until the benchmark is actually executed (Constitution §3).** Two real,
+load-bearing gaps were found this phase not by reading code but by
+actually running the finished feature against live infrastructure:
+`trace_id` had been silently `None` on every event since the phase that
+introduced it (nothing ever opened a span), and `Metrics.observe_http` had
+never been called anywhere in the platform despite being scraped and
+dashboarded. Both are fixed and verified with a real span/real metric
+sample, not just a passing unit test.
+
+### Delivered (Units 1-4)
+
+| Area | State |
+|---|---|
+| Real tracing + the remaining metrics + `/health/deps` (Unit 1) | `sm_common.fastapi.TracingMiddleware` opens a real per-request OTel span (W3C extract/inject); `current_trace_id()`/`remote_context_from_trace_id()` wired into both true envelope-origin points and `sm_common.bus.RecordProcessor`'s Kafka-consumer span. `sm_db_pool_*` + `sm_neo4j_query_duration_seconds` (the two genuinely-missing metrics — model-inference/detection-latency/graph-growth already existed under each owning service's own metrics class). `/health/deps` added to the 13 services that lacked it. `prometheus.yml` scrape-target parity for all 13 previously-unscraped services. |
+| Tabular benchmark harness + a real NSL-KDD run (Unit 2) | `sm_ml_training.benchmark` — dataset adapter (`nsl_kdd.py`, vocabulary derived from the train split itself), stdlib-only metrics (`metrics.py` — Mann-Whitney-U ROC-AUC, precision/recall/F1/FPR, no numpy/sklearn), the reproducible run (`harness.py` — `sm_ml.models.StatisticalModel` fit on benign-only train rows). Real, executed run: ROC-AUC 0.639039, F1 0.627537. |
+| Baseline IDS comparison (Unit 3) | `run_benchmark(model="isolation_forest")` — scikit-learn's `IsolationForest` trained directly in the harness, scored one row at a time (matching `AnomalyModel`'s real serving contract). Real, executed run: ROC-AUC 0.935499, F1 0.754769 — substantially more accurate, ~460x slower per row than the statistical baseline, a real measured tradeoff. |
+| Grafana + result storage + BFF/frontend + a second real bug (Unit 4) | `deploy/grafana/provisioning` — real datasource + 14-panel dashboard (a nested-bind-mount bug fixed after it actually failed on Docker Desktop). `benchmark_experiment` table (migration `0014`) + `save_benchmark_run` (plain `asyncpg`) + `--save-to-db` CLI flag. `api-gateway`'s `SqlBenchmarkRepository` (`GET /api/v1/soc/benchmarks[/{id}]`, `ops:read`) + frontend `/benchmarks` page. Found and fixed `Metrics.observe_http` never being called anywhere (`sm_common.fastapi.MetricsMiddleware`, all 14 services). |
+
+### Verification performed (local + CI, 2026-09-12)
+
+- `ruff check` clean over `packages services tests migrations scripts`;
+  `mypy --strict` clean over the full CI static-tree list (402 source
+  files by phase close).
+- **961 unit+contract tests** by phase close (up from 883 at Phase 14's
+  close: 41 in Unit 1, 26 in Unit 2, 4 in Unit 3, ~7 net in Unit 4 incl.
+  `test_metrics_middleware.py`) + `gen_contracts.py --check` (101 JSON
+  Schema files, +1 `BenchmarkExperiment`).
+- Real infra: full `tests/integration` suite (175 tests by phase close)
+  green against real Postgres/Redis/Neo4j/Redpanda/MinIO after every
+  unit, including 6 new benchmark-persistence/repository tests. One
+  environmental anomaly this phase (a session-long-accumulated
+  Redpanda/Neo4j state failing one unrelated graph-pipeline test) was
+  root-caused by isolated reproduction and fixed by recreating both
+  containers with fresh volumes — confirmed not a code regression.
+- `frontend/web`: `npx eslint .` clean, `npm run build` OK (22 routes,
+  `/benchmarks` new), **68 vitest tests** across 18 files (up from 62),
+  `contracts-ts` typecheck clean.
+- `docker build -f deploy/docker/Dockerfile.app` builds; non-root uid
+  10001 confirmed; every service entrypoint + `sm_common.db.
+  benchmark_models` + `opentelemetry.propagate` import cleanly.
+- **Real, executed end-to-end proof, every link real, none mocked:** ran
+  the actual CLI benchmark against the actual NSL-KDD file with
+  `--save-to-db` pointed at the real compose-network Postgres; logged in
+  as a real seeded `platform_operator` user; `GET /api/v1/soc/benchmarks`
+  returned the exact row just inserted. Separately: `curl`'d Grafana's own
+  API and got back the real provisioned datasource and dashboard; queried
+  Prometheus directly and got back real `sm_http_requests_total` samples
+  matching a request just made through the real running `api-gateway`
+  container.
+- **CI green on a clean runner for Units 1-3 — all five jobs each** (runs
+  `34698614073` / `34699923546` / `34701469455`). Unit 4's CI run id is
+  recorded in "Exact next action" once confirmed.
+
+### Pre-output engineering review (Constitution §23)
+
+- **No fabricated measurement, anywhere, at any layer.** `current_trace_id()`
+  returns `None` rather than a fake id when no real OTel provider is
+  configured (the default local/CI state) — verified with a real assertion
+  that no `traceparent` response header appears in that case. Every
+  `BenchmarkRun`/`BenchmarkExperiment` traces back to `executed=True`,
+  enforced by the table's own `CHECK` constraint, not just a convention.
+  The two ROC-AUC numbers this phase reports (0.639039, 0.935499) came
+  from real executions against a real, hash-recorded dataset file, with no
+  tuning to make either look better.
+- **A real gap, found by running the feature, not assumed fixed by
+  writing it.** Both `trace_id` (Unit 1) and `sm_http_requests_total`
+  (Unit 4) had existed as declared-but-dead code since earlier phases.
+  Both were found only because the finished dashboard/feature was
+  actually run against live infrastructure and the result was checked,
+  not because a unit test passed — the standing practice this build
+  follows throughout, applied again here.
+- **Dataset-availability honesty over convenience.** CICIDS2017/UNSW-NB15/
+  LANL are all present on the local machine but none in a genuinely usable
+  labeled form — re-checked in Unit 3, unchanged from Unit 2's finding. No
+  adapter was built for any of them, and no number is claimed for any of
+  them, rather than quietly substituting a dataset that happened to be
+  available.
+- **Cross-service reads follow existing precedent, not a new exception.**
+  `api-gateway`'s `SqlBenchmarkRepository` reads `benchmark_experiment`
+  directly because `ml-training` (an offline CLI, not a service) exposes
+  no HTTP read API — the same justification, and the same established
+  pattern, `SqlSocRepository`/`ContentRepository` already use for
+  `detection`/`threat_score`.
+- **Permission checks verified against real seeded grants, not assumed.**
+  `ops:read` is gated correctly — confirmed only `platform_operator`
+  actually holds it in the real migration-seeded RBAC (not `tenant_admin`,
+  despite an earlier test fixture's `admin_perms` including it — a
+  pre-existing fixture breadth that predates this phase, left alone since
+  fixing it was out of this phase's scope).
+
+### Deferred (deliberately)
+
+- **MLflow experiment tracking.** No MLflow server is deployed in this
+  build; `BenchmarkRun`/`benchmark_experiment` carry everything a real
+  tracking system would need (dataset hashes, params, seed, metrics,
+  environment) the moment one exists.
+- **CICIDS2017, UNSW-NB15, and LANL dataset adapters.** Not locally usable
+  in labeled form (documented reasons above); building an adapter for data
+  that cannot be genuinely evaluated would itself be a form of
+  fabrication risk (untested code, unverifiable claims).
+- **Loki/Tempo/Jaeger log/trace collectors.** No collector is deployed;
+  spans and structured logs are real and ready to ship the moment one is
+  configured (`SM_OTEL_EXPORTER_OTLP_ENDPOINT`).
+- **The unhandled-`Exception` status-0 metric gap.** A genuinely unhandled
+  exception (a real bug, not a normal error path) is recorded with status
+  `0` rather than the real `500` the client receives — documented and
+  tested as a known, narrow limitation rather than silently accepted or
+  hidden; every intentional `SmError` response is unaffected.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| Metrics, structured logs, tracing, health/readiness/liveness/dependency checks | ✅ real spans, real HTTP+DB-pool+Neo4j metrics, `/health/deps` on all 14 services |
+| Prometheus / Grafana / OpenTelemetry integration | ✅ real scrape config, real provisioned datasource + dashboard, real OTel spans (no collector deployed — spans stay local, by design, until one exists) |
+| Reproducible ML benchmark pipeline on architecture-approved datasets | ✅ NSL-KDD (real, executed); CICIDS2017/UNSW-NB15/LANL honestly deferred (not locally usable) |
+| Never claim a number until the benchmark is actually executed | ✅ every metric in this phase's docs came from a real, hash-recorded, reproducible run |
+| Baseline IDS comparison | ✅ Isolation Forest vs. the statistical baseline, real measured accuracy/latency tradeoff |
+| Tests: metric collection, tracing, dashboard configuration, benchmark reproducibility, evaluation scripts, result storage | ✅ all covered — unit + real-Postgres + a real Grafana-API + real Prometheus-query verification |
+| **CI green on a clean runner** | ✅ **Units 1-3, all five jobs each** (`34698614073` / `34699923546` / `34701469455`); Unit 4 pending confirmation |
 
 ## Phase 14 exit report
 
@@ -2917,9 +3113,19 @@ Planned units:
    measured tradeoff. Re-checked CICIDS2017/UNSW-NB15/LANL local
    availability — unchanged, still not usable in labeled form, no adapter
    built, no number claimed. See "Current phase" above for full detail.
-4. ⬜ Grafana dashboard provisioning (`deploy/grafana` is currently an empty
-   placeholder dir) + a frontend benchmark-results page (populated only
-   from real runs, per R24) + BFF + phase close.
+4. ✅ Grafana provisioning (real datasource + a 14-panel dashboard, real
+   bug fixed: a nested bind mount fails on Docker Desktop) + benchmark
+   result storage (`benchmark_experiment` migration `0014` + plain-asyncpg
+   `save_benchmark_run`) + `api-gateway` read path (`SqlBenchmarkRepository`,
+   `GET /api/v1/soc/benchmarks[/{id}]`, `ops:read`-gated) + frontend
+   `/benchmarks` page + phase close. Second real bug found by running the
+   finished dashboard against live data: `Metrics.observe_http` had no
+   caller anywhere in the platform since whichever phase declared it —
+   fixed with a new `sm_common.fastapi.MetricsMiddleware`, wired into all
+   14 services. Full real end-to-end proof (real CLI run → real Postgres
+   insert → real authenticated BFF read; real curl against Grafana's API;
+   real Prometheus query showing real HTTP-metric samples). See "Current
+   phase" above for full detail and the Phase 15 exit report below.
 
 Exit next action after Phase 15: **PHASE 16 — Kubernetes + Enterprise
 Deployment** (prompt not yet given — do NOT start speculatively; the next

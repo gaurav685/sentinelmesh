@@ -317,9 +317,23 @@ export type Principal = string;
 export type SourceHost = string | null;
 export type SourceIp = string | null;
 export type TargetHost = string | null;
+export type CreatedAt4 = string;
+export type DatasetId = string;
+export type Executed = boolean;
+export type GeneratedAt1 = string;
+export type Id4 = string;
+export type ModelName = string;
+export type NTest = number;
+export type NTestAnomalous = number;
+export type NTrain = number;
+export type NTrainBenignUsedForFit = number;
+export type PreprocessingVersion = string;
+export type Seed = number;
+export type TestSha256 = string;
+export type TrainSha256 = string;
 export type MaxHops = number;
 export type MinWeight = number;
-export type Seed = number;
+export type Seed1 = number;
 /**
  * @minItems 1
  * @maxItems 20
@@ -329,15 +343,15 @@ export type AmplifyingWeaknesses = string[];
 export type CriticalReached = string[];
 export type Reached = string[];
 export type Score3 = number;
-export type Seed1 = number;
+export type Seed2 = number;
 export type Seeds1 = string[];
 /**
  * @maxItems 500
  */
 export type ChainIds = string[];
-export type CreatedAt4 = string;
+export type CreatedAt5 = string;
 export type FirstSeen4 = string;
-export type Id4 = string;
+export type Id5 = string;
 export type LastSeen4 = string;
 export type Status1 = "active" | "dormant" | "closed";
 /**
@@ -397,7 +411,7 @@ export type RoleNames = string[];
 export type Items = AttackChainModel[];
 export type Limit = number;
 export type NextCursor = string | null;
-export type CreatedAt5 = string;
+export type CreatedAt6 = string;
 export type DedupKey = string;
 export type Description2 = string;
 /**
@@ -433,7 +447,7 @@ export type Summary1 = string;
  */
 export type Evidence1 = EvidenceItem[];
 export type FirstSeen5 = string;
-export type Id5 = string;
+export type Id6 = string;
 export type LastSeen5 = string;
 export type RawEventId2 = string | null;
 export type RuleId = string | null;
@@ -457,9 +471,9 @@ export type Limit1 = number;
 export type NextCursor1 = string | null;
 export type AcknowledgedAt = string | null;
 export type ClosedAt = string | null;
-export type CreatedAt6 = string;
+export type CreatedAt7 = string;
 export type DetectionId = string;
-export type Id6 = string;
+export type Id7 = string;
 export type OpenedAt = string;
 export type Summary2 = string;
 export type TenantId7 = string;
@@ -469,8 +483,8 @@ export type Items2 = SecurityAlert[];
 export type Limit2 = number;
 export type NextCursor2 = string | null;
 export type ComputedAt = string;
-export type CreatedAt7 = string;
-export type Id7 = string;
+export type CreatedAt8 = string;
+export type Id8 = string;
 export type Score5 = number;
 export type SubjectId4 = string;
 export type TenantId8 = string;
@@ -479,8 +493,8 @@ export type WeightsVersion = string;
 export type Items3 = ThreatScore[];
 export type Limit3 = number;
 export type NextCursor3 = string | null;
-export type CreatedAt8 = string;
-export type Id8 = string;
+export type CreatedAt9 = string;
+export type Id9 = string;
 export type Kind2 = "honeypot_host" | "honeytoken" | "decoy_credential";
 export type Name2 = string;
 export type NetworkBoundary = "isolated" | "dmz-isolated";
@@ -491,7 +505,7 @@ export type TornDownAt = string | null;
 export type TtlSeconds = number;
 export type CapturedAt = string;
 export type DecoyId = string;
-export type Id9 = string;
+export type Id10 = string;
 export type Source1 = string;
 export type TechniqueHint = string | null;
 export type TenantId10 = string;
@@ -572,10 +586,10 @@ export type ActorId1 = string | null;
  * via the `definition` "TiConfidence".
  */
 export type TiConfidence = "low" | "medium" | "high";
-export type CreatedAt9 = string;
+export type CreatedAt10 = string;
 export type ExpiresAt = string | null;
 export type FirstSeen6 = string;
-export type Id10 = string;
+export type Id11 = string;
 export type LastSeen6 = string;
 /**
  * '<source>' or 'fixture:<name>'.
@@ -1220,7 +1234,7 @@ export type Confidence3 = "low" | "medium" | "high";
 export type Degraded = boolean;
 export type DegradedReason = string;
 export type EvidenceFlagged = boolean;
-export type GeneratedAt1 = string;
+export type GeneratedAt2 = string;
 /**
  * @maxItems 20
  */
@@ -1237,7 +1251,7 @@ export type Depth = number;
  * @maxItems 20000
  */
 export type Edges = GraphEdge[];
-export type Id11 = string;
+export type Id12 = string;
 /**
  * @maxItems 32
  */
@@ -1356,14 +1370,14 @@ export type PermissionCode =
  */
 export type Permissions = PermissionCode[];
 export type SessionExpiresAt = string;
-export type CreatedAt10 = string;
+export type CreatedAt11 = string;
 export type DisplayName1 = string;
 export type Email2 = string;
 /**
  * OIDC `sub` for federated users; null for local-only users.
  */
 export type ExternalSubject = string | null;
-export type Id12 = string;
+export type Id13 = string;
 export type LastLoginAt = string | null;
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -1393,8 +1407,8 @@ export type Permissions1 = PermissionCode[];
  * Role names granted to the user.
  */
 export type Roles = string[];
-export type CreatedAt11 = string;
-export type Id13 = string;
+export type CreatedAt12 = string;
+export type Id14 = string;
 export type Name4 = string;
 /**
  * URL-safe stable identifier, unique across the platform (3-40 chars, no leading/trailing hyphen).
@@ -1408,7 +1422,7 @@ export type TenantStatus = "active" | "suspended";
 export type UpdatedAt10 = string;
 export type ApiVersion = string;
 export type Build = string;
-export type Environment = "local" | "ci" | "staging" | "production";
+export type Environment1 = "local" | "ci" | "staging" | "production";
 export type Service1 = string;
 export type Name5 = string;
 export type SubjectCount = number;
@@ -1440,11 +1454,11 @@ export type ChainId1 = string;
  */
 export type CitedRefs1 = string[];
 export type Confidence4 = "low" | "medium" | "high";
-export type CreatedAt12 = string;
+export type CreatedAt13 = string;
 export type Degraded1 = boolean;
 export type DegradedReason1 = string;
-export type GeneratedAt2 = string;
-export type Id14 = string;
+export type GeneratedAt3 = string;
+export type Id15 = string;
 export type Simulated = boolean;
 export type SubjectId8 = string;
 export type Summary4 = string;
@@ -1454,7 +1468,7 @@ export type MaxRows1 = number;
 export type Query = string;
 export type Action2 = string;
 export type Description3 = string;
-export type Id15 = string;
+export type Id16 = string;
 export type ResourceType1 = string;
 export type Supported = boolean;
 export type UnsupportedReason = string;
@@ -1463,7 +1477,7 @@ export type Confidence5 = number;
  * @maxItems 20
  */
 export type Evidence3 = string[];
-export type GeneratedAt3 = string;
+export type GeneratedAt4 = string;
 export type Kind3 = "attack_progression" | "lateral_movement" | "next_action" | "threat_trajectory";
 export type ModelVersion1 = string;
 export type Prediction1 = string;
@@ -1492,7 +1506,7 @@ export type AffectedAssets = ReportAsset[];
  */
 export type ChainIds1 = string[];
 export type Confidence6 = number | null;
-export type CreatedAt13 = string;
+export type CreatedAt14 = string;
 /**
  * @maxItems 500
  */
@@ -1505,8 +1519,8 @@ export type Evidence4 = GroundedStatement[];
  * @maxItems 200
  */
 export type Findings1 = GroundedStatement[];
-export type GeneratedAt4 = string | null;
-export type Id16 = string;
+export type GeneratedAt5 = string | null;
+export type Id17 = string;
 export type Kind5 = "incident" | "executive_summary" | "soc" | "compliance";
 /**
  * @maxItems 20
@@ -1559,7 +1573,7 @@ export type UpdatedAt12 = string;
  * Presigned; None until the report is `complete` or `partial`.
  */
 export type DownloadUrl = string | null;
-export type GeneratedAt5 = string;
+export type GeneratedAt6 = string;
 export type Kind7 = "incident" | "executive_summary" | "soc" | "compliance";
 export type ReportId = string;
 export type Status5 = "pending" | "partial" | "complete" | "failed";
@@ -1568,9 +1582,9 @@ export type TenantId31 = string;
 export type ComputedAt1 = string;
 export type Score7 = number;
 export type SubjectId13 = string;
-export type CreatedAt14 = string;
+export type CreatedAt15 = string;
 export type Description4 = string;
-export type Id17 = string;
+export type Id18 = string;
 export type IsSystem = boolean;
 export type Name7 = string;
 export type TenantId32 = string | null;
@@ -1578,14 +1592,14 @@ export type UpdatedAt13 = string;
 export type PermissionId = string;
 export type RoleId2 = string;
 export type Description5 = string;
-export type Id18 = string;
+export type Id19 = string;
 export type IsSystem1 = boolean;
 export type Name8 = string;
 export type FeedPipeline = boolean;
 export type Intensity = number;
 export type Kind8 = "apt" | "ransomware" | "insider" | "brute_force";
 export type Name9 = string;
-export type Seed2 = number;
+export type Seed3 = number;
 export type TargetHost1 = string;
 export type TargetIdentity = string;
 export type EventCount = number;
@@ -1605,12 +1619,12 @@ export type FedToPipeline = boolean;
 export type Intensity1 = number;
 export type Kind10 = "apt" | "ransomware" | "insider" | "brute_force";
 export type ScenarioId1 = string;
-export type Seed3 = number;
+export type Seed4 = number;
 export type Synthetic = boolean;
 export type TargetHost2 = string;
 export type TargetIdentity1 = string;
-export type CreatedAt15 = string;
-export type Id19 = string;
+export type CreatedAt16 = string;
+export type Id20 = string;
 export type LastSeenAt = string | null;
 export type Name10 = string;
 /**
@@ -1626,7 +1640,7 @@ export type TenantId33 = string;
 export type SensorType = "network" | "auth" | "dns" | "process" | "file" | "mixed";
 export type UpdatedAt14 = string;
 export type ExactFallback = boolean;
-export type Id20 = string;
+export type Id21 = string;
 export type Kind11 = "threat_memory" | "campaign" | "adversary_fingerprint";
 export type LastSeen7 = string;
 export type Score8 = number;
@@ -1641,18 +1655,18 @@ export type Supported1 = boolean;
 export type UnsupportedReason1 = string;
 export type ActiveChains = number;
 export type Detections24H = number;
-export type GeneratedAt6 = string;
+export type GeneratedAt7 = string;
 export type OpenAlerts = number;
 /**
  * @maxItems 20
  */
 export type TopRiskSubjects = RiskSubject[];
-export type CreatedAt16 = string;
+export type CreatedAt17 = string;
 /**
  * @maxItems 64
  */
 export type Evidence5 = EvidenceItem[];
-export type Id21 = string;
+export type Id22 = string;
 export type MatrixVersion3 = string;
 export type Rationale1 = string;
 export type SubjectId14 = string;
@@ -1674,17 +1688,17 @@ export type ActorId3 = string;
  * @maxItems 32
  */
 export type Aliases = string[];
-export type CreatedAt17 = string;
+export type CreatedAt18 = string;
 export type Description6 = string;
 export type FirstSeen7 = string | null;
-export type Id22 = string;
+export type Id23 = string;
 export type LastSeen8 = string | null;
 export type Name12 = string;
 export type Source4 = string;
 export type UpdatedAt16 = string;
-export type CreatedAt18 = string;
+export type CreatedAt19 = string;
 export type FirstSeen8 = string;
-export type Id23 = string;
+export type Id24 = string;
 export type LastSeen9 = string;
 export type OccurrenceCount = number;
 export type PatternKind = "technique_sequence";
@@ -1697,17 +1711,17 @@ export type TechniqueIds10 = string[];
 export type TenantId35 = string;
 export type UpdatedAt17 = string;
 export type ActorId4 = string | null;
-export type CreatedAt19 = string;
+export type CreatedAt20 = string;
 export type Description7 = string;
 export type FirstSeen9 = string | null;
-export type Id24 = string;
+export type Id25 = string;
 export type LastSeen10 = string | null;
 export type Name13 = string;
 export type TenantId36 = string;
 export type UpdatedAt18 = string;
-export type CreatedAt20 = string;
+export type CreatedAt21 = string;
 export type Enabled = boolean;
-export type Id25 = string;
+export type Id26 = string;
 export type IndicatorCount = number;
 export type LastPollAt = string | null;
 export type LastPollStatus = string | null;
@@ -1727,7 +1741,7 @@ export type Title6 = string;
 export type Entries = TimelineEntry[];
 export type SubjectId16 = string;
 export type Criticality = number;
-export type Id26 = string;
+export type Id27 = string;
 export type Kind13 = string;
 export type Name15 = string;
 export type Tags3 = string[];
@@ -1743,7 +1757,7 @@ export type Assets = TwinAssetOut[];
  * @maxItems 1000
  */
 export type Relations = TwinRelationOut[];
-export type Seed4 = number;
+export type Seed5 = number;
 export type Synthetic1 = boolean;
 export type AssetId = string;
 export type Detail5 = string;
@@ -1753,14 +1767,14 @@ export type Severity1 = string;
  * @maxItems 200
  */
 export type Weaknesses = TwinWeaknessOut[];
-export type CreatedAt21 = string;
+export type CreatedAt22 = string;
 export type DisplayName2 = string;
 export type Email3 = string;
 /**
  * OIDC `sub` for federated users; null for local-only users.
  */
 export type ExternalSubject1 = string | null;
-export type Id27 = string;
+export type Id28 = string;
 export type LastLoginAt1 = string | null;
 export type TenantId37 = string;
 export type UpdatedAt20 = string;
@@ -2059,12 +2073,44 @@ export interface AuthEventPayload {
 }
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "BenchmarkExperiment".
+ */
+export interface BenchmarkExperiment {
+  created_at: CreatedAt4;
+  dataset_id: DatasetId;
+  environment?: Environment;
+  executed: Executed;
+  generated_at: GeneratedAt1;
+  id: Id4;
+  metrics?: Metrics;
+  model_name: ModelName;
+  n_test: NTest;
+  n_test_anomalous: NTestAnomalous;
+  n_train: NTrain;
+  n_train_benign_used_for_fit: NTrainBenignUsedForFit;
+  params?: Params;
+  preprocessing_version: PreprocessingVersion;
+  seed: Seed;
+  test_sha256: TestSha256;
+  train_sha256: TrainSha256;
+}
+export interface Environment {
+  [k: string]: string | null;
+}
+export interface Metrics {
+  [k: string]: number;
+}
+export interface Params {
+  [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "BlastRadiusRequest".
  */
 export interface BlastRadiusRequest {
   max_hops?: MaxHops;
   min_weight?: MinWeight;
-  seed?: Seed;
+  seed?: Seed1;
   seeds: Seeds;
 }
 /**
@@ -2077,7 +2123,7 @@ export interface BlastRadiusResult {
   hop_of?: HopOf;
   reached?: Reached;
   score: Score3;
-  seed: Seed1;
+  seed: Seed2;
   seeds: Seeds1;
 }
 export interface HopOf {
@@ -2092,9 +2138,9 @@ export interface HopOf {
  */
 export interface Campaign {
   chain_ids?: ChainIds;
-  created_at: CreatedAt4;
+  created_at: CreatedAt5;
   first_seen: FirstSeen4;
-  id: Id4;
+  id: Id5;
   last_seen: LastSeen4;
   status: Status1;
   technique_ids?: TechniqueIds4;
@@ -2180,14 +2226,14 @@ export interface CursorPageDetection {
  * via the `definition` "Detection".
  */
 export interface Detection {
-  created_at: CreatedAt5;
+  created_at: CreatedAt6;
   dedup_key: DedupKey;
   description?: Description2;
   detector: DetectorKind;
   entities?: Entities1;
   evidence?: Evidence1;
   first_seen: FirstSeen5;
-  id: Id5;
+  id: Id6;
   last_seen: LastSeen5;
   raw_event_id?: RawEventId2;
   rule_id?: RuleId;
@@ -2236,9 +2282,9 @@ export interface CursorPageSecurityAlert {
 export interface SecurityAlert {
   acknowledged_at?: AcknowledgedAt;
   closed_at?: ClosedAt;
-  created_at: CreatedAt6;
+  created_at: CreatedAt7;
   detection_id: DetectionId;
-  id: Id6;
+  id: Id7;
   opened_at: OpenedAt;
   severity: Severity;
   status: AlertStatus;
@@ -2266,8 +2312,8 @@ export interface CursorPageThreatScore {
 export interface ThreatScore {
   components: Components;
   computed_at: ComputedAt;
-  created_at: CreatedAt7;
-  id: Id7;
+  created_at: CreatedAt8;
+  id: Id8;
   score: Score5;
   scoring_status: ScoringStatus;
   subject_id: SubjectId4;
@@ -2287,8 +2333,8 @@ export interface Components {
  * via the `definition` "Decoy".
  */
 export interface Decoy {
-  created_at: CreatedAt8;
-  id: Id8;
+  created_at: CreatedAt9;
+  id: Id9;
   kind: Kind2;
   name: Name2;
   network_boundary: NetworkBoundary;
@@ -2306,7 +2352,7 @@ export interface DecoyInteraction {
   captured_at: CapturedAt;
   decoy_id: DecoyId;
   detail?: Detail2;
-  id: Id9;
+  id: Id10;
   source: Source1;
   technique_hint?: TechniqueHint;
   tenant_id: TenantId10;
@@ -2386,11 +2432,11 @@ export interface EnrichmentMatch {
 export interface ThreatIndicator {
   actor_id?: ActorId1;
   confidence: TiConfidence;
-  created_at: CreatedAt9;
+  created_at: CreatedAt10;
   expires_at?: ExpiresAt;
   first_seen: FirstSeen6;
   freshness: IndicatorFreshness;
-  id: Id10;
+  id: Id11;
   last_seen: LastSeen6;
   provenance: Provenance2;
   reputation: Reputation;
@@ -2910,7 +2956,7 @@ export interface Explanation {
   degraded?: Degraded;
   degraded_reason?: DegradedReason;
   evidence_flagged?: EvidenceFlagged;
-  generated_at: GeneratedAt1;
+  generated_at: GeneratedAt2;
   model?: AnalystModelInfo;
   recommendations?: Recommendations;
   subject_id: SubjectId7;
@@ -2958,7 +3004,7 @@ export interface GraphNeighborhood {
  * via the `definition` "GraphNode".
  */
 export interface GraphNode {
-  id: Id11;
+  id: Id12;
   labels?: Labels;
   properties?: Properties1;
 }
@@ -3079,11 +3125,11 @@ export interface LoginResponse {
  * via the `definition` "User".
  */
 export interface User2 {
-  created_at: CreatedAt10;
+  created_at: CreatedAt11;
   display_name: DisplayName1;
   email: Email2;
   external_subject?: ExternalSubject;
-  id: Id12;
+  id: Id13;
   last_login_at?: LastLoginAt;
   status: UserStatus;
   tenant_id: TenantId28;
@@ -3115,8 +3161,8 @@ export interface MeResponse {
  * via the `definition` "Tenant".
  */
 export interface Tenant {
-  created_at: CreatedAt11;
-  id: Id13;
+  created_at: CreatedAt12;
+  id: Id14;
   name: Name4;
   settings?: Settings;
   slug: Slug;
@@ -3135,7 +3181,7 @@ export interface Settings {
 export interface MetaResponse {
   api_version: ApiVersion;
   build: Build;
-  environment: Environment;
+  environment: Environment1;
   service: Service1;
 }
 /**
@@ -3167,11 +3213,11 @@ export interface Narrative {
   chain_id: ChainId1;
   cited_refs?: CitedRefs1;
   confidence?: Confidence4;
-  created_at: CreatedAt12;
+  created_at: CreatedAt13;
   degraded?: Degraded1;
   degraded_reason?: DegradedReason1;
-  generated_at: GeneratedAt2;
-  id: Id14;
+  generated_at: GeneratedAt3;
+  id: Id15;
   model?: AnalystModelInfo;
   simulated?: Simulated;
   subject_id: SubjectId8;
@@ -3217,7 +3263,7 @@ export interface Permission {
   action: Action2;
   code: PermissionCode;
   description: Description3;
-  id: Id15;
+  id: Id16;
   resource_type: ResourceType1;
 }
 /**
@@ -3239,7 +3285,7 @@ export interface Prediction {
   confidence: Confidence5;
   evidence?: Evidence3;
   features?: Features1;
-  generated_at: GeneratedAt3;
+  generated_at: GeneratedAt4;
   kind: Kind3;
   model_version: ModelVersion1;
   prediction: Prediction1;
@@ -3285,12 +3331,12 @@ export interface Report {
   affected_assets?: AffectedAssets;
   chain_ids?: ChainIds1;
   confidence?: Confidence6;
-  created_at: CreatedAt13;
+  created_at: CreatedAt14;
   detection_ids?: DetectionIds2;
   evidence?: Evidence4;
   findings?: Findings1;
-  generated_at?: GeneratedAt4;
-  id: Id16;
+  generated_at?: GeneratedAt5;
+  id: Id17;
   incident_metadata?: IncidentMetadata;
   kind: Kind5;
   missing_sections?: MissingSections;
@@ -3360,7 +3406,7 @@ export interface ReportDownload {
  * via the `definition` "ReportGeneratedPayload".
  */
 export interface ReportGeneratedPayload {
-  generated_at: GeneratedAt5;
+  generated_at: GeneratedAt6;
   kind: Kind7;
   report_id: ReportId;
   status: Status5;
@@ -3389,9 +3435,9 @@ export interface RiskSubject {
  * via the `definition` "Role".
  */
 export interface Role1 {
-  created_at: CreatedAt14;
+  created_at: CreatedAt15;
   description: Description4;
-  id: Id17;
+  id: Id18;
   is_system: IsSystem;
   name: Name7;
   tenant_id?: TenantId32;
@@ -3411,7 +3457,7 @@ export interface RolePermission {
  */
 export interface RoleSummary {
   description: Description5;
-  id: Id18;
+  id: Id19;
   is_system: IsSystem1;
   name: Name8;
 }
@@ -3424,7 +3470,7 @@ export interface RunScenarioRequest {
   intensity?: Intensity;
   kind: Kind8;
   name: Name9;
-  seed?: Seed2;
+  seed?: Seed3;
   target_host: TargetHost1;
   target_identity: TargetIdentity;
 }
@@ -3440,7 +3486,7 @@ export interface ScenarioRunResult {
   intensity: Intensity1;
   kind: Kind10;
   scenario_id: ScenarioId1;
-  seed: Seed3;
+  seed: Seed4;
   synthetic?: Synthetic;
   target_host: TargetHost2;
   target_identity: TargetIdentity1;
@@ -3473,8 +3519,8 @@ export interface Attributes1 {
  * via the `definition` "Sensor".
  */
 export interface Sensor {
-  created_at: CreatedAt15;
-  id: Id19;
+  created_at: CreatedAt16;
+  id: Id20;
   last_seen_at?: LastSeenAt;
   name: Name10;
   status: SensorStatus;
@@ -3491,7 +3537,7 @@ export interface Sensor {
  */
 export interface SimilarityMatch {
   exact_fallback?: ExactFallback;
-  id: Id20;
+  id: Id21;
   kind: Kind11;
   last_seen: LastSeen7;
   score: Score8;
@@ -3530,7 +3576,7 @@ export interface SocSummary {
   active_chains: ActiveChains;
   alerts_by_severity?: AlertsBySeverity;
   detections_24h: Detections24H;
-  generated_at: GeneratedAt6;
+  generated_at: GeneratedAt7;
   open_alerts: OpenAlerts;
   top_risk_subjects?: TopRiskSubjects;
 }
@@ -3545,9 +3591,9 @@ export interface AlertsBySeverity {
  */
 export interface TechniqueMapping {
   confidence: MappingConfidence;
-  created_at: CreatedAt16;
+  created_at: CreatedAt17;
   evidence?: Evidence5;
-  id: Id21;
+  id: Id22;
   matrix_version: MatrixVersion3;
   rationale: Rationale1;
   source: MappingSource;
@@ -3581,10 +3627,10 @@ export interface TechniqueMatch {
 export interface ThreatActor {
   actor_id: ActorId3;
   aliases?: Aliases;
-  created_at: CreatedAt17;
+  created_at: CreatedAt18;
   description?: Description6;
   first_seen?: FirstSeen7;
-  id: Id22;
+  id: Id23;
   last_seen?: LastSeen8;
   name: Name12;
   source: Source4;
@@ -3598,9 +3644,9 @@ export interface ThreatActor {
  * via the `definition` "ThreatMemory".
  */
 export interface ThreatMemory {
-  created_at: CreatedAt18;
+  created_at: CreatedAt19;
   first_seen: FirstSeen8;
-  id: Id23;
+  id: Id24;
   last_seen: LastSeen9;
   occurrence_count: OccurrenceCount;
   pattern_kind: PatternKind;
@@ -3617,10 +3663,10 @@ export interface ThreatMemory {
  */
 export interface TiCampaign {
   actor_id?: ActorId4;
-  created_at: CreatedAt19;
+  created_at: CreatedAt20;
   description?: Description7;
   first_seen?: FirstSeen9;
-  id: Id24;
+  id: Id25;
   last_seen?: LastSeen10;
   name: Name13;
   tenant_id: TenantId36;
@@ -3631,9 +3677,9 @@ export interface TiCampaign {
  * via the `definition` "TiSource".
  */
 export interface TiSource {
-  created_at: CreatedAt20;
+  created_at: CreatedAt21;
   enabled: Enabled;
-  id: Id25;
+  id: Id26;
   indicator_count?: IndicatorCount;
   kind: TiSourceKind;
   last_poll_at?: LastPollAt;
@@ -3675,7 +3721,7 @@ export interface TimelineResponse {
  */
 export interface TwinAssetOut {
   criticality: Criticality;
-  id: Id26;
+  id: Id27;
   kind: Kind13;
   name?: Name15;
   tags?: Tags3;
@@ -3697,7 +3743,7 @@ export interface TwinRelationOut {
 export interface TwinSnapshot {
   assets?: Assets;
   relations?: Relations;
-  seed: Seed4;
+  seed: Seed5;
   synthetic?: Synthetic1;
   weaknesses?: Weaknesses;
 }
@@ -3719,11 +3765,11 @@ export interface TwinWeaknessOut {
  * via the `definition` "UserResponse".
  */
 export interface UserResponse {
-  created_at: CreatedAt21;
+  created_at: CreatedAt22;
   display_name: DisplayName2;
   email: Email3;
   external_subject?: ExternalSubject1;
-  id: Id27;
+  id: Id28;
   last_login_at?: LastLoginAt1;
   status: UserStatus;
   tenant_id: TenantId37;

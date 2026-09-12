@@ -15,12 +15,13 @@ locally-staged dataset file — see `ml/datasets/<name>/MANIFEST.md`.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import sys
 from pathlib import Path
 
 from .artifacts import write_artifact
-from .benchmark.harness import run_benchmark
+from .benchmark.harness import ModelName, run_benchmark
 from .benchmark.nsl_kdd import load_nsl_kdd
 from .config import ModelKind, TrainingConfig
 from .pipeline import PipelineSkipped, TrainingPipeline
@@ -28,6 +29,7 @@ from .pipeline import PipelineSkipped, TrainingPipeline
 __all__ = ["main"]
 
 _BENCHMARK_LOADERS = {"nsl-kdd": load_nsl_kdd}
+_BENCHMARK_MODELS: tuple[ModelName, ...] = ("statistical", "isolation_forest")
 
 
 def _build_config(args: argparse.Namespace) -> TrainingConfig:
@@ -48,8 +50,14 @@ def _run_benchmark_cli(argv: list[str]) -> int:
     parser.add_argument("--dataset", required=True, choices=sorted(_BENCHMARK_LOADERS))
     parser.add_argument("--train", required=True, type=Path, help="path to the train split file")
     parser.add_argument("--test", required=True, type=Path, help="path to the test split file")
+    parser.add_argument("--model", default="statistical", choices=_BENCHMARK_MODELS)
     parser.add_argument("--seed", type=int, default=1337)
     parser.add_argument("--out", type=Path, help="write the BenchmarkRun as JSON to this path")
+    parser.add_argument(
+        "--save-to-db", metavar="PG_DSN",
+        help="also insert the result into benchmark_experiment at this Postgres DSN "
+        "(needs sm-ml-training[persist])",
+    )
     args = parser.parse_args(argv)
 
     loader = _BENCHMARK_LOADERS[args.dataset]
@@ -59,11 +67,16 @@ def _run_benchmark_cli(argv: list[str]) -> int:
         print(f"benchmark not run: {exc}", file=sys.stderr)  # noqa: T201
         return 3
 
-    run = run_benchmark(train, test, seed=args.seed)
+    run = run_benchmark(train, test, model=args.model, seed=args.seed)
     print(run.model_dump_json(indent=2))  # noqa: T201
     if args.out:
         args.out.write_text(run.model_dump_json(indent=2) + "\n", encoding="utf-8")
         print(f"benchmark result written: {args.out}")  # noqa: T201
+    if args.save_to_db:
+        from .benchmark.persist import save_benchmark_run
+
+        asyncio.run(save_benchmark_run(args.save_to_db, run))
+        print("benchmark result inserted into benchmark_experiment")  # noqa: T201
     return 0
 
 

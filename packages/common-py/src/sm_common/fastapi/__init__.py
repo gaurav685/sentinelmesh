@@ -9,12 +9,14 @@ from .hardening import (
     SecurityHeadersMiddleware,
     build_cors_kwargs,
 )
+from .metrics_middleware import MetricsMiddleware
 from .middleware import RequestContextMiddleware
 from .ratelimit import RateLimitMiddleware
 from .tracing import TracingMiddleware
 
 __all__ = [
     "BodySizeLimitMiddleware",
+    "MetricsMiddleware",
     "RateLimitMiddleware",
     "RequestContextMiddleware",
     "SecurityHeadersMiddleware",

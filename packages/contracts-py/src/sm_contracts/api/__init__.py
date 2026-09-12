@@ -15,6 +15,7 @@ from .analyst import (
     Explanation,
 )
 from .auth import LoginRequest, LoginResponse, LogoutResponse, MeResponse
+from .benchmark import BenchmarkExperiment
 from .graph import GraphEdge, GraphNeighborhood, GraphNode, GraphPath
 from .health import DepStatus, HealthResponse, MetaResponse, ReadyResponse
 from .hunt import (
@@ -72,6 +73,7 @@ __all__ = [
     "AgentRunResult",
     "AnalystModelInfo",
     "AttackProgressionRequest",
+    "BenchmarkExperiment",
     "BlastRadiusRequest",
     "BlastRadiusResult",
     "CreateUserRequest",

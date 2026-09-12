@@ -15,6 +15,7 @@ from uuid import UUID
 
 from sm_common.db.models import Permission, Role, Tenant, User
 from sm_contracts import (
+    BenchmarkExperiment,
     Detection,
     MitreHeatmapCell,
     SecurityAlert,
@@ -24,11 +25,25 @@ from sm_contracts import (
 )
 
 __all__ = [
+    "BenchmarkRepository",
     "RoleRepository",
     "SocRepository",
     "TenantRepository",
     "UserRepository",
 ]
+
+
+class BenchmarkRepository(Protocol):
+    """Read-only. No `tenant_id`: a benchmark run is platform research data,
+    not tenant data (R24's own security-boundary line) — `ml-training`
+    (`sm_ml_training.benchmark.persist`) is the only writer, via a plain
+    `asyncpg` insert, never through this gateway."""
+
+    async def list_recent(
+        self, *, dataset_id: str | None = None, limit: int = 50,
+    ) -> list[BenchmarkExperiment]: ...
+
+    async def get(self, experiment_id: UUID) -> BenchmarkExperiment | None: ...
 
 
 class SocRepository(Protocol):

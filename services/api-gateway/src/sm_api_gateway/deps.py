@@ -32,7 +32,14 @@ from sm_common.security import OidcClient
 from sm_contracts import ActorType, AuditResult, PermissionCode, UserStatus
 
 from .clients import InternalServiceClient
-from .repositories.protocols import RoleRepository, SocRepository, TenantRepository, UserRepository
+from .repositories.benchmark import SqlBenchmarkRepository
+from .repositories.protocols import (
+    BenchmarkRepository,
+    RoleRepository,
+    SocRepository,
+    TenantRepository,
+    UserRepository,
+)
 from .repositories.soc import SqlSocRepository
 from .repositories.sql import SqlRoleRepository, SqlTenantRepository, SqlUserRepository
 from .security.cookies import CSRF_HEADER
@@ -44,6 +51,7 @@ __all__ = [
     "RepositoryFactory",
     "Services",
     "SqlRepositoryFactory",
+    "get_benchmark_repository",
     "get_internal_client",
     "get_principal",
     "get_services",
@@ -89,6 +97,7 @@ class Services:
     oidc: OidcClient | None = None
     internal_client: InternalServiceClient | None = None
     soc_repository: SocRepository | None = None
+    benchmark_repository: BenchmarkRepository | None = None
 
 
 def get_services(request: Request) -> Services:
@@ -111,6 +120,16 @@ async def get_soc_repository(
         return
     async with services.db.session() as session:
         yield SqlSocRepository(session)
+
+
+async def get_benchmark_repository(
+    services: Services = Depends(get_services),
+) -> AsyncIterator[BenchmarkRepository]:
+    if services.benchmark_repository is not None:
+        yield services.benchmark_repository
+        return
+    async with services.db.session() as session:
+        yield SqlBenchmarkRepository(session)
 
 
 def get_internal_client(services: Services = Depends(get_services)) -> InternalServiceClient:

@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "dataset_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Dataset Id",
+      "type": "string"
+    },
+    "environment": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Environment",
+      "type": "object"
+    },
+    "executed": {
+      "title": "Executed",
+      "type": "boolean"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "metrics": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Metrics",
+      "type": "object"
+    },
+    "model_name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Model Name",
+      "type": "string"
+    },
+    "n_test": {
+      "minimum": 0,
+      "title": "N Test",
+      "type": "integer"
+    },
+    "n_test_anomalous": {
+      "minimum": 0,
+      "title": "N Test Anomalous",
+      "type": "integer"
+    },
+    "n_train": {
+      "minimum": 0,
+      "title": "N Train",
+      "type": "integer"
+    },
+    "n_train_benign_used_for_fit": {
+      "minimum": 0,
+      "title": "N Train Benign Used For Fit",
+      "type": "integer"
+    },
+    "params": {
+      "additionalProperties": true,
+      "title": "Params",
+      "type": "object"
+    },
+    "preprocessing_version": {
+      "maxLength": 32,
+      "minLength": 1,
+      "title": "Preprocessing Version",
+      "type": "string"
+    },
+    "seed": {
+      "title": "Seed",
+      "type": "integer"
+    },
+    "test_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "title": "Test Sha256",
+      "type": "string"
+    },
+    "train_sha256": {
+      "maxLength": 64,
+      "minLength": 64,
+      "title": "Train Sha256",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "dataset_id",
+    "train_sha256",
+    "test_sha256",
+    "preprocessing_version",
+    "model_name",
+    "n_train",
+    "n_train_benign_used_for_fit",
+    "n_test",
+    "n_test_anomalous",
+    "seed",
+    "executed",
+    "generated_at",
+    "created_at"
+  ],
+  "title": "BenchmarkExperiment",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

@@ -61,7 +61,7 @@ jobs:
                       -e "services/mitre-service[dev]" \
                       -e "services/threat-intel-service[dev]" \
                       -e "services/correlation-engine[dev]" \
-                      -e "services/ml-training[dev,benchmark]" \
+                      -e "services/ml-training[dev,benchmark,persist]" \
                       -e "services/ai-analyst[dev]" \
                       -e "services/simulation-service[dev]" \
                       -e "services/memory-service[dev]"
@@ -124,7 +124,7 @@ jobs:
                       -e "services/mitre-service[dev]" \
                       -e "services/threat-intel-service[dev]" \
                       -e "services/correlation-engine[dev]" \
-                      -e "services/ml-training[dev,benchmark]" \
+                      -e "services/ml-training[dev,benchmark,persist]" \
                       -e "services/ai-analyst[dev]" \
                       -e "services/simulation-service[dev]" \
                       -e "services/memory-service[dev]" \
@@ -232,7 +232,7 @@ jobs:
                       -e "services/mitre-service[dev]" \
                       -e "services/threat-intel-service[dev]" \
                       -e "services/correlation-engine[dev]" \
-                      -e "services/ml-training[dev,benchmark]" \
+                      -e "services/ml-training[dev,benchmark,persist]" \
                       -e "services/ai-analyst[dev]" \
                       -e "services/simulation-service[dev]" \
                       -e "services/memory-service[dev]" \
