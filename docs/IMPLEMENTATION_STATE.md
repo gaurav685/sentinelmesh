@@ -8,9 +8,9 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Units
-1-2 of 4 CI-VERIFIED, Unit 3 commit pending; Unit 1 run `34698614073`,
+1-3 of 4 CI-VERIFIED; Unit 1 run `34698614073`,
 commit `7eee2c1`; Unit 2 run
-`34699923546`, commit `80a0996`).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
+`34699923546`, commit `80a0996`; Unit 3 run `34701469455`, commit `498b98b`).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
 Loki; this phase closes the gaps between that spec and what actually runs.
 Unit 1: real per-request tracing — every service already bootstrapped an
 OTel `TracerProvider` (Phase 1) but nothing ever opened a span or set the
@@ -2904,7 +2904,8 @@ Planned units:
    `benchmark_experiment` table deferred (Unit 3/4) — this unit follows
    `ml-training`'s existing artifact-on-disk precedent, not a new
    cross-service DB write path. See "Current phase" above for full detail.
-3. ✅ Baseline IDS comparison (R24): `run_benchmark(..., model=
+3. ✅ **CI-VERIFIED (run `34701469455`, all five jobs, commit `498b98b`).**
+   Baseline IDS comparison (R24): `run_benchmark(..., model=
    "isolation_forest")` — scikit-learn's `IsolationForest` trained directly
    in the harness (`sm-ml[serving]`, new `ml-training[benchmark]` extra,
    installed in CI), fit on the same benign-only NSL-KDD train rows, scored
