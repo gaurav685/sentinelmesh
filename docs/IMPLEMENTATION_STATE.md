@@ -8,8 +8,8 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Units
-1-2 of 4; Unit 1 CI-VERIFIED run `34698614073`, commit `7eee2c1`; Unit 2
-commit pending).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
+1-2 of 4 CI-VERIFIED; Unit 1 run `34698614073`, commit `7eee2c1`; Unit 2 run
+`34699923546`, commit `80a0996`).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
 Loki; this phase closes the gaps between that spec and what actually runs.
 Unit 1: real per-request tracing — every service already bootstrapped an
 OTel `TracerProvider` (Phase 1) but nothing ever opened a span or set the
@@ -2846,7 +2846,8 @@ Planned units:
    full detail and local verification (924 unit tests, 169 real-infra
    integration tests, real compose-stack smoke test against a rebuilt
    image).
-2. ✅ Tabular IDS benchmark harness core (R24), distinct from Phase 8's
+2. ✅ **CI-VERIFIED (run `34699923546`, all five jobs, commit `80a0996`).**
+   Tabular IDS benchmark harness core (R24), distinct from Phase 8's
    graph-model pipeline. `sm_ml_training.benchmark` — `nsl_kdd.py` (dataset
    adapter; one-hot vocabulary derived from the train split itself, never
    hardcoded, with an explicit `__unknown` bucket), `metrics.py` (stdlib-
