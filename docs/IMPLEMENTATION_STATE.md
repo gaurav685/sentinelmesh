@@ -7,10 +7,11 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 15 — Observability + Benchmarking + Evaluation. COMPLETE (Unit 4
-commit pending CI; Units 1-3 CI-VERIFIED — Unit 1 run `34698614073`,
-commit `7eee2c1`; Unit 2 run `34699923546`, commit `80a0996`; Unit 3 run
-`34701469455`, commit `498b98b`; see exit report below).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
+**Phase 15 — Observability + Benchmarking + Evaluation. COMPLETE /
+CI-VERIFIED (all four units, all five jobs each — Unit 1 run
+`34698614073`, commit `7eee2c1`; Unit 2 run `34699923546`, commit
+`80a0996`; Unit 3 run `34701469455`, commit `498b98b`; Unit 4 run
+`34707322039`, commit `9bfffb2`; see exit report below).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
 Loki; this phase closes the gaps between that spec and what actually runs.
 Unit 1: real per-request tracing — every service already bootstrapped an
 OTel `TracerProvider` (Phase 1) but nothing ever opened a span or set the
@@ -956,12 +957,10 @@ before Phase 2 is itself declared complete.
 
 ## Phase 15 exit report
 
-**State: COMPLETE (Units 1-3 CI-verified all five jobs each; Unit 4 commit
-pushed, CI pending confirmation at time of writing — see "Exact next
-action" for run ids).** Unit 1 `7eee2c1`, Unit 2 `80a0996`, Unit 3
-`498b98b`, Unit 4 commit tracked in "Exact next action" once pushed.
+**State: COMPLETE / CI-VERIFIED (all four units, all five jobs each).**
+Unit 1 `7eee2c1`, Unit 2 `80a0996`, Unit 3 `498b98b`, Unit 4 `9bfffb2`.
 Unit-level CI runs: 1 = `34698614073`, 2 = `34699923546`,
-3 = `34701469455`, 4 = pending.
+3 = `34701469455`, 4 = `34707322039`.
 
 **ADR-020 already specified the observability stack; this phase closed
 the gap between that specification and what actually runs, then built a
@@ -1015,9 +1014,8 @@ sample, not just a passing unit test.
   Prometheus directly and got back real `sm_http_requests_total` samples
   matching a request just made through the real running `api-gateway`
   container.
-- **CI green on a clean runner for Units 1-3 — all five jobs each** (runs
-  `34698614073` / `34699923546` / `34701469455`). Unit 4's CI run id is
-  recorded in "Exact next action" once confirmed.
+- **CI green on a clean runner — all four units, all five jobs each**
+  (runs `34698614073` / `34699923546` / `34701469455` / `34707322039`).
 
 ### Pre-output engineering review (Constitution §23)
 
@@ -1085,7 +1083,7 @@ sample, not just a passing unit test.
 | Never claim a number until the benchmark is actually executed | ✅ every metric in this phase's docs came from a real, hash-recorded, reproducible run |
 | Baseline IDS comparison | ✅ Isolation Forest vs. the statistical baseline, real measured accuracy/latency tradeoff |
 | Tests: metric collection, tracing, dashboard configuration, benchmark reproducibility, evaluation scripts, result storage | ✅ all covered — unit + real-Postgres + a real Grafana-API + real Prometheus-query verification |
-| **CI green on a clean runner** | ✅ **Units 1-3, all five jobs each** (`34698614073` / `34699923546` / `34701469455`); Unit 4 pending confirmation |
+| **CI green on a clean runner** | ✅ **all four units, all five jobs each** (`34698614073` / `34699923546` / `34701469455` / `34707322039`) |
 
 ## Phase 14 exit report
 
@@ -3050,7 +3048,8 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 15 — OBSERVABILITY + BENCHMARKING + EVALUATION. IN PROGRESS.**
+**PHASE 15 — OBSERVABILITY + BENCHMARKING + EVALUATION. COMPLETE /
+CI-VERIFIED (all four units, all five jobs each; see exit report above).**
 ADR-020 already specified the stack (OpenTelemetry + Prometheus + Grafana +
 Loki); this phase closes the gap between that spec and what actually runs,
 then builds a reproducible ML benchmark/evaluation pipeline that never
@@ -3113,7 +3112,8 @@ Planned units:
    measured tradeoff. Re-checked CICIDS2017/UNSW-NB15/LANL local
    availability — unchanged, still not usable in labeled form, no adapter
    built, no number claimed. See "Current phase" above for full detail.
-4. ✅ Grafana provisioning (real datasource + a 14-panel dashboard, real
+4. ✅ **CI-VERIFIED (run `34707322039`, all five jobs, commit `9bfffb2`).**
+   Grafana provisioning (real datasource + a 14-panel dashboard, real
    bug fixed: a nested bind mount fails on Docker Desktop) + benchmark
    result storage (`benchmark_experiment` migration `0014` + plain-asyncpg
    `save_benchmark_run`) + `api-gateway` read path (`SqlBenchmarkRepository`,
