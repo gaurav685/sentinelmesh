@@ -7,6 +7,42 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 14 — Reporting + Attack Storytelling. COMPLETE / CI-VERIFIED (all
+five jobs, final run `34641513223`; see exit report below).** Every
+generated narrative distinguishes ACTUAL SYSTEM EVIDENCE from INFERENCE
+from PREDICTION from SYNTHETIC DEMO DATA (Constitution §3, `GroundingKind`)
+— never a fabricated incident. Unit 1: `sm_contracts.report`
+(`GroundingKind`, `GroundedStatement`, `Report`, `ReportGeneratedPayload`),
+`sm_common.db.report_models` + migration `0011` (`report`/`report_template`,
+seeded default templates per `ReportKind`), new `sm_common.objectstore`
+(ADR-019 — `ObjectStore`/`safe_key`/`ensure_bucket`, async `aioboto3`,
+MinIO-locally/S3-in-prod). Unit 2: `services/reporting-service` (port
+8013) — gathers content from every dependency `service-catalog.md` names,
+renders a PDF (`reportlab`), uploads via `sm_common.objectstore`, produces
+`report.generated`; a missing content dependency lands in `missing_sections`
+-> `partial`, never fabricated; only an object-storage failure produces
+`failed`. Unit 3: attack storytelling in `services/ai-analyst` (R33) —
+`NarrativeComposer` builds deterministic `NarrativeBeat`s straight from the
+attack chain (never LLM-touched) plus one grounded summary paragraph reusing
+`IncidentAnalyst.explain`'s citation-and-retry mechanism; a
+simulation-sourced chain (`sm_ml.scenario.is_synthetic_id`) narrates with
+every beat tagged `GroundingKind.synthetic` and `Narrative.simulated=True`
+— the contract-level form of Phase 12's "SIMULATION" badge. ai-analyst
+gained its first database (`narrative` table, migration `0012`) and first
+cross-service call. Unit 4: `api-gateway` `routes/reports.py` —
+`reports:read`/`reports:generate` enforcement (migration `0013`, widens
+`permission.code`), a compliance-report role gate (`lead`/`tenant_admin`)
+enforced in route code on top of the permission check, `requested_by`
+always server-derived from the session principal, never trusted from the
+client body; `frontend/web/app/(soc)/reports` (builder/library/lookup) and
+`.../story` (chain narrative view), both using a shared `GroundingTag`
+component. Real external-infra finding this phase: Docker Hub's
+`minio/minio` repository started refusing anonymous pulls of the pinned
+release tag — a genuine registry-side change (confirmed via a local repro
+and a CI rerun, not transient), fixed by repointing compose + CI at
+`quay.io/minio/minio` (same publisher, identical image digest). See the
+Phase 14 exit report for full detail — **this closes Phase 14.**
+
 **Phase 13 — Threat Memory + Predictive Intelligence. COMPLETE /
 CI-VERIFIED (all five jobs, final run `34591054542`; see exit report
 below).** Three distinct stores, one graph database
@@ -726,6 +762,145 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 14 exit report
+
+**State: COMPLETE / CI-VERIFIED (all five jobs, final run
+[`34641513223`](https://github.com/gaurav685/sentinelmesh/actions/runs/34641513223)).**
+Unit 1 `ea56100`/`c2e949a`/`a6c6cdd`, Unit 2 `d6b5269`, Unit 3 `d7525ff`,
+Unit 4 `18c9e1f` + follow-up fix `a7b0704`. Unit-level CI runs: 1 =
+`34597754999`, 2 = `34631135008`, 3 = `34635710315`, 4 = `34641513223`
+(the first Unit-4 push, run `34640559225`, failed only on an external
+Docker-Hub registry outage unrelated to code — see below; all five jobs
+green after the fix).
+
+**Every generated narrative distinguishes evidence from inference from
+prediction from synthetic data (Constitution §3), across every layer that
+touches one.** `GroundingKind` is not decoration on one contract — it is
+threaded through `Report.evidence`/`findings`/`recommendations`
+(`GroundedStatement`), `Narrative.beats` (`tier`), and the frontend
+(`GroundingTag`), and a missing content dependency always lands in
+`missing_sections` rather than being silently omitted or fabricated.
+
+### Delivered (Units 1-4)
+
+| Area | State |
+|---|---|
+| Report + grounding contracts, object storage (Unit 1) | `sm_contracts.report` — `GroundingKind` (`evidence`/`inference`/`prediction`/`synthetic`), `GroundedStatement`, `Report`, `ReportGeneratedPayload`. `sm_common.db.report_models` + migration `0011` (`report`/`report_template`, JSONB body, seeded default template per `ReportKind` via an explicit `CAST(:sections AS jsonb)` — `op.bulk_insert` cannot round-trip a JSONB column online or offline). New `sm_common.objectstore` (ADR-019): `ObjectStore` (async `aioboto3`), `safe_key()` (path-traversal / malicious-filename guard), `ensure_bucket()` (idempotent, default SSE-S3 encryption). |
+| `reporting-service` (Unit 2) | `services/reporting-service` (port 8013, HTTP-triggered). Gathers content from `detection-engine` (direct Postgres read), `graph-service`/`mitre-service`/`ai-analyst`/`memory-service` (internal HTTP). `ai-analyst`'s narrative only called for a `detection` subject; a `memory-service` prediction at `confidence==0.0` never surfaces as a finding. A missing dependency's section lands in `missing_sections` -> `partial` (filtered against the report kind's own seeded template sections); only an object-storage failure produces `failed`. `POST /api/v1/reports` + `GET /api/v1/reports/{id}` (presigned download, 5-minute TTL). Produces `report.generated`. |
+| Attack storytelling (Unit 3, R33) | `services/ai-analyst` — `NarrativeComposer`: one deterministic `NarrativeBeat` per chain stage (never LLM-touched) + one grounded summary paragraph reusing `IncidentAnalyst.explain`'s citation-and-retry mechanism (cite a beat's `stage`, one repair turn, then a factual template with `degraded=True`). A simulation-sourced chain (`is_synthetic_id`) narrates every beat as `synthetic` with `Narrative.simulated=True`. `GET /api/v1/incidents/{chain_id}/narrative` — "incident" is an attack chain id (no separate `Incident` entity exists yet). ai-analyst's first database (`narrative`, migration `0012`) and first cross-service call (`chains_client.py` to `correlation-engine`). |
+| BFF + frontend + close (Unit 4) | `api-gateway` `routes/reports.py`: `POST /api/v1/soc/reports` (`requested_by` always server-derived from the session principal, never from the client body; a `compliance`-kind report additionally requires `lead`/`tenant_admin`, enforced in route code atop `reports:generate`), `GET /api/v1/soc/reports/{id}`, `GET /api/v1/soc/incidents/{chain_id}/narrative` (gated on the existing `detections:read` tier). Migration `0013` widens `permission.code`, seeds/grants `reports:read` to all five roles. `frontend/web/app/(soc)/reports` (builder + session-local library + lookup-by-id with presigned download) and `.../story` (chain narrative view), both via a new shared `GroundingTag` component (`.tier-badge` CSS). |
+
+### Verification performed (local + CI, 2026-09-11/12)
+
+- `ruff check` clean over `packages services tests migrations scripts`;
+  `mypy --strict` clean over the full CI static-tree list (grew unit over
+  unit as `sm_reporting_service` and ai-analyst's new modules were added).
+- **883 unit tests** total by phase close (61 new across the phase: 11
+  Unit 1 objectstore/contracts, 27 Unit 2 reporting-service, 13 Unit 3
+  narrative, 10 Unit 4 BFF) + `gen_contracts.py --check` (100 JSON Schema
+  files, 3 new: `Report`, `Narrative`, `NarrativeBeat`/`ReportDownload`).
+- Real infra: `tests/integration/test_objectstore_s3.py` (5, Unit 1, real
+  MinIO), `test_reporting_repositories_pg.py` (6, Unit 2),
+  `test_narrative_repository_pg.py` (4, Unit 3), `test_migrations_pg.py`
+  updated three times (heads `0011`→`0012`→`0013`; 18 permissions after
+  `reports:read`). Full `tests/integration` suite green against real
+  PostgreSQL/Redis/Neo4j/Kafka/MinIO after every unit.
+- Manual end-to-end smoke test through the real docker-compose stack for
+  Units 2, 3, and 4: real seed rows via `psql`, real internal JWTs, real
+  HTTP through the actual running containers — a real PDF uploaded to
+  MinIO and downloaded via its presigned URL, a real narrative call
+  through `correlation-engine` over the network (including a
+  `sim`-prefixed subject confirming every beat tagged `synthetic`), a
+  real report created through the BFF with `requested_by` correctly
+  server-derived, and a real 403 for a `compliance` report requested by an
+  `analyst`-role user.
+- `frontend/web`: `npm run lint` clean, `npm run build` OK (21 routes,
+  `/reports` + `/story` new), **62 vitest tests** (6 new page tests + 2
+  new `contract.test.ts` fixtures).
+- `docker build -f deploy/docker/Dockerfile.app` builds; `sm_reporting_service`
+  + `sm_common.objectstore` + `reportlab` + `aioboto3` import in the image;
+  non-root uid confirmed.
+- **CI green on a clean runner — all five jobs, final run `34641513223`**
+  (earlier unit runs `34597754999` / `34631135008` / `34635710315`).
+  Unit 4's first push (`34640559225`) failed on Docker Hub denying
+  anonymous pulls of the pinned MinIO release tag — reproduced identically
+  via a local `docker pull` and one CI rerun (ruling out a transient
+  blip), confirmed `quay.io/minio/minio` serves the identical image digest,
+  and fixed by repointing both `docker-compose.yml` and CI's "Start MinIO"
+  step at the quay.io mirror.
+
+### Pre-output engineering review (Constitution §23)
+
+- **Grounding is real, not cosmetic.** `GroundedStatement.tier` is a
+  required field wherever a report carries a claim (evidence/findings/
+  recommendations), and `NarrativeBeat.tier` likewise for every beat — a
+  contract-level test (`contract.test.ts`) asserts a fixture cannot omit
+  it. The only LLM-authored text in either surface (`Narrative.summary`)
+  goes through the same citation-and-retry grounding `IncidentAnalyst.
+  explain` already uses, never a fresh ungrounded generation path.
+- **Never fabricate a missing section.** A reporting-service content
+  dependency that is unreachable or empty lands its section name in
+  `missing_sections` and the report's `status` becomes `partial` — never
+  silently dropped, never backfilled with invented content. Verified by
+  the real end-to-end smoke test (a report generated with graph-service/
+  memory-service unreachable came back `partial` with both listed).
+- **Authorization + audit, including a role gate beyond the base
+  permission.** Every reports/narrative BFF route is behind
+  `require_permission` (deny-by-default, audited on denial); a
+  `compliance`-kind report additionally requires `lead`/`tenant_admin` in
+  route code — a real end-to-end 403 was observed for an `analyst`-role
+  user, not just a unit-test assertion.
+- **Never trust a client-supplied identity field.** `CreateReportRequest`
+  has no `requested_by` field at all (`extra="forbid"` rejects one); the
+  BFF always derives it from the verified session principal. A test
+  proves a client-supplied `requested_by` in the request body causes a
+  422, not silent acceptance.
+- **Path-traversal / malicious-filename guard on every object key.**
+  `safe_key()` is the only way to build an S3 key anywhere in the build —
+  rejects `.`/`..`/path separators/anything outside a conservative
+  allow-list, tested before ever reaching MinIO.
+- **Simulation is tagged at the contract level, not just a UI badge.** A
+  simulation-sourced chain's narrative carries `simulated=True` and every
+  beat's `tier=synthetic` in the data itself — a consumer of the raw API
+  response (not just the rendered page) can tell synthetic from real.
+- **External-infrastructure failure diagnosed, not worked around
+  blindly.** The Unit-4 CI failure was root-caused as a genuine Docker Hub
+  registry change (confirmed via independent reproduction, not assumed)
+  before any fix was applied — the fix points at the same publisher's own
+  mirror with the identical image digest, not an unrelated substitute.
+
+### Deferred (deliberately)
+
+- **A server-side report list endpoint.** `frontend/web/app/(soc)/reports`
+  keeps a session-local library only; there is no `GET /api/v1/soc/reports`
+  list route. Look-up-by-id is the only retrieval path for a report a
+  user didn't just create in this session (R22's stated deviation).
+- **A cinematic/animated replay view.** `.../story` renders the
+  deterministic beats + grounded summary as a static list, not an
+  animated timeline — R33's "storytelling" is satisfied by the grounded
+  narrative content, not a presentation-layer animation.
+- **A separate `Incident` entity.** "Incident" in the narrative route
+  remains an attack chain id; `docs/CONTRACTS.md` §3 still lists a
+  distinct `Incident` entity as PLANNED, not introduced this phase.
+- **Narrative beats for non-detection subjects' LLM explanation.**
+  `ai-analyst`'s grounded `/explain` has no host/ip/domain/identity
+  variant in its contract; reporting-service's narrative section is
+  correspondingly detection-subject-only, unchanged from Unit 2's
+  documented scope.
+
+### Exit criteria status
+
+| Criterion | Status |
+|---|---|
+| Report generation: incident reports, executive summaries, compliance reports, threat briefings | ✅ `ReportKind` (`incident`/`executive`/`compliance`/`threat_briefing`), one seeded template each |
+| Every report distinguishes evidence / inference / prediction / synthetic data | ✅ `GroundingKind` threaded through every `GroundedStatement` and `NarrativeBeat.tier` |
+| Never fabricate a missing section | ✅ `missing_sections` -> `partial`, real-smoke-tested |
+| Attack storytelling / narrative generation (R33) | ✅ deterministic beats + one grounded, citation-checked summary; `degraded` fallback never invents a stage |
+| Secure export (path traversal, malicious filenames, etc.) | ✅ `safe_key()` — path-traversal guard tested before touching the backend; presigned, time-limited download URLs, never a public object |
+| Role-gated report kinds (compliance) | ✅ `lead`/`tenant_admin` gate in route code atop `reports:generate`, real end-to-end 403 verified |
+| Tests: grounding-tier assertions, missing-section behavior, role gate, presigned URL round trip, path-traversal rejection | ✅ all covered — unit + real-Postgres + real-MinIO + manual end-to-end |
+| **CI green on a clean runner** | ✅ **all five jobs — final run `34641513223`** (unit runs `34597754999` / `34631135008` / `34635710315`) |
 
 ## Phase 13 exit report
 
@@ -2551,7 +2726,8 @@ integration test. Docker is still absent.
 
 ## Exact next action
 
-**PHASE 14 — REPORTING + ATTACK STORYTELLING. IN PROGRESS.** Every generated
+**PHASE 14 — REPORTING + ATTACK STORYTELLING. COMPLETE / CI-VERIFIED (all
+five jobs, final run `34641513223`; see exit report above).** Every generated
 narrative must distinguish ACTUAL SYSTEM EVIDENCE from INFERENCE from
 PREDICTION from SYNTHETIC DEMO DATA (Constitution §3) — never invent an
 incident. Planned units:
@@ -2703,12 +2879,55 @@ incident. Planned units:
    its own container) and a `depends_on: postgres, migrate` it didn't
    need before. **CI-VERIFIED (run `34635710315`, all five jobs, first
    push — no follow-up fix needed).**
-4. ⬜ `api-gateway` BFF (`routes/reports.py`, `reports:read`/`reports:generate`
-   enforcement incl. compliance-report role gate for `lead`/`tenant_admin`,
-   migration widening `permission.code` for `reports:read`) +
-   `frontend/web` report builder/library page + cinematic-replay page +
-   Phase 14 close (exit report, §23, `REQUIREMENTS_TRACEABILITY.md` R22/R33
-   → IMPLEMENTED).
+4. ✅ `api-gateway` BFF: `routes/reports.py` — `POST /api/v1/soc/reports`
+   (`CreateReportRequest` has no `requested_by` field at all, `extra=
+   "forbid"` rejects a client-supplied one — the server always derives it
+   from the session principal; a `compliance`-kind report additionally
+   requires `lead`/`tenant_admin`, checked in route code on top of the
+   `reports:generate` permission), `GET /api/v1/soc/reports/{id}`
+   (`ReportDownload` — promoted from a reporting-service-local definition
+   into `sm_contracts.report`), `GET /api/v1/soc/incidents/{chain_id}/
+   narrative` (gated on the existing `detections:read` tier rather than a
+   new permission code). Migration `0013` widens `permission.code`'s
+   CHECK and seeds/grants `reports:read` to all five roles (same tier as
+   `memory:read`). `frontend/web/app/(soc)/reports` (builder + a
+   session-local library — no server-side list endpoint exists yet +
+   lookup-by-id with the presigned download link) and `.../story`
+   (chain-id lookup -> deterministic beats + one grounded summary, with a
+   "Simulation" badge when `Narrative.simulated`), both via a new shared
+   `GroundingTag` component (`.tier-badge` CSS, `synthetic` reusing the
+   Phase 12 "Simulation" amber).
+   Local: **883 unit tests** (10 new: BFF proxy, `requested_by`-never-
+   trusted 422, compliance-role-gate 403/200, get-report 404/200, narrative
+   permission/404/200) + `gen_contracts --check` (100 JSON Schema files, 1
+   new: `ReportDownload`); full frontend gauntlet (`eslint` clean, 62
+   vitest tests across 17 files, `npm run build` — 21 routes,
+   `contracts-ts` typecheck clean). Manually smoke-tested end to end
+   against the real compose stack: seeded a real tenant/user/analyst-role
+   grant via direct SQL, logged in via real `/api/v1/auth/login`, created
+   a real report through the BFF (confirmed `requested_by` server-derived,
+   not client-supplied), fetched it back with a real presigned MinIO
+   download URL, hit the narrative endpoint (real 404 for a nonexistent
+   chain), and confirmed the compliance-report role gate produces a real
+   403 for an `analyst`-role user.
+   Real finding, external not code: Docker Hub's `minio/minio` repository
+   started denying anonymous pulls of the pinned release tag
+   (`pull access denied ... repository does not exist`) between Unit 3's
+   CI run and this one. Confirmed genuine (not transient, not GH-runner-
+   IP-specific) by reproducing the identical denial via a local
+   `docker pull` and one `gh run rerun --failed`, and confirming
+   `quay.io/minio/minio` serves the identical image digest
+   (`sha256:9535594ad4122b7a78c6632788a989b96d9199b483d3bd71a5ceae73a922cdfa`).
+   First push (commit `18c9e1f`, CI run `34640559225`) went red on this gap
+   alone (all four other jobs green); fixed by repointing both
+   `docker-compose.yml`'s `minio` service and CI's "Start MinIO" step at
+   `quay.io/minio/minio` (commit `a7b0704`).
+   `docs/REQUIREMENTS_TRACEABILITY.md` R22 and R33 -> IMPLEMENTED, each
+   with an explicit deviation noted (R22: no server-side report list
+   endpoint yet, compliance gate is route-code not a second permission;
+   R33: "incident" = attack chain id, beats deterministic/LLM only for the
+   summary). **CI-VERIFIED (run `34641513223`, all five jobs).**
+   **This closes Phase 14** — see the exit report above.
 
 Exit next action after Phase 14: **PHASE 15 — Observability + Benchmarking**
 (prompt not yet given — do NOT start speculatively; the next session resumes
