@@ -1,0 +1,16 @@
+# Auto-provisioned Prometheus datasource (Grafana provisioning API v1).
+#
+# Without this, every local `docker compose --profile obs up` starts a blank
+# Grafana that needs the datasource added by hand through the UI before any
+# dashboard can render — a real gap ADR-020 called for and nothing wired
+# until Phase 15, Unit 4.
+
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false

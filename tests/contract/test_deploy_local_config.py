@@ -20,6 +20,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = REPO_ROOT / "deploy" / "docker" / "docker-compose.yml"
 DOCKERFILE = REPO_ROOT / "deploy" / "docker" / "Dockerfile.app"
 PROMETHEUS = REPO_ROOT / "deploy" / "prometheus" / "prometheus.yml"
+GRAFANA_DATASOURCE = REPO_ROOT / "deploy" / "grafana" / "provisioning" / "datasources" / "prometheus.yml"
+GRAFANA_DASHBOARD_PROVIDER = REPO_ROOT / "deploy" / "grafana" / "provisioning" / "dashboards" / "dashboards.yml"
+GRAFANA_PROVISIONING_ROOT = REPO_ROOT / "deploy" / "grafana" / "provisioning"
+GRAFANA_DASHBOARDS_DIR = GRAFANA_PROVISIONING_ROOT / "dashboards" / "files"
 REALM = REPO_ROOT / "deploy" / "docker" / "keycloak" / "realm-sentinelmesh.json"
 DOCKERIGNORE = REPO_ROOT / ".dockerignore"
 
@@ -175,6 +179,71 @@ def test_prometheus_scrapes_every_backend_service_on_its_actual_port(compose: di
         port = target.rsplit(":", 1)[1]
         published = compose["services"][service]["ports"]
         assert any(p.split(":")[-1] == port for p in published), service
+
+
+def test_grafana_is_provisioned_with_the_prometheus_datasource():
+    """Without this, every fresh `--profile obs up` starts a blank Grafana
+    that needs the datasource added by hand before any dashboard renders."""
+    config = yaml.safe_load(GRAFANA_DATASOURCE.read_text(encoding="utf-8"))
+    ds = config["datasources"][0]
+    assert ds["type"] == "prometheus"
+    assert ds["url"] == "http://prometheus:9090"
+    assert ds["isDefault"] is True
+
+
+def test_grafana_dashboard_provider_points_at_the_mounted_dashboards_folder(
+    compose: dict[str, Any],
+):
+    """The provider's `path` must resolve inside the ONE `provisioning` bind
+    mount the compose service declares — a second bind mount nested inside
+    the first's target fails on Docker Desktop (a real bug this test would
+    have caught: "read-only file system" creating the nested mountpoint)."""
+    config = yaml.safe_load(GRAFANA_DASHBOARD_PROVIDER.read_text(encoding="utf-8"))
+    provider = config["providers"][0]
+    provisioned_path = provider["options"]["path"]
+    assert provisioned_path.startswith("/etc/grafana/provisioning/")
+
+    volumes = compose["services"]["grafana"]["volumes"]
+    assert len(volumes) == 1, "a second grafana volume risks nesting inside the first's mountpoint"
+    assert volumes[0].endswith(":/etc/grafana/provisioning:ro")
+
+    # the dashboard files must actually live on disk under that one mounted
+    # tree, at the exact subpath the provider config names.
+    relative = provisioned_path.removeprefix("/etc/grafana/provisioning/")
+    assert (GRAFANA_PROVISIONING_ROOT / relative).is_dir()
+
+
+def test_platform_overview_dashboard_is_valid_and_only_cites_real_metrics():
+    """Every PromQL target must reference a metric this platform actually
+    emits (inventoried across Phase 15 Unit 1's `sm_common.observability.
+    Metrics` and each service's own metrics class) — a dashboard panel
+    citing a metric that does not exist would render a permanent gap, not
+    a real number (Constitution §3)."""
+    dashboard_files = list(GRAFANA_DASHBOARDS_DIR.glob("*.json"))
+    assert dashboard_files, "no dashboard JSON files found"
+
+    real_metrics = {
+        "sm_http_requests_total", "sm_http_request_duration_seconds_bucket",
+        "sm_dependency_up", "sm_consumer_lag", "sm_consumer_dlq_total",
+        "sm_db_pool_checked_out", "sm_db_pool_size",
+        "sm_neo4j_query_duration_seconds_bucket",
+        "sm_graph_commands_applied_total",
+        "sm_detection_handle_seconds_bucket", "sm_detection_degraded_total",
+        "sm_inference_duration_seconds_bucket",
+        "sm_rate_limited_total", "sm_authn_failures_total",
+        "sm_authz_denials_total", "sm_audit_write_failures_total",
+    }
+
+    for path in dashboard_files:
+        dashboard = json.loads(path.read_text(encoding="utf-8"))
+        assert dashboard["schemaVersion"]
+        assert dashboard["panels"]
+        for panel in dashboard["panels"]:
+            assert panel["gridPos"]
+            for target in panel["targets"]:
+                expr = target["expr"]
+                cited = {m for m in real_metrics if m in expr}
+                assert cited, f"panel {panel['title']!r} cites no known real metric: {expr}"
 
 
 def test_keycloak_realm_client_is_confidential_and_uses_pkce():

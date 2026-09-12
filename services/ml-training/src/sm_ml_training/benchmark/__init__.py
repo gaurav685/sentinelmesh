@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from .harness import BenchmarkRun, run_benchmark
 from .metrics import confusion_counts, precision_recall_f1_fpr, roc_auc
+from .persist import save_benchmark_run
 
 __all__ = [
     "BenchmarkRun",
@@ -18,4 +19,5 @@ __all__ = [
     "precision_recall_f1_fpr",
     "roc_auc",
     "run_benchmark",
+    "save_benchmark_run",
 ]

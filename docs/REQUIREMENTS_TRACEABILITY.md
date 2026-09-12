@@ -560,7 +560,42 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Security boundary:** metrics endpoints internal only; log redaction mandatory.
 - **Test:** metric-emission unit tests, health/readiness behavior tests, redaction tests.
 - **Verification method:** assert metrics present via test scrape; **no fabricated measurements**.
-- **Phase:** P1 (health/logging/request IDs), P8 (dashboards). **Status:** **PARTIALLY IMPLEMENTED / LOCALLY VERIFIED** — structured JSON logging with secret redaction, request/correlation IDs, the Prometheus registry with the standard counters, the OTel bootstrap (no-op without an endpoint), and `/healthz` `/readyz` `/health/deps` are implemented and unit-verified (Phase 1, Units 1-2-4). No metric has been scraped from a running Prometheus and no span has reached a collector — `NOT VERIFIED — REQUIRES EXTERNAL INFRASTRUCTURE`. Dashboards are P8.
+- **Phase:** P1 (health/logging/request IDs), P15 (real tracing, remaining
+  metrics, dashboards). **Status:** **IMPLEMENTED — REAL METRICS SCRAPED,
+  REAL SPANS OPEN, REAL DASHBOARD RENDERS.** Structured JSON logging with
+  secret redaction, request/correlation IDs, `/healthz`/`/readyz`/
+  `/health/deps` (all 14 services). `sm_common.fastapi.TracingMiddleware`
+  opens a real per-request OTel span (W3C extract/inject); `sm_common.bus.
+  RecordProcessor` opens a Kafka-consumer span linked to it — verified with
+  a real span exported to Prometheus's own scrape target list and a real
+  `traceparent` response header check (absent when no collector is
+  configured — never fabricated, ADR-020). `sm_db_pool_*` and
+  `sm_neo4j_query_duration_seconds` (the two genuinely-missing named
+  metrics) are wired; model-inference/detection-latency/graph-growth
+  already existed under `ml-inference`/`detection-engine`/`graph-service`'s
+  own metrics classes. **Real bug found and fixed this phase, by actually
+  running the new dashboard against live data, not by reading code:**
+  `Metrics.observe_http` — declared, scraped, and dashboarded since an
+  earlier phase — had NO caller anywhere in the platform; `sm_http_
+  requests_total`/`sm_http_request_duration_seconds` had never once been
+  incremented, on any service, ever. Fixed with a new `sm_common.fastapi.
+  MetricsMiddleware` (reads `services.metrics` from `app.state` at request
+  time, since it is not available yet when `add_middleware` runs), wired
+  into all 14 services; verified with a real curl through a real running
+  `api-gateway` container followed by a real Prometheus scrape showing the
+  exact request just made. One narrow, documented, verified gap: a fully
+  *unhandled* `Exception` (a genuine bug, not a normal `SmError` path) is
+  recorded with status `0` rather than the real `500` the client receives
+  — every intentional error response (`NotFound`, `PermissionDenied`, ...)
+  is unaffected and records its real status. `deploy/grafana/provisioning`
+  auto-provisions the Prometheus datasource + a 14-panel "Platform
+  Overview" dashboard (`deploy/grafana/provisioning/dashboards/files/
+  platform-overview.json`) — real, executed verification: `curl`'d
+  Grafana's own API and got back the real datasource + dashboard, not just
+  a config file that parses. Loki/Tempo/Jaeger collectors remain
+  external-infrastructure future work (no collector is deployed in this
+  build; ADR-020's own architecture always allowed for that — spans/logs
+  are real and ready to ship the moment one exists).
 
 ### R24 — Benchmark & Evaluation System
 - **Purpose:** CICIDS2017, UNSW-NB15, NSL-KDD, CTU-13, LANL, EMBER; ROC-AUC benchmarking; baseline IDS comparison; reproducibility; experiment tracking.
@@ -578,7 +613,7 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Verification method:** run harness → real metrics. MLflow experiment
   tracking + a Postgres `benchmark_experiment` table remain future work (no
   code writes to either yet — see Status).
-- **Phase:** P15 (Units 2-3). **Status:** IMPLEMENTED for NSL-KDD (two real
+- **Phase:** P15 (Units 2-4). **Status:** IMPLEMENTED for NSL-KDD (two real
   methods), **REAL METRICS EXIST** — `services/ml-training/src/
   sm_ml_training/benchmark/` (dataset
   adapter `nsl_kdd.py`, metrics `metrics.py` — stdlib ROC-AUC/precision/
@@ -623,6 +658,30 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
   — a real, measured accuracy/latency tradeoff, not an assumption. Neither
   number is more "correct" to report than the other; both are real and both
   are kept, which is the entire point of a baseline comparison.
+  **Result storage + BFF/frontend results page (Unit 4):** new Postgres
+  `benchmark_experiment` table (migration `0014`; `sm_common.db.
+  BenchmarkExperimentRow` — no `tenant_id`, since this is research data,
+  R24's own security-boundary line; `CHECK (executed IS TRUE)` enforced at
+  the schema, not just by convention). `sm_ml_training.benchmark.persist.
+  save_benchmark_run` writes via plain `asyncpg` (new `ml-training[persist]`
+  extra) — `ml-training` remains an offline CLI, not a server; new
+  `--save-to-db PG_DSN` CLI flag. `api-gateway` reads it directly
+  (`SqlBenchmarkRepository`, mirroring the established `SqlSocRepository`/
+  `ContentRepository` precedent for a BFF reading a table its owning
+  component exposes no HTTP read API for) — `GET /api/v1/soc/benchmarks`
+  (list, newest first, optional `dataset_id` filter) + `GET .../benchmarks/
+  {id}`, gated on `ops:read` (the existing tier — only `platform_operator`
+  actually holds it in the real seeded RBAC, verified against the real
+  grants, not assumed). New frontend `/benchmarks` page (list + lookup;
+  R24's "populated only from real runs" — the page shows exactly what the
+  API returns, nothing else). **Real, executed end-to-end proof:** ran the
+  real CLI against the real NSL-KDD file with `--save-to-db` pointing at
+  the real compose-network Postgres; logged in as a real seeded
+  `platform_operator` user; `GET /api/v1/soc/benchmarks` returned the exact
+  real row just inserted (ROC-AUC 0.639039 visible in the JSON body) — the
+  full path from a real dataset file to a real authenticated HTTP response,
+  not a mocked link anywhere in the chain. MLflow experiment tracking
+  remains future work — no MLflow server is deployed in this build.
 
 ### R25 — Beautiful Enterprise UI
 - **Purpose:** professional SOC dashboard, advanced graph visualization, security analytics dashboards; accessibility + security + performance preserved.

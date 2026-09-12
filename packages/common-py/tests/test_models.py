@@ -52,6 +52,8 @@ EXPECTED_TABLES = {
     "report",
     "report_template",
     "narrative",
+    # observability + benchmarking (Phase 15)
+    "benchmark_experiment",
 }
 
 

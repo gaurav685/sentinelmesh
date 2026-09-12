@@ -21,6 +21,7 @@ const NAV: { href: string; label: string; perm: string }[] = [
   { href: "/memory", label: "Threat memory", perm: "memory:read" },
   { href: "/reports", label: "Reports", perm: "reports:read" },
   { href: "/story", label: "Attack story", perm: "detections:read" },
+  { href: "/benchmarks", label: "Benchmarks", perm: "ops:read" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

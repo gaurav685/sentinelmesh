@@ -12,6 +12,7 @@
 import type {
   AdversaryFingerprint,
   AttackChainModel,
+  BenchmarkExperiment,
   BlastRadiusRequest,
   BlastRadiusResult,
   Campaign,
@@ -278,4 +279,12 @@ export const api = {
 
   getNarrative: (chainId: string, signal?: AbortSignal) =>
     apiFetch<Narrative>(`/soc/incidents/${encodeURIComponent(chainId)}/narrative`, { signal }),
+
+  listBenchmarks: (datasetId?: string, signal?: AbortSignal) =>
+    apiFetch<BenchmarkExperiment[]>("/soc/benchmarks", {
+      query: { dataset_id: datasetId }, signal,
+    }),
+
+  getBenchmark: (id: string, signal?: AbortSignal) =>
+    apiFetch<BenchmarkExperiment>(`/soc/benchmarks/${encodeURIComponent(id)}`, { signal }),
 };

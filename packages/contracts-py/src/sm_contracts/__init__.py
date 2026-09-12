@@ -17,6 +17,7 @@ from .api import (
     AgentRunResult,
     AnalystModelInfo,
     AttackProgressionRequest,
+    BenchmarkExperiment,
     BlastRadiusRequest,
     BlastRadiusResult,
     CreateUserRequest,
@@ -475,4 +476,6 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "REPORT_PAYLOADS",
     "Narrative",
     "NarrativeBeat",
+    # observability + benchmarking (Phase 15)
+    "BenchmarkExperiment",
 ]

@@ -95,6 +95,23 @@ class FakeSocRepository:
         return []
 
 
+class FakeBenchmarkRepository:
+    """In-memory benchmark-experiment reads. No tenant scoping — matches the
+    real repository (platform research data, R24)."""
+
+    def __init__(self) -> None:
+        self.experiments: dict[UUID, Any] = {}
+
+    async def list_recent(self, *, dataset_id: str | None = None, limit: int = 50) -> list[Any]:
+        items = list(self.experiments.values())
+        if dataset_id is not None:
+            items = [e for e in items if e.dataset_id == dataset_id]
+        return sorted(items, key=lambda e: e.generated_at, reverse=True)[:limit]
+
+    async def get(self, experiment_id: UUID) -> Any:
+        return self.experiments.get(experiment_id)
+
+
 class FakeInternalClient:
     """Records proxy calls; returns queued responses. `fail=True` raises the same
     DependencyUnavailable the real client raises on a transport error."""
@@ -690,6 +707,7 @@ def fixture() -> Fixture:
         oidc=None,
         internal_client=FakeInternalClient(),  # type: ignore[arg-type]
         soc_repository=FakeSocRepository(),  # type: ignore[arg-type]
+        benchmark_repository=FakeBenchmarkRepository(),  # type: ignore[arg-type]
     )
 
     return Fixture(

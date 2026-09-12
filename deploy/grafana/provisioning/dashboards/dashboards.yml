@@ -1,0 +1,15 @@
+# Auto-provisioned dashboard folder (Grafana provisioning API v1).
+# Every *.json file under deploy/grafana/dashboards/ is loaded on Grafana
+# start, editable in the UI but re-read from disk on the next restart.
+
+apiVersion: 1
+
+providers:
+  - name: SentinelMesh
+    orgId: 1
+    folder: SentinelMesh
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/provisioning/dashboards/files
