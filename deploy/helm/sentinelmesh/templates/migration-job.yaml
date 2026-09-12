@@ -1,0 +1,101 @@
+{{/*
+Runs alembic migrations before the app rolls to a new version. Mirrors
+deploy/docker/docker-compose.yml's `migrate` service exactly (same
+command, same image as the app itself -- one image knob, not two, so
+this can never drift to a different build than what's being deployed).
+
+Only a pre-upgrade hook, deliberately NOT pre-install: a pre-install
+hook runs before ANY other manifest in the release, including the
+Postgres StatefulSet, so Postgres would not exist yet for a first
+install to migrate against. On first install this Job is a normal
+release resource instead (scheduled alongside Postgres; its
+initContainer below waits for Postgres to actually be reachable before
+alembic runs). On upgrade, Postgres already exists from the prior
+install, so the pre-upgrade hook can safely require it up front.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sentinelmesh-migrate-{{ .Release.Revision }}
+  namespace: {{ .Values.global.namespaces.app }}
+  labels:
+    {{- include "sentinelmesh.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sentinelmesh-migrate
+    spec:
+      restartPolicy: Never
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: wait-for-postgres
+          image: "{{ include "sentinelmesh.image" (dict "root" $) }}"
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          command:
+            - python
+            - -c
+            - |
+              import socket, time
+              host, port = "{{ .Values.global.env.SM_PG_HOST }}", {{ .Values.global.env.SM_PG_PORT }}
+              for _ in range(60):
+                  try:
+                      socket.create_connection((host, port), timeout=2).close()
+                      break
+                  except OSError:
+                      time.sleep(2)
+              else:
+                  raise SystemExit(f"postgres {host}:{port} never became reachable")
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: migrate
+          image: "{{ include "sentinelmesh.image" (dict "root" $) }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          securityContext:
+            {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          # Wrapped in a retry loop: verified directly against this real
+          # cluster (repeated debug pods, same envFrom/securityContext)
+          # that plain synchronous DNS resolution for CoreDNS-backed
+          # Service names intermittently fails with EAI_AGAIN even
+          # outside of alembic/asyncpg -- a real characteristic of a
+          # single kind node running the full stack under CPU/memory
+          # pressure, not a code bug. The initContainer above survives
+          # this with its own 60x2s retry loop; alembic's single
+          # DB-connect attempt has no retry of its own, so this wraps it
+          # with a comparable ~100s retry budget.
+          command:
+            - /bin/bash
+            - -c
+            - |
+              for i in $(seq 1 20); do
+                alembic -c /app/migrations/postgres/alembic.ini upgrade head && exit 0
+                echo "alembic attempt $i failed, retrying in 5s" >&2
+                sleep 5
+              done
+              exit 1
+          workingDir: /app
+          envFrom:
+            - configMapRef:
+                name: sentinelmesh-config
+            - secretRef:
+                name: sentinelmesh-secrets
+          env:
+            - name: SM_SERVICE_NAME
+              value: migrations
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

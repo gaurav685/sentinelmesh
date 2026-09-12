@@ -1,9 +1,12 @@
 # Deployment architecture
 
-ADR-021. **No successful deployment is claimed.** Docker/Kubernetes are not
-present in the current environment (ADR-001) — everything here is design +
-manifests to be authored, and is `NOT VERIFIED — REQUIRES EXTERNAL
-INFRASTRUCTURE` until actually run.
+ADR-021. Docker Compose (local) has been real and running since Phase 1.
+Kubernetes/Helm (production, Phase 16) has real, evidence-backed
+verification against a real local `kind` cluster — see
+`docs/architecture/kubernetes-deployment.md`'s "Verification status"
+section for exactly what was and was not verified, and
+`docs/IMPLEMENTATION_STATE.md`'s Phase 16 entry for the full evidence
+trail. Nothing beyond what that section documents is claimed.
 
 ## Local (docker-compose) — Phase 1 authors this
 
@@ -36,7 +39,13 @@ Rules:
 
 External requirement: **Docker Desktop must be installed** to run this.
 
-## Production (Kubernetes + Helm) — authored in Phase 38 work, not before
+## Production (Kubernetes + Helm) — built in Phase 16
+
+Real chart at `deploy/helm/sentinelmesh`; real namespace bootstrap at
+`deploy/k8s/namespaces/namespaces.yaml`. Full detail (manifest inventory,
+security posture, scaling strategy, backup/recovery, verification
+status) is in `docs/architecture/kubernetes-deployment.md` — this section
+stays as the original design summary.
 
 - **Namespaces:** `sentinelmesh-system` (gateway, ingress, cert), `-data`
   (stateful: postgres/neo4j operators or managed endpoints, redis), `-bus`

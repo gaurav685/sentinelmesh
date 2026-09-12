@@ -1,0 +1,19 @@
+SentinelMesh deployed as release {{ .Release.Name }} in namespace {{ .Values.global.namespaces.app }}.
+
+Before this release: apply cluster-scoped namespaces once --
+  kubectl apply -f deploy/k8s/namespaces/namespaces.yaml
+
+Check rollout:
+  kubectl -n {{ .Values.global.namespaces.app }} get deploy,pods,hpa,pdb
+  kubectl -n {{ .Values.global.namespaces.app }} rollout status deploy/sm-api-gateway
+
+{{- if eq .Values.global.secretsProvider "eso" }}
+secretsProvider=eso: sentinelmesh-secrets is populated by External Secrets
+Operator from {{ .Values.global.externalSecret.secretStoreRef.name }}.
+Confirm the ExternalSecret synced:
+  kubectl -n {{ .Values.global.namespaces.app }} get externalsecret sentinelmesh-secrets
+{{- else }}
+secretsProvider=manual: sentinelmesh-secrets was rendered from
+.Values.secrets at install time -- this mode is for a local/kind smoke
+test only, never for a real production install.
+{{- end }}

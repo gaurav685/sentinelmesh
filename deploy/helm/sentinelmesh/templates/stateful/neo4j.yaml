@@ -1,0 +1,108 @@
+{{- if .Values.neo4j.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: neo4j
+  namespace: {{ .Values.global.namespaces.data }}
+  labels:
+    app.kubernetes.io/name: neo4j
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: neo4j
+  ports:
+    - name: bolt
+      port: 7687
+      targetPort: 7687
+    - name: http
+      port: 7474
+      targetPort: 7474
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: neo4j
+  namespace: {{ .Values.global.namespaces.data }}
+  labels:
+    app.kubernetes.io/name: neo4j
+spec:
+  serviceName: neo4j
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: neo4j
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: neo4j
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # NOT runAsNonRoot: verified against the real neo4j:5-community
+        # image on a live cluster -- like the official postgres image, its
+        # entrypoint starts as root to fix ownership of a fresh PVC mount
+        # under /data, then drops privilege to its own neo4j user itself
+        # before the database process runs (forcing runAsNonRoot:true here
+        # fails with the same "image will run as root" kubelet error
+        # observed for postgres).
+        fsGroup: 7474
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: neo4j
+          image: {{ .Values.neo4j.image }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              add: ["CHOWN", "SETUID", "SETGID", "DAC_OVERRIDE", "FOWNER"]
+          ports:
+            - containerPort: 7687
+              name: bolt
+            - containerPort: 7474
+              name: http
+          # The official image wants NEO4J_AUTH="neo4j/<password>" as one
+          # string, but a Secret can only inject the raw password value --
+          # so the password is read into SM_NEO4J_BOOTSTRAP_PASSWORD (NOT
+          # NEO4J_-prefixed: the image auto-maps every NEO4J_* env var to
+          # a neo4j.conf setting, so a literal NEO4J_PASSWORD var was
+          # rejected at startup as "Unrecognized setting... PASSWORD" once
+          # verified against the real image) and composed into NEO4J_AUTH
+          # by this wrapper before exec'ing the real entrypoint.
+          command:
+            - /bin/bash
+            - -c
+            - export NEO4J_AUTH="neo4j/${SM_NEO4J_BOOTSTRAP_PASSWORD}" && exec /startup/docker-entrypoint.sh neo4j
+          env:
+            - name: SM_NEO4J_BOOTSTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sentinelmesh-secrets
+                  key: SM_NEO4J_PASSWORD
+            - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
+              value: "no"
+          resources:
+            {{- toYaml .Values.neo4j.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            tcpSocket:
+              port: 7687
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7687
+            periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if .Values.neo4j.storageClassName }}
+        storageClassName: {{ .Values.neo4j.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.neo4j.storage }}
+{{- end }}

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentinelmesh-config
+  namespace: {{ .Values.global.namespaces.app }}
+  labels:
+    {{- include "sentinelmesh.labels" . | nindent 4 }}
+data:
+  {{- range $k, $v := .Values.global.env }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}

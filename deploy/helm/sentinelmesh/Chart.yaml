@@ -1,0 +1,13 @@
+apiVersion: v2
+name: sentinelmesh
+description: >
+  SentinelMesh production deployment (ADR-021, R38, docs/architecture/deployment.md).
+  One chart, values-driven per logical service, rather than 14 near-identical
+  sub-charts -- the same Deployment/Service/ServiceAccount/HPA/PDB/NetworkPolicy
+  shape is generated once per entry in .Values.services, instead of duplicated
+  14 times. Stateful components (Postgres/Neo4j/Redis/Redpanda/MinIO/Keycloak)
+  are self-hosted StatefulSets for a real, runnable cluster; ADR-021 prefers a
+  managed equivalent in real production (see values-production.yaml).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

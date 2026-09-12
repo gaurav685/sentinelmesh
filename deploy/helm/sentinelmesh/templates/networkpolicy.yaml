@@ -1,0 +1,211 @@
+{{/*
+Default-deny + explicit allow, built from the REAL dependency graph in
+values.yaml's services.<name>.dependsOn (itself derived from
+deploy/docker/docker-compose.yml's depends_on/*_URL edges, not the
+broader aspirational service-catalog.md graph). Every rule below traces
+to either a real sync-HTTP call, a real infra need flag, DNS, or
+observability scraping -- nothing is opened "just in case".
+*/}}
+{{- if .Values.networkPolicy.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: {{ .Values.global.namespaces.app }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+{{- range $name, $svc := .Values.services }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sm-{{ $name }}
+  namespace: {{ $.Values.global.namespaces.app }}
+  labels:
+    {{- include "sentinelmesh.serviceLabels" (dict "name" $name "root" $) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ $name }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    # Same-namespace callers: every service whose real dependsOn list
+    # names this service, plus api-gateway/frontend's own public ingress
+    # (handled by the ingress-controller rule below).
+    {{- $callers := list }}
+    {{- range $callerName, $callerSvc := $.Values.services }}
+      {{- if has $name $callerSvc.dependsOn }}
+        {{- $callers = append $callers $callerName }}
+      {{- end }}
+    {{- end }}
+    {{- if $callers }}
+    - from:
+        {{- range $callers }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ . }}
+        {{- end }}
+      ports:
+        - port: {{ $svc.port }}
+          protocol: TCP
+    {{- end }}
+    {{- if eq $name "api-gateway" }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.system }}
+      ports:
+        - port: {{ $svc.port }}
+          protocol: TCP
+    {{- end }}
+    # Prometheus (observability namespace) scrapes /metrics on every service.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.observability }}
+      ports:
+        - port: {{ $svc.port }}
+          protocol: TCP
+  egress:
+    # DNS is always required for Service/StatefulSet name resolution.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # Real sync-HTTP dependencies (this service's own dependsOn list).
+    {{- range $svc.dependsOn }}
+    {{- $target := index $.Values.services . }}
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ . }}
+      ports:
+        - port: {{ $target.port }}
+          protocol: TCP
+    {{- end }}
+    # Real infra dependencies, cross-namespace.
+    {{- if $svc.needs.postgres }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.data }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - port: 5432
+          protocol: TCP
+    {{- end }}
+    {{- if $svc.needs.redis }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.data }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - port: 6379
+          protocol: TCP
+    {{- end }}
+    {{- if $svc.needs.neo4j }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.data }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: neo4j
+      ports:
+        - port: 7687
+          protocol: TCP
+    {{- end }}
+    {{- if $svc.needs.s3 }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.data }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio
+      ports:
+        - port: 9000
+          protocol: TCP
+    {{- end }}
+    {{- if $svc.needs.kafka }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.bus }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redpanda
+      ports:
+        - port: 9092
+          protocol: TCP
+    {{- end }}
+    {{- if $svc.needs.keycloak }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.system }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+      ports:
+        - port: 8080
+          protocol: TCP
+    {{- end }}
+    # OTel collector (traces/metrics export).
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $.Values.global.namespaces.observability }}
+      ports:
+        - port: 4317
+          protocol: TCP
+---
+{{- end }}
+{{- if .Values.frontend.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sm-frontend
+  namespace: {{ .Values.global.namespaces.app }}
+  labels:
+    {{- include "sentinelmesh.serviceLabels" (dict "name" "frontend" "root" $) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.global.namespaces.system }}
+      ports:
+        - port: {{ .Values.frontend.port }}
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: api-gateway
+      ports:
+        - port: {{ (index .Values.services "api-gateway").port }}
+          protocol: TCP
+{{- end }}
+{{- end }}

@@ -1,0 +1,63 @@
+# Cluster-scoped bootstrap: apply before `helm install` (namespaces are
+# not owned by the Helm release so they survive `helm uninstall`, per
+# common practice for shared/data-bearing namespaces).
+#
+#   kubectl apply -f deploy/k8s/namespaces/namespaces.yaml
+#
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelmesh-system
+  labels:
+    kubernetes.io/metadata.name: sentinelmesh-system
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelmesh-data
+  labels:
+    kubernetes.io/metadata.name: sentinelmesh-data
+    # baseline, not restricted: verified against the real postgres/neo4j
+    # images on a live cluster -- their entrypoints start as root to fix
+    # PVC ownership on a fresh volume then drop privilege to their own
+    # service user themselves (CHOWN/SETUID/SETGID/DAC_OVERRIDE/FOWNER),
+    # which "restricted" forbids outright. baseline still blocks
+    # privileged containers, host namespaces/ports, and every capability
+    # outside its default allow-list -- it is a deliberate, documented
+    # relaxation for vendor images this chart does not control, not a
+    # blanket loosening.
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelmesh-bus
+  labels:
+    kubernetes.io/metadata.name: sentinelmesh-bus
+    # baseline: same rationale as sentinelmesh-data, for the redpanda image.
+    pod-security.kubernetes.io/enforce: baseline
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelmesh-app
+  labels:
+    kubernetes.io/metadata.name: sentinelmesh-app
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelmesh-ml
+  labels:
+    kubernetes.io/metadata.name: sentinelmesh-ml
+    pod-security.kubernetes.io/enforce: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sentinelmesh-observability
+  labels:
+    kubernetes.io/metadata.name: sentinelmesh-observability
+    pod-security.kubernetes.io/enforce: baseline

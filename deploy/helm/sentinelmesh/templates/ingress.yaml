@@ -1,0 +1,44 @@
+{{/*
+Single ingress, api-gateway (+ frontend) only. No other service is
+internet-facing -- every other Service above is ClusterIP with no
+Ingress resource, and NetworkPolicy denies anything the ingress
+controller's namespace doesn't specifically need.
+*/}}
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sentinelmesh
+  namespace: {{ .Values.global.namespaces.app }}
+  labels:
+    {{- include "sentinelmesh.labels" . | nindent 4 }}
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.ingress.host }}]
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: sm-api-gateway
+                port:
+                  number: {{ (index .Values.services "api-gateway").port }}
+          {{- if .Values.frontend.enabled }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sm-frontend
+                port:
+                  number: {{ .Values.frontend.port }}
+          {{- end }}
+{{- end }}

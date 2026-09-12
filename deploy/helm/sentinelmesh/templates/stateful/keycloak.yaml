@@ -1,0 +1,142 @@
+{{/*
+Keycloak's bootstrap admin credential is NOT one of .env.example's
+tagged app secrets (it is never read by any of the 14 services) --
+it exists only so the initial realm/admin console exists at all. It is
+generated once per release (via `lookup`, so a `helm upgrade` reuses the
+existing value instead of rotating it and locking out the admin) rather
+than hardcoded, and is never printed in NOTES.txt.
+*/}}
+{{- if .Values.keycloak.enabled }}
+{{- $ns := .Values.global.namespaces.system }}
+{{- $existing := lookup "v1" "Secret" $ns "sentinelmesh-keycloak-admin" }}
+{{- $adminPassword := "" }}
+{{- if $existing }}
+{{- $adminPassword = index $existing.data "admin-password" | b64dec }}
+{{- else }}
+{{- $adminPassword = randAlphaNum 32 }}
+{{- end }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: sentinelmesh-keycloak-admin
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: keycloak
+type: Opaque
+stringData:
+  admin-username: admin
+  admin-password: {{ $adminPassword | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: keycloak
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: keycloak
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: keycloak
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: keycloak
+spec:
+  serviceName: keycloak
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: keycloak
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: keycloak
+          image: {{ .Values.keycloak.image }}
+          args: ["start-dev"]
+          # start-dev (not start) is used because no external DB is wired
+          # for Keycloak in this chart yet (it would default to embedded
+          # H2, which is dev-grade); a real production install must set
+          # KC_DB_* to point at a real Postgres and use `start` -- not
+          # done here so as not to claim an HA-grade IdP that hasn't been
+          # configured or tested.
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: sentinelmesh-keycloak-admin
+                  key: admin-username
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sentinelmesh-keycloak-admin
+                  key: admin-password
+            # /health/live and /health/ready 404 (and so always fail their
+            # probes below) unless health management is explicitly turned
+            # on -- verified against the real image on a live cluster.
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+          resources:
+            {{- toYaml .Values.keycloak.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /opt/keycloak/data
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            # Quarkus/Keycloak's own boot (config + provider scan) took
+            # noticeably longer than even a 5-minute budget on a
+            # resource-constrained single-node kind cluster running the
+            # full stack -- verified against the real image (it never
+            # OOMs or errors, it is simply still starting); widened
+            # rather than guessed. A real multi-node cluster with
+            # dedicated capacity would not need this long.
+            failureThreshold: 120
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if .Values.keycloak.storageClassName }}
+        storageClassName: {{ .Values.keycloak.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.keycloak.storage }}
+{{- end }}
