@@ -87,6 +87,13 @@ def test_readyz_reports_the_catalog(client: Any) -> None:
     assert "3 techniques" in deps["attack_catalog"]["detail"]
 
 
+def test_health_deps_reports_the_catalog_too(client: Any) -> None:
+    r = client.get("/health/deps")
+    assert r.status_code == 200
+    deps = {d["name"]: d for d in r.json()["dependencies"]}
+    assert deps["attack_catalog"]["healthy"] is True
+
+
 def test_healthz_and_metrics(client: Any) -> None:
     assert client.get("/healthz").json()["service"] == "mitre-service"
     assert "sm_mitre_detections_total" in client.get("/metrics").text

@@ -17,6 +17,7 @@ from uuid import UUID
 from sm_common.bus import EventBusProducer
 from sm_common.clock import utcnow
 from sm_common.ids import new_correlation_id, uuid7
+from sm_common.observability import current_trace_id
 from sm_contracts import (
     AuthEventPayload,
     AuthOutcome,
@@ -114,6 +115,7 @@ async def feed_events(
             occurred_at=at, ingested_at=utcnow(), producer=_PRODUCER, tenant_id=tenant_id,
             source=EventSource(type=SourceType.simulation),
             correlation_id=new_correlation_id(),
+            trace_id=current_trace_id(),
             partition_key=make_partition_key(str(tenant_id), scenario_id),
             payload=payload, metadata={"scenario_id": scenario_id, "sim_step": str(ev.step)},
         )

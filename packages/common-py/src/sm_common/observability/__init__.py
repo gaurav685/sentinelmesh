@@ -4,16 +4,24 @@ from __future__ import annotations
 
 from .health import DependencyCheck, evaluate_readiness, liveness, probe_check
 from .metrics import Metrics, build_metrics
-from .tracing import configure_tracing, get_tracer, shutdown_tracing
+from .tracing import (
+    configure_tracing,
+    current_trace_id,
+    get_tracer,
+    remote_context_from_trace_id,
+    shutdown_tracing,
+)
 
 __all__ = [
     "DependencyCheck",
     "Metrics",
     "build_metrics",
     "configure_tracing",
+    "current_trace_id",
     "evaluate_readiness",
     "get_tracer",
     "liveness",
     "probe_check",
+    "remote_context_from_trace_id",
     "shutdown_tracing",
 ]

@@ -24,6 +24,14 @@ def test_readyz_503_when_postgres_is_down(client: TestClient, rig: Any) -> None:
     assert r.json()["ready"] is False
 
 
+def test_health_deps_200_even_when_postgres_is_down(client: TestClient, rig: Any) -> None:
+    rig.db.healthy = False
+    r = client.get("/health/deps")
+    assert r.status_code == 200
+    pg = next(d for d in r.json()["dependencies"] if d["name"] == "postgres")
+    assert pg["healthy"] is False
+
+
 def test_metrics_endpoint_renders(client: TestClient) -> None:
     r = client.get("/metrics")
     assert r.status_code == 200

@@ -43,6 +43,11 @@ async def readyz(response: Response, services: Services = Depends(get_services))
     return result
 
 
+@router.get("/health/deps", response_model=ReadyResponse)
+async def health_deps(services: Services = Depends(get_services)) -> ReadyResponse:
+    return await evaluate_readiness(_checks(services))
+
+
 @router.get(f"{API_PREFIX}/meta", response_model=MetaResponse)
 async def meta(services: Services = Depends(get_services)) -> MetaResponse:
     return MetaResponse(

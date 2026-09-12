@@ -11,12 +11,14 @@ from .hardening import (
 )
 from .middleware import RequestContextMiddleware
 from .ratelimit import RateLimitMiddleware
+from .tracing import TracingMiddleware
 
 __all__ = [
     "BodySizeLimitMiddleware",
     "RateLimitMiddleware",
     "RequestContextMiddleware",
     "SecurityHeadersMiddleware",
+    "TracingMiddleware",
     "build_cors_kwargs",
     "client_ip",
     "install_exception_handlers",

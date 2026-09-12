@@ -36,6 +36,7 @@ from sm_common.fastapi import (
     RateLimitMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
+    TracingMiddleware,
     install_exception_handlers,
 )
 from sm_common.logging import configure_logging, get_logger
@@ -144,6 +145,7 @@ def create_app(
     app.add_middleware(RateLimitMiddleware, settings=resolved_settings, fail_open=False)
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(TracingMiddleware)
 
     install_exception_handlers(app)
 

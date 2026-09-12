@@ -8,6 +8,7 @@ from neo4j.exceptions import ClientError, ServiceUnavailable
 
 from sm_common.config import AppSettings
 from sm_common.graph import Graph, GraphUnavailableError, split_statements
+from sm_common.observability import build_metrics
 
 
 def _settings(**over: Any) -> AppSettings:
@@ -144,6 +145,32 @@ async def test_run_propagates_neo4j_error_unwrapped() -> None:
     # graph-writer) must see it to decide DLQ vs. retry.
     with pytest.raises(ClientError):
         await _graph(_FakeDriver(run_exc=ClientError("bad label"))).run_write("CREATE (x)")
+
+
+@pytest.mark.asyncio
+async def test_run_observes_neo4j_query_latency_by_mode() -> None:
+    metrics = build_metrics("graph-service")
+    g = Graph(
+        _FakeDriver(rows=[{"n": 1}]), database="neo4j", query_timeout_ms=0, metrics=metrics,
+    )
+    await g.run_read("RETURN 1")
+    await g.run_write("CREATE (n)")
+    body = metrics.render_latest().decode()
+    assert 'sm_neo4j_query_duration_seconds_count{mode="READ",service="graph-service"} 1.0' in body
+    assert 'sm_neo4j_query_duration_seconds_count{mode="WRITE",service="graph-service"} 1.0' in body
+
+
+@pytest.mark.asyncio
+async def test_run_observes_latency_even_when_the_query_raises() -> None:
+    metrics = build_metrics("graph-service")
+    g = Graph(
+        _FakeDriver(run_exc=ClientError("bad label")),
+        database="neo4j", query_timeout_ms=0, metrics=metrics,
+    )
+    with pytest.raises(ClientError):
+        await g.run_write("CREATE (x)")
+    body = metrics.render_latest().decode()
+    assert 'sm_neo4j_query_duration_seconds_count{mode="WRITE",service="graph-service"} 1.0' in body
 
 
 @pytest.mark.asyncio

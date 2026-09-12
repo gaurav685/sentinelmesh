@@ -3,6 +3,18 @@
 A per-process registry plus the small set of metrics every service reports. No
 value is ever fabricated — these are populated only by real request/consumer
 activity. `render_latest()` produces the `/metrics` exposition body.
+
+Model-inference latency/DEGRADED, detection latency, and graph-growth rate
+(ADR-020's remaining named metrics) already have real, wired, per-service
+counterparts on this same shared registry (`ml-inference`'s `InferenceMetrics`,
+`detection-engine`'s `DetectionMetrics`, `graph-service`'s `GraphMetrics`) —
+see the inline comments below for exactly which. They are not duplicated here.
+
+`false_positive_feedback_total` is registered (Phase 15) but has no producer
+yet: no analyst-facing "mark detection as false positive" action exists in
+this build (that is a SOC-workflow feature, not an observability one). The
+counter reports a real, honest `0` until such an action is built, rather than
+being wired to a fabricated signal.
 """
 
 from __future__ import annotations
@@ -101,10 +113,82 @@ class Metrics:
             ("service", "topic"),
             registry=registry,
         )
+        # ---- database pool (Phase 15) --------------------------------------
+        self.db_pool_size = Gauge(
+            "sm_db_pool_size",
+            "Configured connection-pool size at the last /metrics scrape",
+            ("service",),
+            registry=registry,
+        )
+        self.db_pool_checked_out = Gauge(
+            "sm_db_pool_checked_out",
+            "Connections currently checked out of the pool at the last /metrics scrape",
+            ("service",),
+            registry=registry,
+        )
+        self.db_pool_overflow = Gauge(
+            "sm_db_pool_overflow",
+            "Connections opened beyond pool_size at the last /metrics scrape "
+            "(always 0 — this platform runs max_overflow=0)",
+            ("service",),
+            registry=registry,
+        )
+        # ---- Neo4j (Phase 15) ----------------------------------------------
+        self.neo4j_query_seconds = Histogram(
+            "sm_neo4j_query_duration_seconds",
+            "Neo4j query duration",
+            ("service", "mode"),
+            buckets=_LATENCY_BUCKETS,
+            registry=registry,
+        )
+        # Graph growth rate: `graph-service`'s own `GraphMetrics.applied` (
+        # `sm_graph_commands_applied_total{op,outcome}`) already counts every
+        # node/relationship write by op and outcome — `rate(...{outcome="ok"})`
+        # over it *is* the growth rate. Not duplicated here.
+        # Model inference latency + DEGRADED: `ml-inference`'s own
+        # `InferenceMetrics` (`sm_inference_duration_seconds`,
+        # `sm_inference_model_loads_total{outcome=degraded,...}`) already
+        # covers this on the same shared registry. Not duplicated here.
+        # Detection latency: `detection-engine`'s own `DetectionMetrics`
+        # (`sm_detection_handle_seconds`, `sm_detection_degraded_total`)
+        # already covers this. Not duplicated here.
+        # ---- analyst feedback (Phase 15) -------------------------------------
+        self.false_positive_feedback = Counter(
+            "sm_false_positive_feedback_total",
+            "Analyst false-positive/true-positive feedback on a detection "
+            "(see module docstring: no producer wired yet in this build)",
+            ("service", "outcome"),
+            registry=registry,
+        )
 
     def observe_http(self, method: str, path: str, status: int, duration_s: float) -> None:
         self.http_requests.labels(self._service, method, path, str(status)).inc()
         self.http_latency.labels(self._service, method, path).observe(duration_s)
+
+    def refresh_db_pool(self, db: object) -> None:
+        """Snapshot the pool's current counters from a `Database` (or, in a
+        test, whatever stands in for one). Called just before a `/metrics`
+        scrape renders — a gauge, not a stream, so a stale value between
+        scrapes is never presented as current. Never raises: a test double
+        with no real engine/pool simply reports nothing, same as any other
+        optional signal in this module."""
+        engine = getattr(db, "engine", None)
+        pool = getattr(engine, "pool", None)
+        size = getattr(pool, "size", None)
+        checked_out = getattr(pool, "checkedout", None)
+        overflow = getattr(pool, "overflow", None)
+        if size is not None:
+            self.db_pool_size.labels(self._service).set(size())
+        if checked_out is not None:
+            self.db_pool_checked_out.labels(self._service).set(checked_out())
+        if overflow is not None:
+            self.db_pool_overflow.labels(self._service).set(overflow())
+
+    def observe_neo4j_query(self, mode: str, duration_s: float) -> None:
+        self.neo4j_query_seconds.labels(self._service, mode).observe(duration_s)
+
+    def record_false_positive_feedback(self, outcome: str) -> None:
+        self.false_positive_feedback.labels(self._service, outcome).inc()
 
     def render_latest(self) -> bytes:
         return generate_latest(self.registry)

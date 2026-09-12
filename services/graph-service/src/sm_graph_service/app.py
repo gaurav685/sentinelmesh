@@ -23,6 +23,7 @@ from sm_common.config import AppSettings, load_settings
 from sm_common.fastapi import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
+    TracingMiddleware,
     install_exception_handlers,
 )
 from sm_common.graph import Graph, GraphUnavailableError
@@ -48,7 +49,7 @@ _log = get_logger("sm.graph_service")
 def build_services(settings: AppSettings) -> Services:
     base_metrics = build_metrics(SERVICE_NAME)
     graph_metrics = GraphMetrics(base_metrics, SERVICE_NAME)
-    graph = Graph.from_settings(settings)
+    graph = Graph.from_settings(settings, metrics=base_metrics)
     repository = GraphRepository(
         graph,
         max_rows=settings.neo4j_query_max_rows,
@@ -131,6 +132,7 @@ def create_app(
     )
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(TracingMiddleware)
     install_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(metrics.router)
