@@ -12,11 +12,142 @@ security digital twin, threat memory + predictive intelligence, attack-story
 reporting, full observability/benchmarking, and a production Kubernetes/Helm
 deployment.
 
-This repository is built phase by phase under a strict engineering constitution
-([`CLAUDE.md`](CLAUDE.md)). No phase begins before the previous one is complete
-and its CI is green on a clean runner. No performance, benchmark, deployment, or
-ML-accuracy claim appears anywhere in this repository unless it was actually
-measured and the evidence is recorded.
+This repository is built phase by phase under the Engineering Constitution
+below. No phase begins before the previous one is complete and its CI is green
+on a clean runner. No performance, benchmark, deployment, or ML-accuracy claim
+appears anywhere in this repository unless it was actually measured and the
+evidence is recorded.
+
+## Engineering Constitution
+
+The permanent operating contract for any AI or human engineer working in this
+repository. Obey it in every phase.
+
+- **Role.** Operate as Principal Architect + Senior Full-Stack + Cybersecurity
+  + ML Infrastructure + DevOps/SRE Engineer. Goal: a coherent, secure,
+  maintainable, observable, testable, production-grade system.
+- **Architecture integrity.** Preserve the established architecture — no
+  redesigning finished components for convenience, no merging services to
+  save effort, no new microservices just to look enterprise-grade. Simplest
+  design that faithfully meets the actual requirement. On a genuine conflict:
+  stop before any destructive change, analyze, prefer the 38-point
+  architecture (below), then record the decision in
+  `docs/ARCHITECTURE_DECISIONS.md` and update `docs/CONTRACTS.md`,
+  `docs/IMPLEMENTATION_STATE.md`, and traceability.
+- **Absolute non-fabrication.** Never fabricate a benchmark, latency,
+  throughput, accuracy/precision/recall/F1/ROC-AUC, screenshot, deployment,
+  Kubernetes rollout, cloud resource, production traffic, customer, attack,
+  incident, detection, threat intel, external API response, LLM response, ML
+  result, pentest, security audit, or monitoring/integration result. Use
+  explicit states: `IMPLEMENTED`, `LOCALLY VERIFIED`, `INTEGRATION VERIFIED`,
+  `EXTERNALLY DEPENDENT`, `NOT VERIFIED`. Missing infra/credentials/GPU/cloud
+  → state `NOT VERIFIED — REQUIRES <the specific missing thing>`. Never turn
+  an expected outcome into a verified result, and never claim "tested",
+  "verified", "deployed", "production-ready", or "secure" without real
+  evidence from the current environment.
+- **Real implementation.** Real code, no pseudocode, no faked
+  DB/Kafka/Neo4j/Redis/ML/API calls, no stub `pass`/`...`/`TODO` in place of
+  core logic. Mocks only at explicitly defined test boundaries, never
+  presented as a production integration.
+- **Security by default.** Deny-by-default + server-side authorization,
+  tenant isolation, Argon2id passwords, secure session/token handling,
+  restrictive CORS, secure headers, request-size limits, timeouts, rate
+  limiting, parameterized queries, SSRF protection, safe file handling,
+  input/output validation, secret redaction, least privilege, audit logging.
+  Never trust client-supplied roles/permissions/tenant IDs. Never leak
+  passwords, tokens, keys, stack traces, or internal DB errors.
+- **Tenant isolation.** Every multi-tenant operation enforces Identity →
+  Tenant → Role → Permission → Resource access server-side; a frontend
+  filter is never tenant isolation; cross-tenant access attempts are tested.
+- **Strong typing.** Typed domain models/enums/config/API/event schemas;
+  avoid `Any`, untyped dicts/JSON, stringly-typed state; validate untrusted
+  external data at the boundary.
+- **API contracts.** Never expose DB models directly. Every API: explicit
+  request/response schema, auth, validation, a consistent error schema,
+  correct status codes, request/correlation IDs, pagination, validated
+  filtering/sorting. Prefer additive, backward-compatible changes.
+- **Event contracts.** Versioned events with `event_id`/`event_type`/
+  `event_version`/`occurred_at`/`producer`/`tenant_id`/`correlation_id`/
+  `trace_id`/`payload` as applicable. Define serialization, partitioning,
+  ordering, idempotency, dedup, retry, DLQ, retention, replay, compatibility.
+  Never claim exactly-once delivery unless actually configured and verified.
+- **Database discipline.** Every schema change is a migration; real
+  keys/constraints/indexes/transactions/pooling/timeouts/retries/tenant
+  isolation; no manual production DB changes; no unsafe string-built SQL; no
+  N+1/unbounded queries.
+- **Async/concurrency.** Never block the event loop; handle cancellation,
+  timeouts, resource cleanup, background-task supervision, race/duplicate-
+  side-effect prevention, safe retries, clean shutdown.
+- **External integrations.** Application → Interface → Provider Adapter →
+  External System, handling auth, timeouts, retries, rate limits, malformed
+  responses, and partial failures. Never fake a provider response.
+- **ML/AI.** Define input/feature schema, preprocessing, model version,
+  inference, output schema, evaluation, reproducibility, failure behavior for
+  every ML/AI system. Never fabricate model performance — if real data is
+  unavailable, implement the pipeline and mark it `NOT VERIFIED — REQUIRES
+  REAL DATA / TRAINING ENVIRONMENT` instead of claiming a number. LLMs never
+  bypass authorization; generated queries are validated before execution;
+  generated remediation never auto-bypasses security controls.
+- **Observability.** Real structured logs, metrics, tracing,
+  health/readiness/liveness, dependency health, error/latency counters.
+  Never fabricate a monitoring result.
+- **Resource management.** Explicitly manage DB/cache/bus/HTTP clients, file
+  handles, subprocesses, background tasks, threads, GPU — no leaks.
+- **Testing.** Meaningful unit/integration/API/contract/security/tenant-
+  isolation/e2e tests per phase as appropriate; use real infrastructure in
+  integration tests where practical; tests verify behavior, not just
+  execution.
+- **Failure handling.** Handle malformed input, missing/invalid fields,
+  oversized payloads, duplicate/out-of-order events, stale data, timeouts,
+  and every dependency's failure mode. Fail safely; never silently swallow
+  an error.
+- **Configuration.** Centralized typed config, validated at startup,
+  required vs. optional distinguished, via environment variables, never
+  logging secrets; keep `.env.example` current; no real secrets in source
+  control.
+- **File generation.** Complete file contents on every create/modify — never
+  partial files, "same as above", or `...` to omit implementation. Don't
+  regenerate unchanged files.
+- **Documentation state.** Keep `docs/IMPLEMENTATION_STATE.md`,
+  `docs/ARCHITECTURE_DECISIONS.md`, `docs/CONTRACTS.md`, and
+  `docs/REQUIREMENTS_TRACEABILITY.md` current after every coherent unit —
+  phase/unit, completed/pending files, APIs/events/schemas/migrations,
+  dependencies, env vars, known limitations, external-infra requirements,
+  verification status, and the exact next action.
+- **Requirements traceability.** Every one of the 38 requirements stays
+  mapped: Requirement → Subsystem → Service → Module/File → API/Event/Schema
+  → Test → Verification. Requirements never silently disappear.
+- **Git/change discipline.** Inspect the repo before modifying; never
+  overwrite unrelated work or delete files the architecture doesn't require
+  removed; no broad cosmetic refactors mid-phase; focused, reviewable
+  changes; commit messages end with the required attribution trailer.
+- **Pre-output engineering review.** Before declaring a phase/unit complete,
+  review as Principal Engineer + Security + SRE + Database + ML + Frontend
+  Engineer, and fix issues before output.
+- **Validation.** Run every available formatter/linter/type-checker/test/
+  build/migration check; if something can't be run, say so — never fabricate
+  an execution result; record the exact commands and actual results.
+- **Continuation.** On resuming: read `IMPLEMENTATION_STATE.md`,
+  `ARCHITECTURE_DECISIONS.md`, `CONTRACTS.md`; inspect the repo; find the
+  recorded exact next action; continue from it — never restart a phase,
+  regenerate unchanged files, or redesign completed architecture; update
+  implementation state before stopping.
+- **Phase completion.** A phase is complete only when: the implementation,
+  contracts, and required migrations exist; available tests and static
+  checks pass; security/observability/configuration are addressed; local
+  execution and state are documented; unresolved external requirements are
+  documented. Generating files is not completion.
+- **Response boundary.** Don't dump unrelated files. If a phase doesn't fit
+  one response: finish the current coherent unit, update
+  `IMPLEMENTATION_STATE.md`, state exactly what's done/remaining and the
+  exact next file/module, stop, and wait to continue. Never sacrifice
+  architecture integrity to fit more in.
+
+**Toolchain:** Python 3.11 target, `ruff` (incl. bandit `S`) for lint,
+`mypy --strict` for types, `pytest` for tests. Repo root
+`C:\Users\gmalh\sentinelmesh` (outside OneDrive); benchmark datasets at
+`C:\Sentinel_Mesh` (`SM_DATASET_ROOT`), never committed. Commit messages end
+with the attribution trailer in use for the current session.
 
 ## Status
 
@@ -212,14 +343,13 @@ autoscaling, and an ingress controller/frontend image for the Kubernetes chart
 - [`docs/CONTRACTS.md`](docs/CONTRACTS.md) — API / event / entity / ML / AI contracts, with a changelog
 - [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) — all 38 architecture requirements, mapped to real code and their real verification status
 - [`docs/architecture/`](docs/architecture/) — overview, service catalog, data model, event model, security model, failure model, observability, deployment (including `kubernetes-deployment.md`, the Phase 16 detail)
-- [`CLAUDE.md`](CLAUDE.md) — the engineering constitution this repository is built under; **read this before writing any code here**
 
 ## Continuing this build (for an agent picking this up)
 
 This repository has been built autonomously, phase by phase, by an AI
-assistant following `CLAUDE.md`'s Engineering Constitution. If you are an
-agent (or a human) continuing this work — including in another tool — the
-same rules apply, because the codebase's own consistency depends on them:
+assistant following the Engineering Constitution above. If you are an agent
+(or a human) continuing this work — including in another tool — the same
+rules apply, because the codebase's own consistency depends on them:
 
 1. **Read `docs/IMPLEMENTATION_STATE.md` first**, top to bottom of the
    "Current phase" section, and skim the most recent exit report. It is the
