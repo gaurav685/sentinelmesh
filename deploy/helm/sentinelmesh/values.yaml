@@ -1,0 +1,399 @@
+# SentinelMesh production values (ADR-021, docs/architecture/deployment.md).
+#
+# Resource requests/limits below are STARTING ESTIMATES, not measured
+# capacity numbers -- no load test has been run against a real cluster
+# (Constitution §3; the phase's own explicit instruction: "Do not fabricate
+# capacity numbers"). They are sized generously for a small
+# single-tenant-to-small-multi-tenant deployment and are meant to be
+# corrected from real Prometheus data (Phase 15's dashboards) once observed,
+# not treated as a benchmarked claim.
+
+global:
+  imageRegistry: ""            # e.g. "ghcr.io/yourorg/" -- empty means use imageRepository as-is
+  imageRepository: "sentinelmesh/app"
+  imageTag: "latest"           # pin a real digest/tag in production values
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []         # e.g. [{name: regcred}]
+
+  namespaces:
+    system: sentinelmesh-system
+    data: sentinelmesh-data
+    bus: sentinelmesh-bus
+    app: sentinelmesh-app
+    ml: sentinelmesh-ml
+    observability: sentinelmesh-observability
+
+  # Every service reads the same set of non-secret SM_* variables from one
+  # ConfigMap (config.yaml) and the same secret-tagged set from one Secret
+  # (secrets via ExternalSecret, or --set-file for a real local smoke test)
+  # -- one values.yaml.env.example is the single source of truth for the
+  # split, not a manually re-derived list per service.
+  env:
+    SM_ENV: production
+    SM_LOG_LEVEL: INFO
+    SM_LOG_FORMAT: json
+    SM_DEPLOYMENT_PROFILE: distributed
+    SM_PG_HOST: postgres.sentinelmesh-data.svc.cluster.local
+    SM_PG_PORT: "5432"
+    SM_PG_DB: sentinelmesh
+    SM_PG_USER: sentinelmesh
+    SM_PG_POOL_MIN: "1"
+    SM_PG_POOL_MAX: "10"
+    SM_PG_STATEMENT_TIMEOUT_MS: "15000"
+    SM_NEO4J_URI: bolt://neo4j.sentinelmesh-data.svc.cluster.local:7687
+    SM_NEO4J_USER: neo4j
+    SM_NEO4J_DATABASE: neo4j
+    SM_NEO4J_QUERY_TIMEOUT_MS: "10000"
+    SM_KAFKA_BOOTSTRAP_SERVERS: redpanda.sentinelmesh-bus.svc.cluster.local:9092
+    SM_KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+    SM_KAFKA_SEND_TIMEOUT_MS: "10000"
+    SM_KAFKA_HANDLER_MAX_ATTEMPTS: "3"
+    SM_EVENT_BUS_ENABLED: "true"
+    SM_REDIS_URL: redis://redis.sentinelmesh-data.svc.cluster.local:6379/0
+    SM_S3_ENDPOINT: http://minio.sentinelmesh-data.svc.cluster.local:9000
+    SM_S3_REGION: us-east-1
+    SM_S3_BUCKET_ARTIFACTS: sm-artifacts
+    SM_S3_BUCKET_REPORTS: sm-reports
+    SM_OIDC_ISSUER: http://keycloak.sentinelmesh-system.svc.cluster.local:8080/realms/sentinelmesh
+    SM_OIDC_CLIENT_ID: sentinelmesh-api
+    SM_OIDC_AUDIENCE: sentinelmesh
+    SM_SESSION_COOKIE_SECURE: "true"
+    SM_CORS_ALLOWED_ORIGINS: "https://app.sentinelmesh.example"   # replace per real deployment; no wildcard
+    SM_OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.sentinelmesh-observability.svc.cluster.local:4317"
+    SM_OTEL_TRACES_ENABLED: "true"
+    SM_RESPONSE_MODE: suggest_only
+
+  # [secret] variables (.env.example's own tags). NEVER given a real value
+  # here -- either populated by an ExternalSecret from Vault/KMS
+  # (secretsProvider: eso, the ADR-021 default) or, for a real local
+  # kind-cluster smoke test only, via `--set-string secrets.<key>=...`
+  # / a git-ignored values-local-secrets.yaml (secretsProvider: manual).
+  secretsProvider: eso   # eso | manual
+  secretKeys:
+    - SM_PG_PASSWORD
+    - SM_NEO4J_PASSWORD
+    - SM_REDIS_PASSWORD
+    - SM_S3_ACCESS_KEY_ID
+    - SM_S3_SECRET_ACCESS_KEY
+    - SM_OIDC_CLIENT_SECRET
+    - SM_INTERNAL_JWT_SIGNING_KEY
+    - SM_LLM_API_KEY
+  # Only used when secretsProvider=manual (dev/kind smoke test); every value
+  # here is empty by default -- nothing is ever hardcoded, real values must
+  # be supplied at install time.
+  secrets: {}
+  externalSecret:
+    secretStoreRef:
+      name: sentinelmesh-secret-store   # a real ClusterSecretStore/SecretStore, created outside this chart
+      kind: ClusterSecretStore
+    refreshInterval: 1h
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001        # matches Dockerfile.app's built-in `sentinelmesh` user
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# ---------------------------------------------------------------------------
+# The 14 real, implemented HTTP services (ADR-003 `distributed` profile).
+# `dependsOn` is the REAL sync-HTTP edge list, taken directly from
+# deploy/docker/docker-compose.yml's own per-service environment overrides
+# -- not the aspirational service-catalog.md graph, which also names
+# services not yet built (agent-orchestrator, deception-service,
+# federation-service, notification-service) and is not the ground truth
+# for what this chart can actually deploy.
+# ---------------------------------------------------------------------------
+services:
+  api-gateway:
+    module: sm_api_gateway
+    port: 8000
+    publicIngress: true
+    needs: { postgres: true, redis: true, neo4j: false, kafka: false, s3: false, keycloak: true }
+    dependsOn: [correlation-engine, graph-service, threat-intel-service, mitre-service, ai-analyst, simulation-service, memory-service, reporting-service]
+    replicas: 2
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: "1", memory: 512Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 8, targetCPUUtilizationPercentage: 70 }
+
+  ingestion-gateway:
+    module: sm_ingestion_gateway
+    port: 8001
+    needs: { postgres: true, redis: true, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: []
+    replicas: 2
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: "1", memory: 512Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 10, targetCPUUtilizationPercentage: 70 }
+
+  normalization-engine:
+    module: sm_normalization_engine
+    port: 8002
+    needs: { postgres: true, redis: true, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: [threat-intel-service]
+    consumerGroup: normalization
+    replicas: 2
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: "1", memory: 512Mi }
+    # Kafka-consumer scaling: partition count bounds useful replica count
+    # (a partition is read by at most one consumer in the group). CPU-based
+    # HPA is a reasonable starting point; ADR-020's real consumer-lag metric
+    # (sm_consumer_lag) is the intended trigger once KEDA is installed --
+    # see "Scaling strategy" in docs/architecture/deployment.md. Not
+    # installing KEDA in this chart: it is a separate cluster-wide operator,
+    # out of this chart's scope, and no lag-based scaler is claimed working
+    # without it actually being verified against a real cluster.
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 75 }
+
+  stream-processor:
+    module: sm_stream_processor
+    port: 8003
+    needs: { postgres: false, redis: false, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: []
+    consumerGroup: stream-processor
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 384Mi }
+      limits: { cpu: "1", memory: 768Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 75 }
+
+  graph-service:
+    module: sm_graph_service
+    port: 8004
+    needs: { postgres: false, redis: true, neo4j: true, kafka: true, s3: false, keycloak: false }
+    dependsOn: []
+    consumerGroup: graph
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 384Mi }
+      limits: { cpu: "1", memory: 768Mi }
+    # The write path is a single logical writer per ADR (ordering); this
+    # replica count serves the read/query path concurrently -- see
+    # docs/architecture/deployment.md's scaling note before raising it.
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 4, targetCPUUtilizationPercentage: 75 }
+
+  ml-inference:
+    module: sm_ml_inference
+    port: 8005
+    needs: { postgres: false, redis: false, neo4j: false, kafka: false, s3: false, keycloak: false }
+    dependsOn: []
+    replicas: 2
+    resources:
+      requests: { cpu: 500m, memory: 512Mi }
+      limits: { cpu: "2", memory: 1Gi }
+    # GPU node pool is an external requirement (service-catalog.md) for any
+    # GNN model; this chart does not declare a GPU resource request because
+    # no GPU-backed model artifact ships or is claimed trained (ADR-024).
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 70 }
+
+  detection-engine:
+    module: sm_detection_engine
+    port: 8006
+    needs: { postgres: true, redis: true, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: [ml-inference]
+    consumerGroup: detection
+    replicas: 2
+    resources:
+      requests: { cpu: 300m, memory: 384Mi }
+      limits: { cpu: "1", memory: 768Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 75 }
+
+  threat-intel-service:
+    module: sm_ti_service
+    port: 8007
+    needs: { postgres: true, redis: true, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: []
+    replicas: 2
+    resources:
+      requests: { cpu: 150m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 4, targetCPUUtilizationPercentage: 70 }
+
+  mitre-service:
+    module: sm_mitre_service
+    port: 8008
+    needs: { postgres: true, redis: false, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: []
+    consumerGroup: mitre
+    replicas: 2
+    resources:
+      requests: { cpu: 100m, memory: 192Mi }
+      limits: { cpu: 500m, memory: 384Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 4, targetCPUUtilizationPercentage: 70 }
+
+  correlation-engine:
+    module: sm_correlation_engine
+    port: 8009
+    needs: { postgres: true, redis: false, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: []
+    consumerGroup: correlation
+    replicas: 2
+    resources:
+      requests: { cpu: 200m, memory: 256Mi }
+      limits: { cpu: "1", memory: 512Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 75 }
+
+  ai-analyst:
+    module: sm_ai_analyst
+    port: 8010
+    needs: { postgres: true, redis: false, neo4j: false, kafka: false, s3: false, keycloak: false }
+    dependsOn: [correlation-engine]
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 384Mi }
+      limits: { cpu: "1", memory: 768Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 70 }
+
+  simulation-service:
+    module: sm_simulation_service
+    port: 8011
+    needs: { postgres: true, redis: false, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: []
+    replicas: 1
+    resources:
+      requests: { cpu: 150m, memory: 256Mi }
+      limits: { cpu: 500m, memory: 512Mi }
+    hpa: { enabled: false }
+
+  memory-service:
+    module: sm_memory_service
+    port: 8012
+    needs: { postgres: true, redis: false, neo4j: false, kafka: true, s3: false, keycloak: false }
+    dependsOn: [correlation-engine]
+    consumerGroup: memory
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 384Mi }
+      limits: { cpu: "1", memory: 768Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 75 }
+
+  reporting-service:
+    module: sm_reporting_service
+    port: 8013
+    needs: { postgres: true, redis: false, neo4j: false, kafka: true, s3: true, keycloak: false }
+    dependsOn: [graph-service, mitre-service, ai-analyst, memory-service]
+    replicas: 2
+    resources:
+      requests: { cpu: 250m, memory: 384Mi }
+      limits: { cpu: "1", memory: 768Mi }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 4, targetCPUUtilizationPercentage: 70 }
+
+# ---------------------------------------------------------------------------
+# Frontend (frontend/web) -- a plain stateless Next.js Deployment/Service,
+# behind the SAME ingress as api-gateway, on a different path/host, never
+# with its own DB/Kafka/Neo4j access (it only ever talks to api-gateway).
+# ---------------------------------------------------------------------------
+frontend:
+  enabled: true
+  image:
+    repository: sentinelmesh/web
+    tag: "latest"
+  port: 3000
+  publicIngress: true
+  replicas: 2
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+  hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, targetCPUUtilizationPercentage: 70 }
+
+# ---------------------------------------------------------------------------
+# Migration Job (pre-upgrade hook on upgrade; a normal resource on first
+# install) -- alembic upgrade head must succeed before any new-version pod
+# starts, and migrations stay backward-compatible so old + new pods can
+# coexist during the rolling update (docs/architecture/deployment.md's
+# rollout section). Uses global.imageRepository/imageTag, the same image
+# as every app service -- see templates/migration-job.yaml.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Self-hosted stateful components. ADR-021 prefers a managed equivalent
+# (RDS-class Postgres, managed Kafka, managed Redis) in real production --
+# these StatefulSets exist so this chart can be installed and really
+# verified against a real cluster (kind) without requiring cloud-managed
+# infrastructure, and as the honest fallback for a small self-hosted
+# deployment. Toggle each `enabled: false` and point the *_URL values above
+# at the managed endpoint instead when one exists.
+# ---------------------------------------------------------------------------
+postgres:
+  enabled: true
+  image: "pgvector/pgvector:pg16"     # ADR-006: pgvector required (memory-service)
+  storage: 20Gi
+  storageClassName: ""                 # "" = cluster default
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+neo4j:
+  enabled: true
+  image: "neo4j:5-community"
+  storage: 20Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+
+redis:
+  enabled: true
+  image: "redis:7-alpine"
+  storage: 2Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 256Mi }
+
+redpanda:
+  enabled: true
+  image: "redpandadata/redpanda:v24.2.11"
+  storage: 20Gi
+  storageClassName: ""
+  # rpk's own --memory flag must stay comfortably below resources.limits.memory
+  # below -- seastar refuses to start otherwise ("insufficient physical
+  # memory"), verified against the real image on a live cluster. Keep these
+  # two in sync if either changes.
+  seastarMemory: "1500M"
+  resources:
+    requests: { cpu: 500m, memory: 1Gi }
+    limits: { cpu: "2", memory: 2Gi }
+
+minio:
+  enabled: true
+  image: "quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z"
+  storage: 20Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+
+keycloak:
+  enabled: true
+  image: "quay.io/keycloak/keycloak:26.0"
+  storage: 2Gi
+  storageClassName: ""
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "1", memory: 1Gi }
+
+ingress:
+  enabled: true
+  className: nginx
+  host: app.sentinelmesh.example    # replace per real deployment
+  tls:
+    enabled: true
+    secretName: sentinelmesh-tls    # provisioned by cert-manager, not this chart
+
+networkPolicy:
+  enabled: true
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

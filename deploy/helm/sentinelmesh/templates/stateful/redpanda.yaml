@@ -1,0 +1,106 @@
+{{/*
+Single-broker Redpanda StatefulSet -- adequate for a real functional
+verification on kind, NOT a claim of production HA. A real production
+Kafka-compatible deployment needs >=3 brokers with rack awareness; that
+is out of scope for what can honestly be verified here.
+*/}}
+{{- if .Values.redpanda.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  namespace: {{ .Values.global.namespaces.bus }}
+  labels:
+    app.kubernetes.io/name: redpanda
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redpanda
+  ports:
+    - name: kafka
+      port: 9092
+      targetPort: 9092
+    - name: admin
+      port: 9644
+      targetPort: 9644
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redpanda
+  namespace: {{ .Values.global.namespaces.bus }}
+  labels:
+    app.kubernetes.io/name: redpanda
+spec:
+  serviceName: redpanda
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redpanda
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redpanda
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        # runAsUser must be numeric: the image's own USER directive is
+        # the name "redpanda", not a UID, so kubelet cannot verify
+        # runAsNonRoot without an explicit numeric UID (verified against
+        # the real image on a live cluster -- it failed admission with
+        # "image has non-numeric user (redpanda), cannot verify user is
+        # non-root" until this was added). 101 is that image's real uid.
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redpanda
+          image: {{ .Values.redpanda.image }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          command:
+            - rpk
+            - redpanda
+            - start
+            - --smp=1
+            - --memory={{ .Values.redpanda.seastarMemory }}
+            - --overprovisioned
+            - --node-id=0
+            - --check=false
+            - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+            - --advertise-kafka-addr=PLAINTEXT://redpanda.{{ .Values.global.namespaces.bus }}.svc.cluster.local:9092
+          ports:
+            - containerPort: 9092
+              name: kafka
+            - containerPort: 9644
+              name: admin
+          resources:
+            {{- toYaml .Values.redpanda.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/redpanda/data
+          readinessProbe:
+            httpGet:
+              path: /v1/status/ready
+              port: 9644
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 9092
+            periodSeconds: 20
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- if .Values.redpanda.storageClassName }}
+        storageClassName: {{ .Values.redpanda.storageClassName }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.redpanda.storage }}
+{{- end }}

@@ -1,0 +1,22 @@
+{{/*
+RBAC (least privilege).
+
+Verified (grep across every service and package source tree for a
+"kubernetes" client import) that NONE of the 14 real services call the
+Kubernetes API -- no leader election, no pod/service introspection, no
+CRD reads. Each service's ServiceAccount (serviceaccount.yaml) exists
+only to give the pod a distinct identity for Pod Security admission,
+NetworkPolicy targeting, and audit logs; automountServiceAccountToken is
+false on every one of them so no token is even mounted into the pod.
+
+Per least privilege, this chart therefore grants ZERO Kubernetes RBAC
+permissions to any application ServiceAccount -- no Role or
+RoleBinding is rendered here. Adding a Role "because the checklist asks
+for RBAC" would itself violate least privilege by granting API access
+nothing in the code uses. If a future service needs real k8s API access
+(e.g. a controller), add a narrowly-scoped Role for that ServiceAccount
+only, naming the exact verbs/resources it calls.
+
+The migration Job (migration-job.yaml) similarly needs no k8s API
+access -- it only runs `alembic upgrade head` against Postgres.
+*/}}

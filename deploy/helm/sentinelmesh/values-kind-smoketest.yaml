@@ -1,0 +1,65 @@
+# Local `kind` verification ONLY. Overrides values.yaml's production
+# resource/replica estimates down to whatever fits a single-node kind
+# cluster's allocatable capacity, so a full-stack install can actually be
+# scheduled and observed on developer hardware. These numbers are test
+# scaffolding, not a revision of the production estimates in values.yaml --
+# do not copy them into a production values file.
+
+global:
+  imageRepository: sentinelmesh/app
+  imageTag: phase15u4-final
+  secretsProvider: manual
+  # The app's own AppSettings validator (packages/common-py) refuses to
+  # start with SM_ENV=production unless SM_KAFKA_SECURITY_PROTOCOL is
+  # SASL_SSL -- a real, working safety check, not a bug. This smoke-test
+  # Redpanda runs PLAINTEXT (no SASL/TLS configured), so SM_ENV is
+  # overridden to "staging" here to honestly reflect what's actually
+  # running; a real production install must configure SASL_SSL Kafka
+  # (e.g. managed Kafka, or Redpanda with SASL enabled) to pass that same
+  # check with SM_ENV=production.
+  env:
+    SM_ENV: staging
+
+secrets:
+  SM_PG_PASSWORD: "smoketest-pg-pw"
+  SM_NEO4J_PASSWORD: "smoketest-neo-pw"
+  SM_REDIS_PASSWORD: "smoketest-redis-pw"
+  SM_S3_ACCESS_KEY_ID: "smoketestaccesskey"
+  SM_S3_SECRET_ACCESS_KEY: "smoketestsecretkey"
+  SM_OIDC_CLIENT_SECRET: "smoketest-oidc-secret"
+  SM_INTERNAL_JWT_SIGNING_KEY: "smoketest-jwt-signing-key-not-real"
+  SM_LLM_API_KEY: "smoketest-unused-llm-key"
+
+frontend:
+  enabled: false   # no frontend image has been built/loaded for this smoke test
+
+ingress:
+  enabled: false   # no ingress controller installed in this kind cluster
+
+# Every service: replicas=1, HPA disabled (no metrics-server in kind),
+# resource requests trimmed to fit ~16 CPU / ~7.7Gi allocatable alongside
+# 6 stateful StatefulSets on one node.
+services:
+  api-gateway:        { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 96Mi },  limits: { cpu: 300m, memory: 256Mi } } }
+  ingestion-gateway:   { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 96Mi },  limits: { cpu: 300m, memory: 256Mi } } }
+  normalization-engine: { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 96Mi },  limits: { cpu: 300m, memory: 256Mi } } }
+  stream-processor:    { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 300m, memory: 320Mi } } }
+  graph-service:       { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 300m, memory: 320Mi } } }
+  ml-inference:        { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 100m, memory: 192Mi },limits: { cpu: 500m, memory: 384Mi } } }
+  detection-engine:     { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 300m, memory: 320Mi } } }
+  threat-intel-service: { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 96Mi },  limits: { cpu: 200m, memory: 192Mi } } }
+  mitre-service:        { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 96Mi },  limits: { cpu: 200m, memory: 192Mi } } }
+  correlation-engine:    { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 96Mi },  limits: { cpu: 300m, memory: 256Mi } } }
+  ai-analyst:            { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 300m, memory: 320Mi } } }
+  simulation-service:    { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 96Mi },  limits: { cpu: 200m, memory: 192Mi } } }
+  memory-service:        { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 300m, memory: 320Mi } } }
+  reporting-service:     { replicas: 1, hpa: { enabled: false }, resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { cpu: 300m, memory: 320Mi } } }
+
+postgres:  { resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { cpu: 500m, memory: 512Mi } }, storage: 2Gi }
+neo4j:     { resources: { requests: { cpu: 150m, memory: 384Mi }, limits: { cpu: 800m, memory: 768Mi } }, storage: 2Gi }
+redis:     { resources: { requests: { cpu: 50m,  memory: 64Mi  }, limits: { cpu: 200m, memory: 128Mi } }, storage: 512Mi }
+redpanda:  { seastarMemory: "512M", resources: { requests: { cpu: 150m, memory: 384Mi }, limits: { cpu: 800m, memory: 768Mi } }, storage: 2Gi }
+minio:     { resources: { requests: { cpu: 50m,  memory: 96Mi  }, limits: { cpu: 300m, memory: 256Mi } }, storage: 2Gi }
+# Keycloak's real JVM footprint OOM-killed at 512Mi (verified against the
+# real image on a live cluster) -- bumped to what it actually needs.
+keycloak:  { resources: { requests: { cpu: 250m, memory: 512Mi }, limits: { cpu: 800m, memory: 1Gi } }, storage: 512Mi }
