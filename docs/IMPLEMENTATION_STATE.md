@@ -7,8 +7,9 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
-**Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Unit 1
-of 4 CI-VERIFIED, run `34698614073`, all five jobs, commit `7eee2c1`).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
+**Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Units
+1-2 of 4; Unit 1 CI-VERIFIED run `34698614073`, commit `7eee2c1`; Unit 2
+commit pending).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
 Loki; this phase closes the gaps between that spec and what actually runs.
 Unit 1: real per-request tracing — every service already bootstrapped an
 OTel `TracerProvider` (Phase 1) but nothing ever opened a span or set the
@@ -60,6 +61,49 @@ header (no collector configured), and Prometheus's own `/api/v1/targets`
 reporting both running services `up` on the new scrape config (the other 11
 targets correctly `down` — DNS lookup failure — because those containers
 simply were not started for this check, not a config defect).
+Unit 2: the tabular IDS benchmark harness core (R24), distinct from the
+existing graph-model training pipeline (Phase 8). New `services/ml-training/
+src/sm_ml_training/benchmark/` — `nsl_kdd.py` (dataset adapter; categorical
+columns one-hot encoded against a vocabulary derived from the train split
+itself, never a hardcoded list, with an explicit `__unknown` bucket for a
+category the test split has that train did not), `metrics.py` (stdlib-only
+ROC-AUC — the Mann-Whitney-U tie-averaged rank form, verified against
+analytic perfect-separation/perfect-reversal/tied cases — + precision/
+recall/F1/false-positive-rate; deliberately no numpy/sklearn, so the metric
+computation itself is auditable, not a library black box), `harness.py`
+(`run_benchmark` — fits `sm_ml.models.StatisticalModel`, the platform's own
+always-available detector, on the **benign-only** subset of the train
+split — modeling "normal" behavior, exactly how `detection-engine` actually
+uses it in production, ADR-013 — then scores the full labeled test split;
+`BenchmarkRun` records dataset id + both file sha256s, preprocessing
+version, split sizes, model + params, seed, every metric, and the real
+environment). New CLI subcommand: `python -m sm_ml_training benchmark
+--dataset nsl-kdd --train <path> --test <path>`.
+**Real, executed run (2026-09-12, against the actual locally-staged
+`KDDTrain+.txt`/`KDDTest+.txt`):** train sha256 `1b86d2f9...`, test sha256
+`fa46b093...`, 125,973 train rows (67,343 benign used for the fit), 22,544
+test rows (12,833 anomalous) -> **ROC-AUC 0.639039, precision 0.581191,
+recall 0.681914, F1 0.627537, false-positive rate 0.649367, mean detection
+latency 0.054062 ms/row.** Reported exactly as measured — a univariate MAD
+z-score baseline against a diverse real-world-derived dataset is genuinely
+this modest, and no tuning was done to make it look better (Constitution
+§3). **Dataset-availability finding:** of the phase's named examples
+(CICIDS2017/UNSW-NB15/LANL), only NSL-KDD is present locally in a usable
+*labeled* form — CICIDS2017 was never downloaded (only a `.md5` stub),
+UNSW-NB15 is only raw unlabeled partial Argus/BRO captures, and LANL has no
+paired `redteam.txt` ground truth staged; their adapters and any benchmark
+claim are deferred to Unit 3, pending an actual labeled copy — **no number
+is claimed for any of them.** New `ml/datasets/nsl-kdd/MANIFEST.md` (format,
+license, staging convention, column schema — matches the `ml/models/*/
+CONTRACT.md` documentation style).
+Local: ruff + mypy --strict clean, **26 new unit tests** (`test_benchmark_
+metrics.py`, `test_benchmark_nsl_kdd.py`, `test_benchmark_harness.py` —
+including a reproducibility test that separates the deterministic metrics
+from the real, run-to-run-variable wall-clock timing field rather than
+asserting timing equality). MLflow experiment tracking and a Postgres
+`benchmark_experiment` table are explicitly deferred (Unit 3/4) — this unit
+follows `ml-training`'s existing artifact-on-disk precedent, not a new
+cross-service Postgres write path.
 
 **Phase 14 — Reporting + Attack Storytelling. COMPLETE / CI-VERIFIED (all
 five jobs, final run `34641513223`; see exit report below).** Every
@@ -2802,26 +2846,33 @@ Planned units:
    full detail and local verification (924 unit tests, 169 real-infra
    integration tests, real compose-stack smoke test against a rebuilt
    image).
-2. ⬜ Real dataset-availability survey + the tabular benchmark harness core:
-   dataset adapter interface, deterministic split, `sm_ml.models` (isolation
-   forest / autoencoder / statistical) as the models under evaluation,
-   ROC-AUC/precision/recall/F1/false-positive-rate computation, a
-   reproducibility record (dataset id + sha256, preprocessing, split, model,
-   params, seed, metrics, environment, timestamp) persisted to Postgres
-   (new `benchmark_experiment` table, matching R24's `Database`/`MLflow`
-   split). **Dataset-availability finding (must land in this unit's actual
-   text, not assumed):** of the phase prompt's named examples
-   (CICIDS2017/UNSW-NB15/LANL), `C:\Sentinel_Mesh` currently has none in a
-   directly usable *labeled* form — CICIDS2017 was never downloaded (only a
-   `.md5` stub), UNSW-NB15 is only raw unlabeled partial Argus/BRO captures
-   (not the official labeled feature CSVs), and LANL's `auth.txt` etc. have
-   no paired `redteam.txt` ground truth locally. R24's own architecture text
-   additionally names NSL-KDD (present locally, fully labeled) as an
-   approved dataset — plan is to get one real, honestly-labeled, executed
-   benchmark run on NSL-KDD this phase, and document the other three
-   datasets' adapters as interface-complete but NOT YET EXECUTED (no number
-   claimed) pending an actual dataset download, exactly as the phase's own
-   instruction requires.
+2. ✅ Tabular IDS benchmark harness core (R24), distinct from Phase 8's
+   graph-model pipeline. `sm_ml_training.benchmark` — `nsl_kdd.py` (dataset
+   adapter; one-hot vocabulary derived from the train split itself, never
+   hardcoded, with an explicit `__unknown` bucket), `metrics.py` (stdlib-
+   only ROC-AUC/precision/recall/F1/FPR — no numpy/sklearn, so the metric
+   math is auditable), `harness.py` (`run_benchmark` fits `sm_ml.models.
+   StatisticalModel` on the train split's benign-only rows, scores the full
+   labeled test split; `BenchmarkRun` records dataset id + both file
+   sha256s, preprocessing version, split sizes, model + params, seed, every
+   metric, real environment). New CLI: `python -m sm_ml_training benchmark
+   --dataset nsl-kdd --train <path> --test <path>`.
+   **Real, executed run** against the actual locally-staged
+   `KDDTrain+.txt`/`KDDTest+.txt`: 125,973 train rows (67,343 benign used
+   for the fit), 22,544 test rows (12,833 anomalous) -> **ROC-AUC 0.639039,
+   precision 0.581191, recall 0.681914, F1 0.627537, false-positive rate
+   0.649367** — reported exactly as measured, deliberately unimpressive,
+   no tuning to make it look better (Constitution §3).
+   **Dataset-availability finding:** of the phase's named examples
+   (CICIDS2017/UNSW-NB15/LANL), only NSL-KDD is present locally in a usable
+   *labeled* form — CICIDS2017 was never downloaded (only a `.md5` stub),
+   UNSW-NB15 is only raw unlabeled partial Argus/BRO captures, LANL has no
+   paired `redteam.txt` ground truth staged. Their adapters + any benchmark
+   claim are deferred to Unit 3, pending an actual labeled copy.
+   New `ml/datasets/nsl-kdd/MANIFEST.md`. MLflow tracking + a Postgres
+   `benchmark_experiment` table deferred (Unit 3/4) — this unit follows
+   `ml-training`'s existing artifact-on-disk precedent, not a new
+   cross-service DB write path. See "Current phase" above for full detail.
 3. ⬜ Baseline IDS comparison on whichever dataset(s) Unit 2 actually
    executed against; the remaining named-dataset adapters (CICIDS2017/
    UNSW-NB15/LANL) if by then downloaded/labeled locally, else left

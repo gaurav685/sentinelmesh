@@ -575,8 +575,39 @@ P10 Federated mesh · P38 Enterprise deployment hardening (runs across late phas
 - **Infrastructure:** datasets at `SM_DATASET_ROOT` (staged: NSL-KDD, UNSW-NB15, CTU-13, EMBER, LANL; **CICIDS2017 to be added**), MLflow, GPU (external).
 - **Security boundary:** research datasets, no tenant data; dataset licenses recorded per `MANIFEST.md`.
 - **Test:** dataset-adapter tests (schema, splits, checksums), harness smoke test, reproducibility test.
-- **Verification method:** run harness → metrics to MLflow. **NOT VERIFIED — REQUIRES REAL DATA / TRAINING ENVIRONMENT.** No metric exists yet.
-- **Phase:** P5. **Status:** ARCHITECTURE DEFINED. Datasets partly staged (see `C:\Sentinel_Mesh`).
+- **Verification method:** run harness → real metrics. MLflow experiment
+  tracking + a Postgres `benchmark_experiment` table remain future work (no
+  code writes to either yet — see Status).
+- **Phase:** P15 (Unit 2). **Status:** IMPLEMENTED for NSL-KDD, **REAL METRIC
+  EXISTS** — `services/ml-training/src/sm_ml_training/benchmark/` (dataset
+  adapter `nsl_kdd.py`, metrics `metrics.py` — stdlib ROC-AUC/precision/
+  recall/F1/FPR, no numpy/sklearn — and the reproducible run `harness.py`).
+  `sm_ml.models.StatisticalModel` (the platform's own always-available
+  detector) fit on the **benign-only** subset of NSL-KDD's train split,
+  evaluated against the full labeled test split. A real, executed run
+  (2026-09-12, `SM_DATASET_ROOT` locally staged, commit `d71bca1`) against
+  the actual `KDDTrain+.txt`/`KDDTest+.txt` files —
+  train sha256 `1b86d2f9...`, test sha256 `fa46b093...`, 125,973 train rows
+  (67,343 benign used for the fit) / 22,544 test rows (12,833 anomalous) —
+  produced **ROC-AUC 0.639039, precision 0.581191, recall 0.681914,
+  F1 0.627537, false-positive rate 0.649367, mean detection latency
+  0.054062 ms/row**. This number is deliberately unimpressive and reported
+  as-is (Constitution §3): a univariate MAD z-score baseline scored against
+  a diverse, real-world-derived flow dataset is exactly this modest — no
+  tuning was done to make it look better. Full `BenchmarkRun` (dataset id +
+  both file hashes, preprocessing version, split sizes, model + params,
+  seed, every metric, real environment incl. package versions and git
+  commit, timestamp) — reproducible from the record, not just the number.
+  **Dataset-availability finding:** of the phase prompt's named examples,
+  only NSL-KDD is present locally in a genuinely usable *labeled* form.
+  CICIDS2017 was never downloaded (only a `.md5` stub exists); UNSW-NB15 is
+  only raw, unlabeled, partial Argus/BRO captures (not the official labeled
+  feature CSVs); LANL's `auth.txt`/`proc.txt`/`flows.txt`/`dns.txt` have no
+  paired `redteam.txt` ground truth staged. Their adapters are deferred to
+  Unit 3, to be built when/if a genuinely labeled copy is staged —
+  **no number will be claimed for any of them until then.** MLflow tracking,
+  the `benchmark_experiment` table, and a baseline-ML-method comparison
+  (e.g. an Isolation Forest) are Unit 3/4 work.
 
 ### R25 — Beautiful Enterprise UI
 - **Purpose:** professional SOC dashboard, advanced graph visualization, security analytics dashboards; accessibility + security + performance preserved.
