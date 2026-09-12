@@ -8,7 +8,7 @@ Update it at the end of every coherent implementation unit.
 ## Current phase
 
 **Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Unit 1
-of 4).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
+of 4 CI-VERIFIED, run `34698614073`, all five jobs, commit `7eee2c1`).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
 Loki; this phase closes the gaps between that spec and what actually runs.
 Unit 1: real per-request tracing — every service already bootstrapped an
 OTel `TracerProvider` (Phase 1) but nothing ever opened a span or set the
@@ -2786,7 +2786,8 @@ Loki); this phase closes the gap between that spec and what actually runs,
 then builds a reproducible ML benchmark/evaluation pipeline that never
 claims a number until the benchmark is actually executed (Constitution §3).
 Planned units:
-1. ⬜ Real per-request tracing (`TracingMiddleware`, `current_trace_id`,
+1. ✅ **CI-VERIFIED (run `34698614073`, all five jobs, commit `7eee2c1`).**
+   Real per-request tracing (`TracingMiddleware`, `current_trace_id`,
    `remote_context_from_trace_id`, wired into all 14 services + both
    envelope-origin points + `RecordProcessor`'s Kafka-consumer span);
    `sm_db_pool_*` + `sm_neo4j_query_duration_seconds` (the two metrics ADR-020
@@ -2800,7 +2801,7 @@ Planned units:
    with every service's real compose port. See "Current phase" above for
    full detail and local verification (924 unit tests, 169 real-infra
    integration tests, real compose-stack smoke test against a rebuilt
-   image). CI run pending.
+   image).
 2. ⬜ Real dataset-availability survey + the tabular benchmark harness core:
    dataset adapter interface, deterministic split, `sm_ml.models` (isolation
    forest / autoencoder / statistical) as the models under evaluation,
