@@ -33,12 +33,8 @@ async def healthz() -> HealthResponse:
     return liveness(SERVICE_NAME, SERVICE_VERSION)
 
 
-@router.get("/readyz", response_model=ReadyResponse)
-async def readyz(response: Response, services: Services = Depends(get_services)) -> ReadyResponse:
+async def _status(services: Services) -> ReadyResponse:
     result = await evaluate_readiness(_checks(services))
-    for dep in result.dependencies:
-        services.metrics.dependency_up.labels(SERVICE_NAME, dep.name).set(1 if dep.healthy else 0)
-
     count = 0
     try:
         count = await services.catalog.technique_count()
@@ -48,10 +44,22 @@ async def readyz(response: Response, services: Services = Depends(get_services))
     result.dependencies.append(
         DepStatus(name="attack_catalog", healthy=count > 0, detail=f"{count} techniques imported")
     )
+    return result
 
+
+@router.get("/readyz", response_model=ReadyResponse)
+async def readyz(response: Response, services: Services = Depends(get_services)) -> ReadyResponse:
+    result = await _status(services)
+    for dep in result.dependencies:
+        services.metrics.dependency_up.labels(SERVICE_NAME, dep.name).set(1 if dep.healthy else 0)
     if not result.ready:
         response.status_code = 503
     return result
+
+
+@router.get("/health/deps", response_model=ReadyResponse)
+async def health_deps(services: Services = Depends(get_services)) -> ReadyResponse:
+    return await _status(services)
 
 
 @router.get(f"{API_PREFIX}/meta", response_model=MetaResponse)

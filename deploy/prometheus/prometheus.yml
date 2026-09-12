@@ -21,3 +21,33 @@ scrape_configs:
       - targets: ["app:8000"]
         labels:
           service: api-gateway
+
+  - job_name: sentinelmesh-services
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["ingestion-gateway:8001"]
+        labels: { service: ingestion-gateway }
+      - targets: ["normalization-engine:8002"]
+        labels: { service: normalization-engine }
+      - targets: ["stream-processor:8003"]
+        labels: { service: stream-processor }
+      - targets: ["graph-service:8004"]
+        labels: { service: graph-service }
+      - targets: ["ml-inference:8005"]
+        labels: { service: ml-inference }
+      - targets: ["detection-engine:8006"]
+        labels: { service: detection-engine }
+      - targets: ["threat-intel-service:8007"]
+        labels: { service: threat-intel-service }
+      - targets: ["mitre-service:8008"]
+        labels: { service: mitre-service }
+      - targets: ["correlation-engine:8009"]
+        labels: { service: correlation-engine }
+      - targets: ["ai-analyst:8010"]
+        labels: { service: ai-analyst }
+      - targets: ["simulation-service:8011"]
+        labels: { service: simulation-service }
+      - targets: ["memory-service:8012"]
+        labels: { service: memory-service }
+      - targets: ["reporting-service:8013"]
+        labels: { service: reporting-service }

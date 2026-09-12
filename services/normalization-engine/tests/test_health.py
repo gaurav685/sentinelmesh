@@ -22,6 +22,13 @@ def test_readyz_503_when_producer_down(app_client: Any) -> None:
     assert r.json()["ready"] is False
 
 
+def test_health_deps_reports_dependencies(app_client: Any) -> None:
+    r = app_client.get("/health/deps")
+    assert r.status_code == 200
+    names = {d["name"] for d in r.json()["dependencies"]}
+    assert names == {"kafka_producer", "kafka_consumer"}
+
+
 def test_meta_and_metrics(app_client: Any) -> None:
     assert app_client.get("/api/v1/meta").json()["service"] == "normalization-engine"
     m = app_client.get("/metrics")

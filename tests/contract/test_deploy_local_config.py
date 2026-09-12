@@ -143,6 +143,40 @@ def test_prometheus_scrapes_the_gateway_on_its_actual_port():
     assert gateway["static_configs"][0]["targets"] == ["app:8000"]
 
 
+def test_prometheus_scrapes_every_backend_service_on_its_actual_port(compose: dict[str, Any]):
+    """Every service that gets a real port in docker-compose must also be a
+    real Prometheus scrape target (Phase 15 / ADR-020) — a service present in
+    one and not the other is a metrics blind spot."""
+    config = yaml.safe_load(PROMETHEUS.read_text(encoding="utf-8"))
+    jobs = {job["job_name"]: job for job in config["scrape_configs"]}
+    targets = {
+        t["labels"]["service"]: t["targets"][0]
+        for t in jobs["sentinelmesh-services"]["static_configs"]
+    }
+    expected = {
+        "ingestion-gateway": "ingestion-gateway:8001",
+        "normalization-engine": "normalization-engine:8002",
+        "stream-processor": "stream-processor:8003",
+        "graph-service": "graph-service:8004",
+        "ml-inference": "ml-inference:8005",
+        "detection-engine": "detection-engine:8006",
+        "threat-intel-service": "threat-intel-service:8007",
+        "mitre-service": "mitre-service:8008",
+        "correlation-engine": "correlation-engine:8009",
+        "ai-analyst": "ai-analyst:8010",
+        "simulation-service": "simulation-service:8011",
+        "memory-service": "memory-service:8012",
+        "reporting-service": "reporting-service:8013",
+    }
+    assert targets == expected
+    # every one of these names must be a real compose service, on the port
+    # its own docker-compose.yml block actually publishes.
+    for service, target in expected.items():
+        port = target.rsplit(":", 1)[1]
+        published = compose["services"][service]["ports"]
+        assert any(p.split(":")[-1] == port for p in published), service
+
+
 def test_keycloak_realm_client_is_confidential_and_uses_pkce():
     realm = json.loads(REALM.read_text(encoding="utf-8"))
     assert realm["realm"] == "sentinelmesh"

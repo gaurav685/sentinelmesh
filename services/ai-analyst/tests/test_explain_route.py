@@ -90,3 +90,9 @@ def test_readyz_reports_template_only_mode(client: TestClient) -> None:
     r = client.get("/readyz")
     assert r.status_code == 200
     assert r.json()["dependencies"][0]["detail"] == "template-only"
+
+
+def test_health_deps_reports_the_same_mode(client: TestClient) -> None:
+    r = client.get("/health/deps")
+    assert r.status_code == 200
+    assert r.json()["dependencies"][0]["detail"] == "template-only"

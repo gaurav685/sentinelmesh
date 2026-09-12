@@ -52,6 +52,14 @@ def test_readyz_probes_every_required_dependency(app_client: Any) -> None:
     assert {d["name"] for d in body["dependencies"]} == {"postgres", "kafka_producer", "kafka_consumer"}
 
 
+def test_health_deps_reports_the_same_dependencies_without_gating_status(app_client: Any) -> None:
+    resp = app_client.get("/health/deps")
+    assert resp.status_code == 200
+    assert {d["name"] for d in resp.json()["dependencies"]} == {
+        "postgres", "kafka_producer", "kafka_consumer",
+    }
+
+
 def test_meta_and_metrics(app_client: Any) -> None:
     assert app_client.get("/api/v1/meta").json()["service"] == "detection-engine"
     assert "sm_detection_events_total" in app_client.get("/metrics").text

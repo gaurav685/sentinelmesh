@@ -36,6 +36,7 @@ from sm_common.fastapi import (
     RateLimitMiddleware,
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
+    TracingMiddleware,
     build_cors_kwargs,
     install_exception_handlers,
 )
@@ -148,6 +149,7 @@ def create_app(
         **build_cors_kwargs(resolved_settings),  # type: ignore[arg-type]
     )
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(TracingMiddleware)
 
     install_exception_handlers(app)
 

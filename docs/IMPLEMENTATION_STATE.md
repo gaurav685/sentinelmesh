@@ -7,6 +7,60 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 15 — Observability + Benchmarking + Evaluation. IN PROGRESS (Unit 1
+of 4).** ADR-020 already specified OpenTelemetry + Prometheus + Grafana +
+Loki; this phase closes the gaps between that spec and what actually runs.
+Unit 1: real per-request tracing — every service already bootstrapped an
+OTel `TracerProvider` (Phase 1) but nothing ever opened a span or set the
+event envelope's `trace_id`, so the field was silently always `None`. New
+`sm_common.fastapi.TracingMiddleware` opens a real server span per HTTP
+request (W3C context extract/inject); `current_trace_id()` reads it (`None`,
+never fabricated, when no real OTel provider is configured — the ubiquitous
+local-dev/CI case). Wired into all 14 services' middleware stacks and into
+both true envelope-origin points (`ingestion-gateway`, `simulation-service`).
+`sm_common.bus.RecordProcessor` now opens a consumer span per Kafka record,
+linked to the envelope's `trace_id` via a new `remote_context_from_trace_id`
+(a `NonRecordingSpan` remote parent — the envelope carries a bare trace-id,
+not a full `traceparent`, so there is no real parent span-id to restore).
+Two previously-missing metrics: `sm_db_pool_{size,checked_out,overflow}`
+(refreshed from the real SQLAlchemy pool at every `/metrics` scrape, wired
+into all 10 Postgres-backed services) and `sm_neo4j_query_duration_seconds`
+(wired into `graph-service`'s `Graph` client, the only service with a direct
+Neo4j connection). Model-inference latency/DEGRADED, detection latency, and
+graph-growth rate turned out to already be real and wired
+(`ml-inference`'s `InferenceMetrics`, `detection-engine`'s `DetectionMetrics`,
+`graph-service`'s `GraphMetrics`) — not duplicated. `sm_false_positive_
+feedback_total` is registered but has no producer yet: no analyst "mark as
+false positive" action exists anywhere in this build (a SOC-workflow
+feature, not an observability one) — reports a real, honest `0`, not wired
+to a fabricated signal. `/health/deps` (ADR-020/R23 named it for every
+service; only `api-gateway` had it) added to the other 13 — the detailed,
+never-503 dependency view, reusing each service's already-tested `_checks`/
+readiness computation (two services — `mitre-service`, `simulation-service`
+— had extra dependency entries appended only inside `/readyz`; refactored
+into a shared `_status()` helper so `/health/deps` is not a narrower view).
+`deploy/prometheus/prometheus.yml` scraped only `api-gateway`; added the
+other 13 services as real scrape targets.
+Local: ruff + `mypy --strict` clean (392 files, full CI static tree), **924
+unit tests** (from 883: metrics/tracing/tracing-middleware/bus-processor
+unit tests in `packages/common-py`, a `/health/deps` assertion added to
+every service's existing health tests, 3 new `test_health.py` files for
+`memory-service`/`reporting-service`/`simulation-service`, a new deploy-config
+contract test asserting scrape-target/compose-port parity for all 13
+services) + `gen_contracts.py --check` (no drift — no contract touched this
+unit). Full real-infra `tests/integration` suite (**169 tests**, real
+Postgres/Redis/Neo4j/Redpanda/MinIO) green. `Dockerfile.app` builds; every
+service entrypoint + `sm_common.fastapi`/`observability` + `opentelemetry.
+propagate` import clean in the image; non-root uid confirmed. Manually
+verified against the real compose stack (not just `TestClient`): rebuilt
+the image, brought up `api-gateway` + `ingestion-gateway` + real Prometheus,
+confirmed a real `/health/deps` 200 with live dependency latencies, a real
+`sm_db_pool_size` sample in `/metrics`, no fabricated `traceparent` response
+header (no collector configured), and Prometheus's own `/api/v1/targets`
+reporting both running services `up` on the new scrape config (the other 11
+targets correctly `down` — DNS lookup failure — because those containers
+simply were not started for this check, not a config defect).
+
 **Phase 14 — Reporting + Attack Storytelling. COMPLETE / CI-VERIFIED (all
 five jobs, final run `34641513223`; see exit report below).** Every
 generated narrative distinguishes ACTUAL SYSTEM EVIDENCE from INFERENCE
@@ -2725,6 +2779,59 @@ integration test. Docker is still absent.
   payload must be added there when implemented.
 
 ## Exact next action
+
+**PHASE 15 — OBSERVABILITY + BENCHMARKING + EVALUATION. IN PROGRESS.**
+ADR-020 already specified the stack (OpenTelemetry + Prometheus + Grafana +
+Loki); this phase closes the gap between that spec and what actually runs,
+then builds a reproducible ML benchmark/evaluation pipeline that never
+claims a number until the benchmark is actually executed (Constitution §3).
+Planned units:
+1. ⬜ Real per-request tracing (`TracingMiddleware`, `current_trace_id`,
+   `remote_context_from_trace_id`, wired into all 14 services + both
+   envelope-origin points + `RecordProcessor`'s Kafka-consumer span);
+   `sm_db_pool_*` + `sm_neo4j_query_duration_seconds` (the two metrics ADR-020
+   named that were genuinely missing — model-inference/detection-latency/
+   graph-growth already existed under `ml-inference`/`detection-engine`/
+   `graph-service`'s own metrics classes, not duplicated); `sm_false_
+   positive_feedback_total` registered with no producer yet (no analyst
+   "mark as false positive" action exists anywhere in this build — a
+   SOC-workflow feature, not this phase's to build); `/health/deps` added to
+   the 13 services that lacked it; `prometheus.yml` scrape-target parity
+   with every service's real compose port. See "Current phase" above for
+   full detail and local verification (924 unit tests, 169 real-infra
+   integration tests, real compose-stack smoke test against a rebuilt
+   image). CI run pending.
+2. ⬜ Real dataset-availability survey + the tabular benchmark harness core:
+   dataset adapter interface, deterministic split, `sm_ml.models` (isolation
+   forest / autoencoder / statistical) as the models under evaluation,
+   ROC-AUC/precision/recall/F1/false-positive-rate computation, a
+   reproducibility record (dataset id + sha256, preprocessing, split, model,
+   params, seed, metrics, environment, timestamp) persisted to Postgres
+   (new `benchmark_experiment` table, matching R24's `Database`/`MLflow`
+   split). **Dataset-availability finding (must land in this unit's actual
+   text, not assumed):** of the phase prompt's named examples
+   (CICIDS2017/UNSW-NB15/LANL), `C:\Sentinel_Mesh` currently has none in a
+   directly usable *labeled* form — CICIDS2017 was never downloaded (only a
+   `.md5` stub), UNSW-NB15 is only raw unlabeled partial Argus/BRO captures
+   (not the official labeled feature CSVs), and LANL's `auth.txt` etc. have
+   no paired `redteam.txt` ground truth locally. R24's own architecture text
+   additionally names NSL-KDD (present locally, fully labeled) as an
+   approved dataset — plan is to get one real, honestly-labeled, executed
+   benchmark run on NSL-KDD this phase, and document the other three
+   datasets' adapters as interface-complete but NOT YET EXECUTED (no number
+   claimed) pending an actual dataset download, exactly as the phase's own
+   instruction requires.
+3. ⬜ Baseline IDS comparison on whichever dataset(s) Unit 2 actually
+   executed against; the remaining named-dataset adapters (CICIDS2017/
+   UNSW-NB15/LANL) if by then downloaded/labeled locally, else left
+   documented as deferred with the concrete reason.
+4. ⬜ Grafana dashboard provisioning (`deploy/grafana` is currently an empty
+   placeholder dir) + a frontend benchmark-results page (populated only
+   from real runs, per R24) + BFF + phase close.
+
+Exit next action after Phase 15: **PHASE 16 — Kubernetes + Enterprise
+Deployment** (prompt not yet given — do NOT start speculatively; the next
+session resumes here).
 
 **PHASE 14 — REPORTING + ATTACK STORYTELLING. COMPLETE / CI-VERIFIED (all
 five jobs, final run `34641513223`; see exit report above).** Every generated

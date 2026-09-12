@@ -16,6 +16,13 @@ def test_readyz_reports_every_dependency(app_client: Any) -> None:
     assert names == {"kafka_producer", "kafka_consumer", "neo4j"}
 
 
+def test_health_deps_reports_every_dependency_without_gating_status(app_client: Any) -> None:
+    r = app_client.get("/health/deps")
+    assert r.status_code == 200
+    names = {d["name"] for d in r.json()["dependencies"]}
+    assert names == {"kafka_producer", "kafka_consumer", "neo4j"}
+
+
 def test_meta_route(app_client: Any) -> None:
     r = app_client.get("/api/v1/meta")
     assert r.status_code == 200

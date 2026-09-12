@@ -40,3 +40,11 @@ def test_get_unknown_chain_is_404(client: Any) -> None:
 
 def test_healthz_is_open(client: Any) -> None:
     assert client.get("/healthz").status_code == 200
+
+
+def test_health_deps_reports_every_dependency(client: Any) -> None:
+    r = client.get("/health/deps")
+    assert r.status_code == 200
+    assert {d["name"] for d in r.json()["dependencies"]} == {
+        "postgres", "kafka_consumer", "kafka_producer",
+    }

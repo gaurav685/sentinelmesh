@@ -14,4 +14,5 @@ router = APIRouter(tags=["observability"])
 
 @router.get("/metrics", include_in_schema=False)
 async def metrics(services: Services = Depends(get_services)) -> Response:
+    services.metrics.refresh_db_pool(services.db)
     return Response(content=services.metrics.render_latest(), media_type=CONTENT_TYPE_LATEST)

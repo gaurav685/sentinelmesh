@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import time
 from types import TracebackType
 from typing import Any
 
@@ -21,6 +22,7 @@ from neo4j import AsyncDriver, AsyncGraphDatabase, Query
 from neo4j.exceptions import Neo4jError, ServiceUnavailable
 
 from ..config import AppSettings
+from ..observability import Metrics
 
 __all__ = ["Graph", "GraphUnavailableError"]
 
@@ -32,14 +34,22 @@ class GraphUnavailableError(RuntimeError):
 
 
 class Graph:
-    def __init__(self, driver: AsyncDriver, *, database: str, query_timeout_ms: int) -> None:
+    def __init__(
+        self,
+        driver: AsyncDriver,
+        *,
+        database: str,
+        query_timeout_ms: int,
+        metrics: Metrics | None = None,
+    ) -> None:
         self._driver = driver
         self._database = database
         self._timeout_s = query_timeout_ms / 1000 if query_timeout_ms > 0 else None
         self._started = False
+        self._metrics = metrics
 
     @classmethod
-    def from_settings(cls, settings: AppSettings) -> Graph:
+    def from_settings(cls, settings: AppSettings, *, metrics: Metrics | None = None) -> Graph:
         driver = AsyncGraphDatabase.driver(
             settings.neo4j_uri,
             auth=(settings.neo4j_user, settings.neo4j_password.get_secret_value()),
@@ -48,6 +58,7 @@ class Graph:
             driver,
             database=settings.neo4j_database,
             query_timeout_ms=settings.neo4j_query_timeout_ms,
+            metrics=metrics,
         )
 
     async def start(self) -> None:
@@ -80,6 +91,7 @@ class Graph:
     ) -> list[dict[str, Any]]:
         query = Query(cypher, timeout=self._timeout_s)
         mode = "WRITE" if write else "READ"
+        start = time.perf_counter()
         try:
             async with self._driver.session(
                 database=self._database, default_access_mode=mode
@@ -90,6 +102,9 @@ class Graph:
             raise GraphUnavailableError(str(exc)) from exc
         except Neo4jError:
             raise
+        finally:
+            if self._metrics is not None:
+                self._metrics.observe_neo4j_query(mode, time.perf_counter() - start)
 
     async def __aenter__(self) -> Graph:
         await self.start()

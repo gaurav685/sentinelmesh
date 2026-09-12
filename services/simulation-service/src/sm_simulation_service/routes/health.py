@@ -24,6 +24,17 @@ def _checks(services: Services) -> list[DependencyCheck]:
     return [probe_check("postgres", services.db, required=True)]
 
 
+async def _status(services: Services) -> ReadyResponse:
+    result = await evaluate_readiness(_checks(services))
+    result.dependencies.append(
+        DepStatus(
+            name="event_bus", healthy=True,
+            detail="enabled" if services.producer is not None else "disabled (feed_pipeline refused)",
+        )
+    )
+    return result
+
+
 @router.get("/healthz", response_model=HealthResponse)
 async def healthz() -> HealthResponse:
     return liveness(SERVICE_NAME, SERVICE_VERSION)
@@ -31,18 +42,17 @@ async def healthz() -> HealthResponse:
 
 @router.get("/readyz", response_model=ReadyResponse)
 async def readyz(response: Response, services: Services = Depends(get_services)) -> ReadyResponse:
-    result = await evaluate_readiness(_checks(services))
+    result = await _status(services)
     for dep in result.dependencies:
         services.metrics.dependency_up.labels(SERVICE_NAME, dep.name).set(1 if dep.healthy else 0)
-    result.dependencies.append(
-        DepStatus(
-            name="event_bus", healthy=True,
-            detail="enabled" if services.producer is not None else "disabled (feed_pipeline refused)",
-        )
-    )
     if not result.ready:
         response.status_code = 503
     return result
+
+
+@router.get("/health/deps", response_model=ReadyResponse)
+async def health_deps(services: Services = Depends(get_services)) -> ReadyResponse:
+    return await _status(services)
 
 
 @router.get(f"{API_PREFIX}/meta", response_model=MetaResponse)

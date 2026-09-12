@@ -20,7 +20,12 @@ from fastapi import FastAPI
 
 from sm_common.bus import EventBusConsumer, EventBusProducer, RecordProcessor
 from sm_common.config import AppSettings, load_settings
-from sm_common.fastapi import RequestContextMiddleware, SecurityHeadersMiddleware, install_exception_handlers
+from sm_common.fastapi import (
+    RequestContextMiddleware,
+    SecurityHeadersMiddleware,
+    TracingMiddleware,
+    install_exception_handlers,
+)
 from sm_common.logging import configure_logging, get_logger
 from sm_common.observability import build_metrics, configure_tracing, shutdown_tracing
 
@@ -126,6 +131,7 @@ def create_app(
 
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(TracingMiddleware)
     install_exception_handlers(app)
 
     app.include_router(health.router)

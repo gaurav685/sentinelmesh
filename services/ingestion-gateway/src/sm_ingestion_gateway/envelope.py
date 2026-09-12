@@ -29,6 +29,7 @@ from typing import Any, cast
 from sm_common.clock import utcnow
 from sm_common.context import get_correlation_id
 from sm_common.ids import new_correlation_id, uuid7
+from sm_common.observability import current_trace_id
 from sm_common.security import SensorIdentity
 from sm_contracts import (
     EventEnvelope,
@@ -102,6 +103,7 @@ def build_envelope(
         tenant_id=identity.tenant_id,
         source=EventSource(type=SourceType.sensor, sensor_id=identity.sensor_id),
         correlation_id=get_correlation_id() or new_correlation_id(),
+        trace_id=current_trace_id(),
         partition_key=_partition_key(tenant_id, event_type, payload),
         payload=payload,
         metadata=metadata,

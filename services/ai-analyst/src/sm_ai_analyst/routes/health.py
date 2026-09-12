@@ -29,8 +29,7 @@ async def healthz() -> HealthResponse:
     return liveness(SERVICE_NAME, SERVICE_VERSION)
 
 
-@router.get("/readyz", response_model=ReadyResponse)
-async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
+async def _status(services: Services) -> ReadyResponse:
     mode = "live-capable" if services.llm_live_capable else "template-only"
     result = await evaluate_readiness([probe_check("postgres", services.db, required=False)])
     return ReadyResponse(
@@ -40,6 +39,16 @@ async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
             *result.dependencies,
         ],
     )
+
+
+@router.get("/readyz", response_model=ReadyResponse)
+async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
+    return await _status(services)
+
+
+@router.get("/health/deps", response_model=ReadyResponse)
+async def health_deps(services: Services = Depends(get_services)) -> ReadyResponse:
+    return await _status(services)
 
 
 @router.get(f"{API_PREFIX}/meta", response_model=MetaResponse)

@@ -53,3 +53,9 @@ def test_submit_rejects_a_malformed_value(client: Any) -> None:
 def test_healthz_and_metrics(client: Any) -> None:
     assert client.get("/healthz").json()["service"] == "threat-intel-service"
     assert "sm_ti_indicator_upserts_total" in client.get("/metrics").text
+
+
+def test_health_deps_reports_every_dependency(client: Any) -> None:
+    r = client.get("/health/deps")
+    assert r.status_code == 200
+    assert {d["name"] for d in r.json()["dependencies"]} == {"postgres", "kafka_producer"}

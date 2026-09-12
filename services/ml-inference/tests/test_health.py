@@ -28,6 +28,12 @@ def test_readyz_reports_the_catalog(client: Any, model_dir: Path) -> None:
     assert detail.startswith("1 registered")
 
 
+def test_health_deps_mirrors_readyz(client: Any) -> None:
+    r = client.get("/health/deps")
+    assert r.status_code == 200
+    assert r.json()["dependencies"][0]["detail"] == "0 registered, 0 loaded"
+
+
 def test_meta_and_metrics(client: Any) -> None:
     assert client.get("/api/v1/meta").json()["service"] == "ml-inference"
     assert "sm_inference_requests_total" in client.get("/metrics").text

@@ -22,6 +22,7 @@ from sm_common.db import Database
 from sm_common.fastapi import (
     RequestContextMiddleware,
     SecurityHeadersMiddleware,
+    TracingMiddleware,
     install_exception_handlers,
 )
 from sm_common.logging import configure_logging, get_logger
@@ -107,6 +108,7 @@ def create_app(
     )
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     app.add_middleware(RequestContextMiddleware)
+    app.add_middleware(TracingMiddleware)
     install_exception_handlers(app)
     app.include_router(health.router)
     app.include_router(metrics.router)

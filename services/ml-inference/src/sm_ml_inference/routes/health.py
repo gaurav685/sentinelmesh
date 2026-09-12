@@ -26,8 +26,7 @@ async def healthz() -> HealthResponse:
     return liveness(SERVICE_NAME, SERVICE_VERSION)
 
 
-@router.get("/readyz", response_model=ReadyResponse)
-async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
+def _status(services: Services) -> ReadyResponse:
     catalog = services.host.catalog()
     loaded = services.host.loaded()
     graph_catalog = services.graph_host.catalog()
@@ -46,6 +45,16 @@ async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
             ),
         ],
     )
+
+
+@router.get("/readyz", response_model=ReadyResponse)
+async def readyz(services: Services = Depends(get_services)) -> ReadyResponse:
+    return _status(services)
+
+
+@router.get("/health/deps", response_model=ReadyResponse)
+async def health_deps(services: Services = Depends(get_services)) -> ReadyResponse:
+    return _status(services)
 
 
 @router.get(f"{API_PREFIX}/meta", response_model=MetaResponse)
