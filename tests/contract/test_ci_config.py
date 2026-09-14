@@ -17,7 +17,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
-EXPECTED_JOBS = {"static", "unit", "integration", "image", "frontend"}
+EXPECTED_JOBS = {"static", "unit", "integration", "image", "frontend", "security"}
 
 
 @pytest.fixture(scope="module")
@@ -125,6 +125,49 @@ def test_actions_are_pinned_to_a_major_version(workflow: dict[str, Any]):
                 assert "@" in uses, uses
                 assert not uses.endswith("@main"), uses
                 assert not uses.endswith("@master"), uses
+
+
+def test_security_job_exists_and_runs_pip_audit(workflow: dict[str, Any]):
+    """Phase 17 Unit 3 adds a named `security` job so dependency and container
+    scanning have a dedicated gate rather than living buried inside `static`."""
+    assert "security" in workflow["jobs"]
+    script = _run_script(workflow, "security")
+    assert "pip-audit" in script
+    assert "--fail-on high critical" in script
+
+
+def test_security_job_runs_after_static_and_image(workflow: dict[str, Any]):
+    needs = workflow["jobs"]["security"].get("needs", [])
+    assert "static" in needs
+    assert "image" in needs
+
+
+def test_static_job_runs_pip_audit(workflow: dict[str, Any]):
+    script = _run_script(workflow, "static")
+    assert "pip-audit" in script
+    assert "--fail-on high critical" in script
+
+
+def test_image_job_scans_the_built_image_with_trivy(workflow: dict[str, Any]):
+    steps = _steps(workflow, "image")
+    trivy = next(
+        (s for s in steps if s.get("uses", "").startswith("aquasecurity/trivy-action")),
+        None,
+    )
+    assert trivy is not None, "the image job has no Trivy container scan"
+    assert trivy["with"]["severity"] == "CRITICAL"
+    assert trivy["with"]["exit-code"] == 1
+
+
+def test_unit_job_reports_coverage_without_a_fabricated_threshold(
+    workflow: dict[str, Any],
+):
+    """`--cov` is present (visible coverage); `--cov-fail-under` is absent —
+    fabricating a threshold before a real baseline exists violates the
+    Engineering Constitution."""
+    script = _run_script(workflow, "unit")
+    assert "--cov" in script
+    assert "--cov-fail-under" not in script
 
 
 def test_workflow_carries_no_real_secret(workflow: dict[str, Any]):

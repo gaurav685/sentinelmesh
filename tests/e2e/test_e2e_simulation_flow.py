@@ -11,11 +11,11 @@ Constitution §5: every step asserts on a real, observed response.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-
 from tests.conftest import SecurityFixture
 
 _RUN_REQUEST = {

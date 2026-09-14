@@ -10,11 +10,11 @@ here is fabricated.
 from __future__ import annotations
 
 import uuid
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-
 from tests.conftest import SecurityFixture
 
 
