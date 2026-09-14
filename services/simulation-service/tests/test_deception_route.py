@@ -88,3 +88,12 @@ def test_torn_down_decoy_captures_nothing_further(client: Any) -> None:
         f"{_DECOYS}/{decoy['id']}/interactions", json={"source": "10.0.0.9"}, headers=headers,
     )
     assert resp.status_code == 404
+
+
+def test_list_decoys_respects_limit(client: Any) -> None:
+    headers = _headers()
+    _register(client, headers, name="decoy-limit-1")
+    _register(client, headers, name="decoy-limit-2")
+    resp = client.get(f"{_DECOYS}?limit=1", headers=headers)
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1

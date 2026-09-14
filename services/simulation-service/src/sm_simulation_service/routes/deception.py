@@ -40,10 +40,11 @@ async def register_decoy(
 @router.get("/decoys", response_model=list[Decoy])
 async def list_decoys(
     status: str | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=1000),
     principal: InternalPrincipal = Depends(get_principal),
     repo: DecoyRepository = Depends(get_decoy_repository),
 ) -> list[Decoy]:
-    return await repo.list_decoys(principal.tenant_id, status=status)
+    return await repo.list_decoys(principal.tenant_id, status=status, limit=limit)
 
 
 @router.get("/decoys/{decoy_id}", response_model=Decoy)

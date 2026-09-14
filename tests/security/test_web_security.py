@@ -98,6 +98,7 @@ def test_security_headers_present_on_all_responses(sec_client: TestClient) -> No
     assert headers.get("referrer-policy") == "no-referrer"
     assert "geolocation=()" in headers.get("permissions-policy", "")
     assert headers.get("cross-origin-opener-policy") == "same-origin"
+    assert "default-src 'none'" in headers.get("content-security-policy", "")
 
 
 @pytest.mark.security

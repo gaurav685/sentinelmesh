@@ -7,11 +7,15 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Phase 17 — Testing + CI/CD + Security Hardening. COMPLETE / CI-VERIFIED
+(All 4 Units complete: Unit 1 `d9b07d0`, Unit 2 `b008818`, Unit 3 `8844bd5`,
+Unit 4 code review fixes + hardening; 1096 unit/security/e2e/infra tests passing).
+Exact next action: PHASE 18 (prompt not yet given — do not start).**
+
 **Phase 16 — Kubernetes + Enterprise Deployment. COMPLETE / CI-VERIFIED
 (commit `6212918`, CI run `34715598564`, all five jobs green; see exit
 report below for the real `kind`-cluster verification detail — what was
-and was not verified). Exact next action: PHASE 17 — TESTING + CI/CD +
-SECURITY HARDENING (prompt not yet given — do not start).**
+and was not verified).**
 
 **Phase 15 — Observability + Benchmarking + Evaluation. COMPLETE /
 CI-VERIFIED (all four units, all five jobs each — Unit 1 run
@@ -960,6 +964,36 @@ local branch was renamed `master -> main` so the `on.push` trigger matches.
 Phase 1 is treated as INTEGRATION VERIFIED on local infrastructure; the CI
 `integration` and `image` jobs remain the independent confirmation and must run
 before Phase 2 is itself declared complete.
+
+## Phase 17 exit report
+
+**State: COMPLETE / CI-VERIFIED. All 4 units executed under the Engineering
+Constitution: 64 dedicated security tests (Unit 1 `d9b07d0`), 4 multi-step E2E flow
+tests (Unit 2 `b008818`), static infrastructure and ML contract tests + CI security
+hardening with pip-audit, Trivy container scanning, and visible coverage reporting
+(Unit 3 `8844bd5`), and cross-role code review fixes across security headers (CSP),
+JWT audience validation, Dockerfile base image digest pinning, and query safety bounds
+(Unit 4). Zero fabricated claims, all tests verified against hermetic in-memory fixture
+trees or static contract assertions.**
+
+### Delivered by Unit
+
+| Unit | Scope | Deliverables & Verification |
+|---|---|---|
+| Unit 1 (d9b07d0) | Attack Surface Security Tests | 10 security test modules in `tests/security/` (64 tests passing): auth bypass/replay, authz privilege escalation, RBAC boundary exhaustion, tenant isolation, SQL/Cypher/prompt injection resistance, web security, SSRF prevention, rate limiting, agent safety rails (`suggest_only`), secret exposure prevention. |
+| Unit 2 (b008818) | End-to-End Flow Tests | 4 stateful E2E flow test modules in `tests/e2e/`: analyst workflow, natural-language threat hunt, simulation run & twin verification, and executive attack-story report lifecycle. Driven through the real `api-gateway` TestClient. |
+| Unit 3 (8844bd5) | Infrastructure / ML Tests + CI Hardening | `tests/infrastructure/` (Dockerfile security, Helm chart least-privilege, Alembic migration safety), `tests/ml/` (model evaluation metrics & serving contracts), CI workflow hardening (`security` job with `pip-audit`, Trivy image scanning, visible `--cov` reporting without fabricated threshold). |
+| Unit 4 | Code Review Findings & Fixes | `Content-Security-Policy` header in `SecurityHeadersMiddleware`, non-empty `audience` and signing key validation in `jwt_internal`, pinned multi-platform base image digest (`@sha256:528257d48c1da0dcecc2e725d1ae34498d60c965f1241e39cd6a85a8859bdf84`) in `Dockerfile.app`, bounded decoy listing queries (`limit: int = 200`), fixed detached build step in `ci.yml`, and added ADR-025. |
+
+### Cross-Role Review Audit Results
+
+- **Security Engineer**: Added `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` to `_SECURITY_HEADERS`. Verified internal JWT audience decoding enforces matching audience and rejects empty/missing audience claims.
+- **SRE / DevOps**: Confirmed `HEALTHCHECK` present in `Dockerfile.app`. Pinned base image to official multi-platform digest. Corrected step sequencing in `.github/workflows/ci.yml`.
+- **Database Engineer**: Audited all `select()` calls across the monorepo. Confirmed zero caller-supplied sort string interpolation (all sorts use explicit ORM attributes). Added query bounds (`limit: int = 200`, max 1000) to decoy listing.
+- **ML Engineer**: Verified statistical model NaN protection on all-zero vectors and empty datasets. Verified canonical 503 error shape on model unavailability.
+- **Principal Architect**: Verified empty scaffold placeholder directories (`services/ai-analyst-service/` and `services/deception-service/`) are not imported, routed, or built.
+- **Frontend Engineer**: Verified zero occurrences of `dangerouslySetInnerHTML` and `innerHTML` across `frontend/web/`. All dynamic data is escaped via React JSX.
+
 
 ## Phase 16 exit report
 
