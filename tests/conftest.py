@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pytest
 from fastapi.testclient import TestClient
@@ -110,7 +110,7 @@ def sec_fixture() -> SecurityFixture:
 
 
 @pytest.fixture
-def sec_client(sec_fixture: SecurityFixture) -> AsyncIterator[TestClient]:
+def sec_client(sec_fixture: SecurityFixture) -> Iterator[TestClient]:
     app = create_app(services=sec_fixture.services)
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
@@ -132,7 +132,7 @@ def sec_login(sec_client: TestClient) -> Any:
 
 
 @pytest.fixture
-def sec_csrf() -> Any:
+def sec_csrf() -> Callable[[Any], dict[str, str]]:
     def _headers(response: Any) -> dict[str, str]:
         return {"x-csrf-token": response.headers["x-csrf-token"]}
     return _headers
