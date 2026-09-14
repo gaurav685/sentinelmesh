@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
