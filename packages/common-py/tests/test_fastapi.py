@@ -67,6 +67,7 @@ def test_security_headers_present(client: TestClient):
     r = client.get("/ok")
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["x-frame-options"] == "DENY"
+    assert r.headers["content-security-policy"] == "default-src 'none'; frame-ancestors 'none'"
 
 
 def test_sm_error_canonical_shape(client: TestClient):

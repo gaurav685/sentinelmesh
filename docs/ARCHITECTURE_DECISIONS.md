@@ -832,6 +832,19 @@ redistribution or commercial claim.
 
 ---
 
+---
+
+## ADR-025 — Testing Pyramid Hardening, Dedicated Security CI Gate, and Supply-Chain Immutability
+
+**Decision.** In Phase 17, SentinelMesh completed comprehensive testing pyramid hardening, security test automation, CI/CD security gating, and supply-chain immutability across the monorepo:
+
+1. **Dedicated Security Test Suite (`tests/security/`)**: Established 10 hermetic security test modules (64 automated tests) verifying the attack surface: authentication bypass/replay (`test_authentication.py`), authorization privilege escalation (`test_authorization.py`), RBAC boundary enforcement (`test_rbac.py`), tenant isolation (`test_tenant_isolation_extended.py`), SQL/Cypher/prompt injection resistance (`test_injection.py`), web security headers, CSRF and XSS protection (`test_web_security.py`), SSRF prevention (`test_ssrf.py`), rate limiting (`test_rate_limiting.py`), autonomous agent safety rails (`suggest_only` enforcement, `test_agent_safety.py`), and secret exposure prevention (`test_secret_exposure.py`).
+2. **End-to-End State Machine Tests (`tests/e2e/`)**: Introduced multi-step user flow tests driving the real `api-gateway` TestClient through login, state mutations, and logout for analyst, threat hunt, attack simulation, and executive reporting workflows.
+3. **Dedicated CI Security Job**: Added a named `security` gate to `.github/workflows/ci.yml` running `pip-audit --fail-on high critical` against pinned dependencies. Container image scanning runs via Trivy (`aquasecurity/trivy-action`) inside the `image` job, failing on CRITICAL container vulnerabilities.
+4. **Supply-Chain Immutability**: Base Docker images in `deploy/docker/Dockerfile.app` are pinned to immutable multi-platform SHA-256 digests (`python:3.11-slim-bookworm@sha256:528257d48c1da0dcecc2e725d1ae34498d60c965f1241e39cd6a85a8859bdf84`).
+5. **Coverage Reporting Policy**: Test coverage is reported visibly in CI (`--cov=packages --cov=services --cov-report=term-missing`) without fabricating an arbitrary `--cov-fail-under` threshold prior to establishing an empirical baseline.
+6. **API Response & Token Hardening**: Mandated `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'` in `SecurityHeadersMiddleware`, enforced non-empty `audience` and `signing_keys` validation on internal JWT mint/decode, and enforced query bounds on decoy listing queries.
+
 ## Open / unresolved decisions (tracked)
 
 | ID | Question | Blocking? | Target phase |

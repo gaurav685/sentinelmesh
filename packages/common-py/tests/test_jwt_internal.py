@@ -64,3 +64,17 @@ def test_expired_rejected():
 def test_empty_signing_key_rejected():
     with pytest.raises(ValueError):
         mint_internal_token(signing_key="", subject="u", tenant_id=TENANT, audience="a")
+
+
+def test_empty_audience_rejected():
+    with pytest.raises(ValueError, match="audience must not be empty"):
+        mint_internal_token(signing_key=KEY, subject="u", tenant_id=TENANT, audience="")
+    tok = mint_internal_token(signing_key=KEY, subject="u", tenant_id=TENANT, audience="a")
+    with pytest.raises(ValueError, match="audience must not be empty"):
+        verify_internal_token(tok, signing_keys=[KEY], audience="")
+
+
+def test_empty_signing_keys_rejected():
+    tok = mint_internal_token(signing_key=KEY, subject="u", tenant_id=TENANT, audience="a")
+    with pytest.raises(ValueError, match="signing_keys must not be empty"):
+        verify_internal_token(tok, signing_keys=[], audience="a")

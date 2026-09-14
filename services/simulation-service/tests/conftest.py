@@ -52,11 +52,13 @@ class FakeDecoyRepo:
         decoy = self.decoys.get(str(decoy_id))
         return decoy if decoy is not None and decoy.tenant_id == str(tenant_id) else None
 
-    async def list_decoys(self, tenant_id: uuid.UUID, *, status: str | None = None) -> list[Decoy]:
+    async def list_decoys(
+        self, tenant_id: uuid.UUID, *, status: str | None = None, limit: int = 200
+    ) -> list[Decoy]:
         out = [d for d in self.decoys.values() if d.tenant_id == str(tenant_id)]
         if status:
             out = [d for d in out if d.status == status]
-        return out
+        return out[:limit]
 
     async def teardown(self, tenant_id: uuid.UUID, decoy_id: uuid.UUID) -> Decoy | None:
         decoy = await self.get(tenant_id, decoy_id)

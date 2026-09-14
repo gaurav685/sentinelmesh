@@ -62,8 +62,15 @@ class DecoyRepository:
             ).scalar_one_or_none()
         return _decoy(row) if row is not None else None
 
-    async def list_decoys(self, tenant_id: UUID, *, status: str | None = None) -> list[Decoy]:
-        stmt = select(DecoyOrm).where(DecoyOrm.tenant_id == tenant_id).order_by(DecoyOrm.created_at.desc())
+    async def list_decoys(
+        self, tenant_id: UUID, *, status: str | None = None, limit: int = 200
+    ) -> list[Decoy]:
+        stmt = (
+            select(DecoyOrm)
+            .where(DecoyOrm.tenant_id == tenant_id)
+            .order_by(DecoyOrm.created_at.desc())
+            .limit(max(1, min(limit, 1000)))
+        )
         if status:
             stmt = stmt.where(DecoyOrm.status == status)
         async with self._db.session() as s:

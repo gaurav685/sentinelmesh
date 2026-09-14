@@ -83,6 +83,14 @@ def test_no_curl_pipe_bash_supply_chain_pattern() -> None:
 def test_runtime_stage_copies_only_the_venv_and_artifacts() -> None:
     """The runtime stage must not carry a compiler or build cache."""
     text = _read()
-    runtime = text.split("FROM python:3.11-slim-bookworm AS runtime", 1)[-1]
+    runtime = re.split(r"FROM\s+python:3\.11-slim-bookworm(?:@sha256:[0-9a-f]+)?\s+AS\s+runtime", text)[-1]
     assert "build-essential" not in runtime, "compiler ships in the runtime image"
     assert "apt-get" not in runtime, "package manager runs in the runtime image"
+
+def test_base_image_uses_pinned_digest() -> None:
+    """Base images in builder and runtime must be pinned to an immutable digest."""
+    text = _read()
+    from_lines = [line.strip() for line in text.splitlines() if line.strip().startswith("FROM ")]
+    assert len(from_lines) >= 2
+    for line in from_lines:
+        assert "@sha256:" in line, f"Base image line lacks pinned digest: {line}"

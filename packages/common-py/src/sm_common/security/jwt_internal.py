@@ -50,6 +50,8 @@ def mint_internal_token(
 ) -> str:
     if not signing_key:
         raise ValueError("signing_key must not be empty")
+    if not audience:
+        raise ValueError("audience must not be empty")
     now = utcnow()
     claims = {
         "iss": _ISSUER,
@@ -72,6 +74,10 @@ def verify_internal_token(
     audience: str,
     leeway_seconds: int = 30,
 ) -> InternalPrincipal:
+    if not audience:
+        raise ValueError("audience must not be empty")
+    if not signing_keys:
+        raise ValueError("signing_keys must not be empty")
     last_err: Exception | None = None
     for key in signing_keys:
         try:
