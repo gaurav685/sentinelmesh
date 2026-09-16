@@ -29,17 +29,26 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe("AuthProvider", () => {
   it("hydrates from /me and exposes the permission set", async () => {
+    // Asserting the real path here is what would have caught the real bug
+    // this test's mock previously let through silently: the client called
+    // `/auth/me`, a route that does not exist (the real one is `/api/v1/me`,
+    // on a differently-prefixed router) -- found only by actually logging
+    // in through a browser, not by this test, since its handler ignored
+    // `url` entirely and returned success regardless of what was fetched.
     vi.stubGlobal(
       "fetch",
-      mockFetch(() => ({
-        status: 200,
-        body: {
-          user: { email: "analyst@acme.test" },
-          tenant: { name: "Acme" },
-          roles: ["analyst"],
-          permissions: ["detections:read"],
-        },
-      })),
+      mockFetch((url) => {
+        expect(url).toBe("/api/v1/me");
+        return {
+          status: 200,
+          body: {
+            user: { email: "analyst@acme.test" },
+            tenant: { name: "Acme" },
+            roles: ["analyst"],
+            permissions: ["detections:read"],
+          },
+        };
+      }),
     );
     render(
       <AuthProvider>
