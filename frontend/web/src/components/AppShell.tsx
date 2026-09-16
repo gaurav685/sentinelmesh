@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 
 const NAV: { href: string; label: string; perm: string }[] = [
   { href: "/", label: "Dashboard", perm: "detections:read" },
+  { href: "/detections", label: "Detections", perm: "detections:read" },
   { href: "/alerts", label: "Alerts", perm: "detections:read" },
   { href: "/incidents", label: "Incidents", perm: "detections:read" },
   { href: "/chains", label: "Attack chains", perm: "detections:read" },
