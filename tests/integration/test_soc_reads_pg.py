@@ -14,7 +14,7 @@ from sqlalchemy import text
 
 from sm_api_gateway.repositories.soc import SqlSocRepository
 from sm_common.db import Database, Detection, SecurityAlert, ThreatScore
-from sm_common.db.intel_models import TechniqueMappingRow
+from sm_common.db.intel_models import AttackTechniqueRow, TechniqueMappingRow
 from sm_common.ids import uuid7
 
 pytestmark = pytest.mark.integration
@@ -55,6 +55,14 @@ async def _seed(db: Database, tenant: uuid.UUID, *, subject: str = "svc-backup")
             technique_id="T1110", tactic_id="TA0006", confidence="medium", source="rule",
             rationale="named by rule", evidence=[], matrix_version="14.1",
         ))
+        # `AttackTechniqueRow.technique_id` is the whole catalog's primary key
+        # (not tenant-scoped), so `merge` rather than `add` -- `_seed` is
+        # called twice per test (once per tenant) and would otherwise try to
+        # insert this same catalog row twice.
+        await s.merge(AttackTechniqueRow(
+            technique_id="T1110", name="Brute Force", tactic_ids=["TA0006"],
+            matrix_version="14.1",
+        ))
     return det_id
 
 
@@ -88,7 +96,9 @@ async def test_summary_and_heatmap(clean: Database) -> None:
         assert summary.top_risk_subjects[0].subject_id == "svc-backup"
 
         cells = await r.mitre_heatmap(tenant)
-        assert [(c.technique_id, c.subject_count) for c in cells] == [("T1110", 1)]
+        assert [(c.technique_id, c.name, c.subject_count) for c in cells] == [
+            ("T1110", "Brute Force", 1)
+        ]
 
 
 async def test_detections_before_cursor_pages_backwards(clean: Database) -> None:

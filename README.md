@@ -474,11 +474,22 @@ until it succeeds. Profiles (`bus`, `graph`, `detect`, `oidc`, `obs`,
 ```bash
 docker compose -f deploy/docker/docker-compose.yml \
   --profile bus --profile graph up -d postgres redis redpanda neo4j
+docker exec sentinelmesh-postgres-1 psql -U sentinelmesh -c "CREATE DATABASE sentinelmesh_test;"  # once
+docker exec sentinelmesh-postgres-1 psql -U sentinelmesh sentinelmesh_test -c "CREATE EXTENSION vector;"  # once
 pytest tests/integration -q -m integration
 ```
 
 They skip with an actionable message when a service is unreachable. Set
 `SM_REQUIRE_INTEGRATION=1` to turn that skip into a failure.
+
+**The one-time `CREATE DATABASE` step is not optional.** These tests
+`DROP`/`CREATE` real tables and `TRUNCATE` them between tests against
+whatever database `SM_TEST_PG_DB` names (default `sentinelmesh_test`,
+isolated from `SM_PG_DB`'s `sentinelmesh` on purpose) — running them
+against your dev/demo database by overriding `SM_TEST_PG_DB` to match
+`SM_PG_DB` **will destroy its schema** (found by actually doing this,
+Phase 18 -- the `schema` fixture's teardown drops every table and nothing
+recreates them afterward once the test session ends).
 
 ### Deploy to Kubernetes (production — read the caveat above first)
 

@@ -72,8 +72,16 @@ when the services are unreachable.
 
 ```
 docker compose -f deploy/docker/docker-compose.yml up -d postgres redis
+docker exec sentinelmesh-postgres-1 psql -U sentinelmesh -c "CREATE DATABASE sentinelmesh_test;"  # once
+docker exec sentinelmesh-postgres-1 psql -U sentinelmesh sentinelmesh_test -c "CREATE EXTENSION vector;"  # once
 pytest tests/integration -q -m integration
 ```
+
+The `CREATE DATABASE` step matters: these tests drop/recreate/truncate real
+tables against `SM_TEST_PG_DB` (default `sentinelmesh_test`, deliberately
+not the same database `SM_PG_DB` points your running stack's `app` at) --
+pointing `SM_TEST_PG_DB` at your real `sentinelmesh` database will destroy
+its schema, as running this suite actually did during Phase 18.
 
 They cover: migrations `upgrade head` → `downgrade base` → `upgrade head`, seed
 content and idempotency, triggers and partial indexes, `AuditWriter` chain
