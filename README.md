@@ -151,10 +151,12 @@ with the attribution trailer in use for the current session.
 
 ## Status
 
-**Phases 0–16 complete and CI-verified. Phase 17 (Testing + CI/CD + Security
-Hardening) has been named as the next phase but its full prompt has not yet
-been given — do not start it, and do not invent a Phase 18 or beyond. Wait
-for the exact prompt.**
+**Phases 0–18 complete and CI-verified — as of Phase 18, for the first time,
+CI's full six-job pipeline (added incrementally across Phase 17) actually
+passes end-to-end. No further phase has been named or prompted; do not
+invent one. Phase 18's own final integration status is `PARTIAL`, not
+`COMPLETE` — two known, honestly-recorded gaps remain (below); see
+`docs/IMPLEMENTATION_STATE.md`'s Phase 18 exit report for the full account.**
 
 | Phase | Scope | State |
 |---|---|---|
@@ -175,7 +177,18 @@ for the exact prompt.**
 | 14 | Reporting + attack storytelling | complete — CI green |
 | 15 | Observability + benchmarking + evaluation | complete — CI green |
 | 16 | Kubernetes + enterprise deployment | complete — CI green (see caveat below) |
-| 17 | Testing + CI/CD + security hardening | **named, prompt not yet given — not started** |
+| 17 | Testing + CI/CD + security hardening | complete — 1096 tests added; its own CI jobs, it turns out, did not actually all pass until Phase 18 found and fixed them |
+| 18 | Final integration + demo mode | complete — **PARTIAL** final status; found and fixed ~10 real bugs across CI/config/contracts by actually running everything; see exit report |
+
+**Known gaps, carried forward honestly rather than hidden:** two
+requirements (R18, R36) are missing from `docs/REQUIREMENTS_TRACEABILITY.md`
+with no record of why, and this session has no access to the primary
+architecture source to fill them in; interactive OIDC/SSO browser login is
+`NOT VERIFIED` in the local Docker Compose topology specifically (Keycloak
+cannot serve two different self-identities to the browser and the
+container network without a reverse proxy this compose file doesn't have)
+— the local email/password login path is fully verified and is what
+`scripts/seed_demo.py` sets up.
 
 `docs/IMPLEMENTATION_STATE.md` is authoritative for exactly where the build is
 and what the next action is. It carries one exit report per phase, each with
@@ -342,7 +355,7 @@ autoscaling, and an ingress controller/frontend image for the Kubernetes chart
 - [`docs/ARCHITECTURE_DECISIONS.md`](docs/ARCHITECTURE_DECISIONS.md) — the ADRs and open questions
 - [`docs/CONTRACTS.md`](docs/CONTRACTS.md) — API / event / entity / ML / AI contracts, with a changelog
 - [`docs/REQUIREMENTS_TRACEABILITY.md`](docs/REQUIREMENTS_TRACEABILITY.md) — all 38 architecture requirements, mapped to real code and their real verification status
-- [`docs/architecture/`](docs/architecture/) — overview, service catalog, data model, event model, security model, failure model, observability, deployment (including `kubernetes-deployment.md`, the Phase 16 detail)
+- [`docs/architecture/`](docs/architecture/) — overview, service catalog, data model, event model, security model, failure model, observability, deployment (including `kubernetes-deployment.md`, the Phase 16 detail, and `demo-mode.md`, the Phase 18 detail)
 
 ## Continuing this build (for an agent picking this up)
 
