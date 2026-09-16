@@ -132,7 +132,10 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
 
 // ---- typed endpoint helpers -------------------------------------------------
 export const api = {
-  me: (signal?: AbortSignal) => apiFetch<MeResponse>("/auth/me", { signal }),
+  // Real route is `/api/v1/me` (mounted on a bare-prefix router, not the
+  // `/auth`-prefixed one every other auth route uses) -- found by actually
+  // logging in through the browser and watching this call 404.
+  me: (signal?: AbortSignal) => apiFetch<MeResponse>("/me", { signal }),
 
   login: async (tenantSlug: string, email: string, password: string) => {
     const res = await fetch(`${BASE}/auth/login`, {

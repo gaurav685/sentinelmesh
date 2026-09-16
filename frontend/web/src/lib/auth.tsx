@@ -5,7 +5,7 @@
  *
  * The session lives in an httpOnly cookie the browser sends automatically. This
  * context only holds what the UI needs to render — the current user, tenant and
- * permission set from `/api/v1/auth/me` — and the in-memory CSRF token for
+ * permission set from `/api/v1/me` — and the in-memory CSRF token for
  * mutations. **It is not an authorization boundary**: every action is still
  * checked server-side by the BFF. `hasPermission` here only decides what to
  * show, never what is allowed.
