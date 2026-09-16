@@ -81,6 +81,16 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+# The base image is pinned to a digest for reproducibility, so it does not
+# pick up Debian's own security patches on its own — apt-get upgrade at
+# build time pulls whatever fixed package versions Debian has published for
+# this same bookworm release since that digest was cut (found real CRITICAL
+# CVEs here via the CI image job's own Trivy scan actually running for the
+# first time, Phase 18).
+RUN apt-get update \
+ && apt-get upgrade -y \
+ && rm -rf /var/lib/apt/lists/*
+
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin sentinelmesh
 
 COPY --from=builder /opt/venv /opt/venv

@@ -1,0 +1,34 @@
+# Real CRITICAL findings in the runtime image's Debian bookworm base
+# packages, each with no available fix as of the date recorded below --
+# confirmed by running `apt-get upgrade` in the image (deploy/docker/
+# Dockerfile.app) and re-scanning: the installed version did not change,
+# and Trivy's own `Status` column for each says why. This file accepts a
+# real, currently-unfixable residual risk transparently (Constitution
+# non-fabrication rule: the alternative -- silencing or lowering the scan's
+# severity threshold -- would misrepresent "no fix exists yet" as "no
+# vulnerability exists"). Re-run the container scan after any base-image
+# bump; remove an entry once its `Fixed Version` is no longer empty.
+#
+# Recorded 2026-09-16 (Phase 18), python:3.11-slim-bookworm@sha256:528257d4...
+
+# libsqlite3-0 3.40.1-2+deb12u2 -- Status: affected (no fixed version yet).
+# Not reachable from this codebase: no service parses attacker-controlled
+# SQLite files: Postgres is this repo's only relational store.
+CVE-2025-7458
+
+# perl-base 5.36.0-7+deb12u3 -- Status: affected. Perl is a Debian base-image
+# transitive dependency (apt/dpkg tooling); this repository has no Perl
+# code and never invokes an interpreter on untrusted input.
+CVE-2026-13221
+CVE-2026-8376
+
+# perl-base 5.36.0-7+deb12u3 -- Status: fix_deferred (Debian's own
+# maintainers marked it not urgent enough to backport yet). Same
+# unreachability rationale as above.
+CVE-2026-42496
+
+# zlib1g 1:1.2.13.dfsg-1 -- Status: will_not_fix (Debian will not patch this
+# release). The affected path (zipOpenNewFileInZip4_6) is a ZIP-*writing*
+# API; this codebase's own S3/object-store code only reads, and MinIO/S3
+# operations here never shell out to zlib's CLI-adjacent write path.
+CVE-2023-45853

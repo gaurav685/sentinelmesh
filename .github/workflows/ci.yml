@@ -162,8 +162,17 @@ jobs:
         # set — fabricating a threshold before a real baseline exists would
         # violate the Engineering Constitution. A threshold can be added in a
         # later phase once the baseline is measured honestly.
-        run: python -m pytest packages services tests -q -m "not integration" \
-          --cov=packages --cov=services --cov-report=term-missing
+        # A plain (non-`|`) multi-line `run:` scalar folds the line break
+        # into a single space and keeps the trailing `\` as a literal
+        # character rather than a real shell continuation -- the resulting
+        # ` \ --cov=packages` is one bash word (an escaped space fused onto
+        # the next flag), not two arguments, and pytest fails with "file or
+        # directory not found: --cov=packages" (found by running this for
+        # real). `run: |` is required whenever a command actually spans
+        # lines with a `\` continuation.
+        run: |
+          python -m pytest packages services tests -q -m "not integration" \
+            --cov=packages --cov=services --cov-report=term-missing
 
       - name: Contract schema is current
         run: python scripts/gen_contracts.py --check
@@ -348,12 +357,15 @@ jobs:
         # Fails on CRITICAL severity only; HIGH is reported but does not fail
         # the build (a transitive CRITICAL in a base image may not be
         # fixable without changing the base, which is a supply-chain decision,
-        # not a code defect).
+        # not a code defect). `.trivyignore` (repo root) accepts a handful of
+        # real, currently-unfixable base-image CVEs -- see that file for the
+        # per-CVE evidence and reasoning; it does not disable the scan.
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: sentinelmesh/app:ci
           severity: CRITICAL
           exit-code: 1
+          trivyignores: .trivyignore
           format: table
           vuln-type: os,library
 
