@@ -15,17 +15,21 @@ function mockFetch(handler: (url: string, init?: RequestInit) => { status: numbe
 }
 
 function Probe() {
-  const { status, me, hasPermission } = useAuth();
+  const { status, me, csrfToken, hasPermission } = useAuth();
   return (
     <div>
       <span data-testid="status">{status}</span>
       <span data-testid="email">{me?.user.email ?? "-"}</span>
+      <span data-testid="csrf">{csrfToken ?? "-"}</span>
       <span data-testid="can-read">{String(hasPermission("detections:read"))}</span>
     </div>
   );
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  document.cookie = "sm_csrf=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+});
 
 describe("AuthProvider", () => {
   it("hydrates from /me and exposes the permission set", async () => {
@@ -58,6 +62,31 @@ describe("AuthProvider", () => {
     await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
     expect(screen.getByTestId("email")).toHaveTextContent("analyst@acme.test");
     expect(screen.getByTestId("can-read")).toHaveTextContent("true");
+  });
+
+  it("restores the CSRF token from the sm_csrf cookie on a fresh mount (e.g. a page reload after login)", async () => {
+    // The real bug: csrfToken used to be set ONLY inside login()'s response
+    // handler, from React state alone. A full page reload/remount kept the
+    // session (httpOnly cookie, sent automatically) but never restored
+    // csrfToken -- so every subsequent mutation (e.g. running a simulation)
+    // failed with a real 403 "missing or invalid CSRF token", which the UI
+    // mislabeled as a permission error. `sm_csrf` is deliberately not
+    // httpOnly for exactly this restore path.
+    document.cookie = "sm_csrf=restored-token-value";
+    vi.stubGlobal(
+      "fetch",
+      mockFetch(() => ({
+        status: 200,
+        body: { user: { email: "analyst@acme.test" }, tenant: { name: "Acme" }, roles: [], permissions: [] },
+      })),
+    );
+    render(
+      <AuthProvider>
+        <Probe />
+      </AuthProvider>,
+    );
+    await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("authenticated"));
+    expect(screen.getByTestId("csrf")).toHaveTextContent("restored-token-value");
   });
 
   it("goes unauthenticated when /me returns 401", async () => {

@@ -37,6 +37,21 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+// `sm_csrf` is deliberately NOT httpOnly (double-submit pattern, see
+// .env.example's SM_CSRF_COOKIE_NAME) so the client can read it back here.
+// `login()` used to be the ONLY place csrfToken ever got set -- meaning any
+// full page reload/remount after login left it null forever (the session
+// cookie kept the user "logged in", but every mutation then failed with a
+// real, silent 403 "missing or invalid CSRF token", which the UI mislabeled
+// as a permission error). Found by actually reloading a logged-in page and
+// running a mutation, not by reading the code.
+function readCsrfCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)sm_csrf=([^;]+)/);
+  const value = match?.[1];
+  return value ? decodeURIComponent(value) : null;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>("loading");
   const [me, setMe] = useState<MeResponse | null>(null);
@@ -46,10 +61,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const next = await api.me();
       setMe(next);
+      setCsrfToken(readCsrfCookie());
       setStatus("authenticated");
     } catch (err) {
       if (err instanceof ApiError && err.kind === "unauthorized") {
         setMe(null);
+        setCsrfToken(null);
         setStatus("unauthenticated");
         return;
       }
