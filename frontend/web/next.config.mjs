@@ -9,6 +9,12 @@ const nextConfig = {
     return [{ source: "/api/:path*", destination: `${target}/api/:path*` }];
   },
   async headers() {
+    // Dev mode needs 'unsafe-inline' + 'unsafe-eval' for Next.js hot-reload and source maps
+    // Production should use nonces/hashes instead
+    const isDev = process.env.NODE_ENV === "development";
+    const scriptSrcPolicy = isDev
+      ? "'self' 'unsafe-inline' 'unsafe-eval'"
+      : "'self'";
     return [
       {
         source: "/:path*",
@@ -19,8 +25,8 @@ const nextConfig = {
           {
             key: "Content-Security-Policy",
             value:
-              "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; " +
-              "script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'",
+              `default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; ` +
+              `script-src ${scriptSrcPolicy}; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'`,
           },
         ],
       },

@@ -24,7 +24,7 @@ x-app-env: &app-env
   SM_PG_HOST: postgres
   SM_PG_PORT: "5432"
   SM_REDIS_URL: redis://redis:6379/0
-  SM_OIDC_ISSUER: http://keycloak:8080/realms/sentinelmesh
+  SM_OIDC_ISSUER: http://localhost:8080/realms/sentinelmesh
   SM_NEO4J_URI: bolt://neo4j:7687
   SM_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
   SM_S3_ENDPOINT: http://minio:9000
@@ -530,6 +530,9 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${SM_KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_HEALTH_ENABLED: "true"
       KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8080
+      KC_HOSTNAME_STRICT: "false"
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
     ports:
