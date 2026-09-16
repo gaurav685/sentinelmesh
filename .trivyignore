@@ -1,13 +1,20 @@
 # Real CRITICAL findings in the runtime image's Debian bookworm base
-# packages, each with no available fix as of the date recorded below --
-# confirmed by running `apt-get upgrade` in the image (deploy/docker/
-# Dockerfile.app) and re-scanning: the installed version did not change,
-# and Trivy's own `Status` column for each says why. This file accepts a
-# real, currently-unfixable residual risk transparently (Constitution
-# non-fabrication rule: the alternative -- silencing or lowering the scan's
-# severity threshold -- would misrepresent "no fix exists yet" as "no
-# vulnerability exists"). Re-run the container scan after any base-image
-# bump; remove an entry once its `Fixed Version` is no longer empty.
+# packages, each with no available fix as of the date recorded below.
+# Confirmed by building a throwaway copy of this image with `apt-get
+# upgrade` added to the runtime stage and re-scanning it: the installed
+# version of every one of these five packages was unchanged, matching
+# Trivy's own `Status` column for each (affected / fix_deferred /
+# will_not_fix -- no fixed version exists yet, not merely "not installed
+# here"). That `apt-get upgrade` was NOT kept in Dockerfile.app itself:
+# tests/infrastructure/test_dockerfile.py enforces that the runtime stage
+# never runs a package manager at all (a real, intentional minimal-
+# attack-surface design, not an oversight this phase should override for
+# a change that verifiably fixes nothing). This file accepts a real,
+# currently-unfixable residual risk transparently instead (Constitution
+# non-fabrication rule: silencing or lowering the scan's severity
+# threshold would misrepresent "no fix exists yet" as "no vulnerability
+# exists"). Re-run the container scan after any base-image digest bump;
+# remove an entry once its `Fixed Version` is no longer empty.
 #
 # Recorded 2026-09-16 (Phase 18), python:3.11-slim-bookworm@sha256:528257d4...
 
