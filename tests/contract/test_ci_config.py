@@ -132,8 +132,12 @@ def test_security_job_exists_and_runs_pip_audit(workflow: dict[str, Any]):
     scanning have a dedicated gate rather than living buried inside `static`."""
     assert "security" in workflow["jobs"]
     script = _run_script(workflow, "security")
+    # See test_static_job_runs_pip_audit -- `--fail-on` is not a real
+    # pip-audit flag; asserting it was present is exactly how this step's
+    # brokenness went unnoticed.
     assert "pip-audit" in script
-    assert "--fail-on high critical" in script
+    assert "python -m pip_audit" in script
+    assert "--fail-on" not in script
 
 
 def test_security_job_runs_after_static_and_image(workflow: dict[str, Any]):
@@ -144,8 +148,15 @@ def test_security_job_runs_after_static_and_image(workflow: dict[str, Any]):
 
 def test_static_job_runs_pip_audit(workflow: dict[str, Any]):
     script = _run_script(workflow, "static")
-    assert "pip-audit" in script
-    assert "--fail-on high critical" in script
+    # pip-audit 2.10.1's real CLI has no `--fail-on` severity flag at all --
+    # a prior version of this test asserted that invalid flag's presence,
+    # which is exactly how it went unnoticed that this step could never
+    # actually run (found in Phase 18 by running the real workflow). The
+    # importable module is `pip_audit` (underscore); `python -m pip-audit`
+    # (hyphen) can never resolve either.
+    assert "pip-audit" in script  # the pip package name, installed via `pip install`
+    assert "python -m pip_audit" in script
+    assert "--fail-on" not in script
 
 
 def test_image_job_scans_the_built_image_with_trivy(workflow: dict[str, Any]):

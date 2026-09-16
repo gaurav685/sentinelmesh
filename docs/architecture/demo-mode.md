@@ -120,6 +120,31 @@ hidden behind "the demo works." `brute_force` is the one scenario kind
 confirmed, with real evidence, to reliably produce a real detection at
 demo intensities.
 
+## Known limitation: interactive OIDC/SSO browser login is NOT VERIFIED
+
+`scripts/seed_demo.py`'s local email/password login (above) is real,
+end-to-end verified. A separate path also exists to log in via Keycloak
+(the SOC UI's SSO option / `GET /api/v1/auth/oidc/login?tenant=<slug>`) --
+this one is `NOT VERIFIED — REQUIRES A REVERSE PROXY OR MATCHING DNS`, and
+was found, investigated, and deliberately left unresolved rather than
+half-fixed into a less secure state:
+
+Every service validates that Keycloak's own OIDC discovery document
+(`/.well-known/openid-configuration`) reports an `issuer` exactly matching
+`SM_OIDC_ISSUER` -- a real, intentional security check against issuer
+confusion, not incidental. `SM_OIDC_ISSUER` is `http://keycloak:8080/...`
+(the only address containers can reach Keycloak at). Setting Keycloak's
+own `KC_HOSTNAME=localhost` (tried during this phase, so the *browser*
+could follow the login redirect) makes Keycloak advertise
+`http://localhost:8080/...` as its `issuer` too, not just the redirect
+target -- which then fails that same check for every internal service.
+Keycloak cannot be given two different self-identities (one the
+container network resolves, one the browser resolves) without a reverse
+proxy or shared DNS name in front of it, and this local `docker-compose`
+stack has neither. A real Kubernetes/production deployment behind a real
+ingress would not have this problem, since both the browser and the
+cluster's internal traffic resolve the same public hostname.
+
 ## Isolation guarantees (carried over from Phase 12, re-verified here)
 
 - `production` is not a legal value for a simulation/deception scope at

@@ -155,7 +155,7 @@ jobs:
                       -e "services/simulation-service[dev]" \
                       -e "services/memory-service[dev]" \
                       -e "services/reporting-service[dev]"
-          pip install alembic pyyaml respx pip-audit
+          pip install alembic pyyaml respx pip-audit pytest-cov
 
       - name: Tests (integration excluded)
         # `--cov` reports coverage visibly; no `--cov-fail-under` threshold is
@@ -349,7 +349,7 @@ jobs:
         # the build (a transitive CRITICAL in a base image may not be
         # fixable without changing the base, which is a supply-chain decision,
         # not a code defect).
-        uses: aquasecurity/trivy-action@0.32.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: sentinelmesh/app:ci
           severity: CRITICAL

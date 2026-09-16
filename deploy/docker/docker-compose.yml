@@ -24,7 +24,16 @@ x-app-env: &app-env
   SM_PG_HOST: postgres
   SM_PG_PORT: "5432"
   SM_REDIS_URL: redis://redis:6379/0
-  SM_OIDC_ISSUER: http://localhost:8080/realms/sentinelmesh
+  # Internal-network address -- reachable from inside the compose network for
+  # fetching Keycloak's discovery document and JWKS. This is NOT what a
+  # browser sees for the login redirect: Keycloak's own KC_HOSTNAME setting
+  # (below) makes it advertise http://localhost:8080/... as its
+  # authorization_endpoint in that same discovery document, which is what
+  # the browser actually gets redirected to. Pointing this at localhost
+  # instead would break every service's *internal* token/JWKS validation
+  # (localhost inside a container is that container, not Keycloak) to fix a
+  # browser-facing problem that KC_HOSTNAME already solves correctly.
+  SM_OIDC_ISSUER: http://keycloak:8080/realms/sentinelmesh
   SM_NEO4J_URI: bolt://neo4j:7687
   SM_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
   SM_S3_ENDPOINT: http://minio:9000
@@ -530,9 +539,20 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${SM_KEYCLOAK_ADMIN_PASSWORD:-admin}
       KC_HEALTH_ENABLED: "true"
       KC_HTTP_ENABLED: "true"
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_PORT: 8080
-      KC_HOSTNAME_STRICT: "false"
+      # Deliberately NOT setting KC_HOSTNAME=localhost here (tried during
+      # Phase 18, reverted): it makes Keycloak advertise localhost:8080 in
+      # its OWN discovery document's `issuer` field too, not just the
+      # browser-facing authorization_endpoint -- which then fails every
+      # service's (correct, intentional) check that the discovery
+      # document's issuer matches SM_OIDC_ISSUER exactly. There is no way
+      # to give Keycloak two different self-identities (one for the
+      # container network, one for the browser) without either a reverse
+      # proxy in front of it or a DNS name both sides resolve identically
+      # -- neither of which this local compose file sets up. See
+      # docs/architecture/demo-mode.md for the resulting, honestly
+      # documented limitation: the interactive OIDC/SSO browser login is
+      # NOT VERIFIED end-to-end in this topology; the local email/password
+      # path (scripts/seed_demo.py) is.
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
     ports:
