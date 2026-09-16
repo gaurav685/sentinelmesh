@@ -69,7 +69,12 @@ COPY services/simulation-service/src services/simulation-service/src
 COPY services/memory-service/src services/memory-service/src
 COPY services/reporting-service/src services/reporting-service/src
 
-RUN pip install ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./packages/ml-py ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service ./services/correlation-engine ./packages/ai-py ./services/ai-analyst ./services/simulation-service ./services/memory-service ./services/reporting-service \
+# packages/ml-py's own pyproject.toml says "`ml-inference` installs this"
+# right above its `serving` extra (numpy/scikit-learn/joblib) -- but nothing
+# here ever actually requested it, so `IsolationForestModel` has always
+# raised ModelUnavailable in this image regardless of whether an artifact
+# exists (found by actually training and deploying one, Phase 18).
+RUN pip install "./packages/ml-py[serving]" ./packages/contracts-py ./packages/common-py ./services/api-gateway ./services/ingestion-gateway ./services/normalization-engine ./services/stream-processor ./services/graph-service ./services/ml-inference ./services/detection-engine ./services/mitre-service ./services/threat-intel-service ./services/correlation-engine ./packages/ai-py ./services/ai-analyst ./services/simulation-service ./services/memory-service ./services/reporting-service \
  && pip install "alembic>=1.13"
 
 # --------------------------------------------------------------------------- #

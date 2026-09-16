@@ -282,6 +282,12 @@ services:
       SM_SERVICE_NAME: ml-inference
       SM_DEPLOYMENT_PROFILE: monolith
       SM_ML_MODEL_DIR: /app/ml/artifacts
+    volumes:
+      # Trained artifacts (packages/ml-py/src/sm_ml/registry) are runtime
+      # data, not baked into the image -- mounted read-only so a locally
+      # trained model (scripts/train_isolation_forest_network_flow.py)
+      # is visible without a rebuild.
+      - ../../ml/artifacts:/app/ml/artifacts:ro
     ports:
       - "8005:8005"
     healthcheck:
