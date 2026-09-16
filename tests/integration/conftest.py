@@ -81,7 +81,14 @@ def integration_settings(**over: object) -> AppSettings:
         "env": "ci",
         "pg_host": os.environ.get("SM_TEST_PG_HOST", "localhost"),
         "pg_port": int(os.environ.get("SM_TEST_PG_PORT", "5432")),
-        "pg_db": os.environ.get("SM_PG_DB", "sentinelmesh"),
+        # Every other setting here uses an SM_TEST_*-prefixed var with a
+        # test-safe default, isolated from the developer's real .env -- this
+        # one must too. `schema`/`clean` below drop and truncate real tables;
+        # falling back to SM_PG_DB (the same "sentinelmesh" name a developer's
+        # own dev/demo data lives in) would let a plain local `pytest
+        # tests/integration` destroy it, which it has actually done (found by
+        # running it, Phase 18).
+        "pg_db": os.environ.get("SM_TEST_PG_DB", "sentinelmesh_test"),
         "pg_user": os.environ.get("SM_PG_USER", "sentinelmesh"),
         "pg_password": os.environ.get("SM_PG_PASSWORD", "sentinelmesh"),
         "redis_url": os.environ.get("SM_TEST_REDIS_URL", "redis://localhost:6379/15"),

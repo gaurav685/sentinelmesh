@@ -24,7 +24,7 @@ from sm_common.db import Detection as DetectionRow
 from sm_common.db import HuntQueryRow
 from sm_common.db import SecurityAlert as AlertRow
 from sm_common.db import ThreatScore as ThreatScoreRow
-from sm_common.db.intel_models import TechniqueMappingRow
+from sm_common.db.intel_models import AttackTechniqueRow, TechniqueMappingRow
 from sm_contracts import (
     Detection,
     MitreHeatmapCell,
@@ -154,19 +154,31 @@ class SqlSocRepository:
             ],
         )
 
-    # ---- MITRE heatmap (from technique_mapping) ------------------
+    # ---- MITRE heatmap (from technique_mapping, joined to the catalog for
+    # the display name -- the catalog is in this same Postgres schema, not a
+    # cross-service call, so this is a plain join rather than a second
+    # round-trip to mitre-service) ---------------------------------
     async def mitre_heatmap(self, tenant_id: UUID) -> list[MitreHeatmapCell]:
         distinct = func.count(func.distinct(TechniqueMappingRow.subject_id)).label("n")
         stmt = (
-            select(TechniqueMappingRow.technique_id, TechniqueMappingRow.tactic_id, distinct)
+            select(
+                TechniqueMappingRow.technique_id,
+                TechniqueMappingRow.tactic_id,
+                AttackTechniqueRow.name,
+                distinct,
+            )
+            .outerjoin(
+                AttackTechniqueRow,
+                AttackTechniqueRow.technique_id == TechniqueMappingRow.technique_id,
+            )
             .where(TechniqueMappingRow.tenant_id == tenant_id)
-            .group_by(TechniqueMappingRow.technique_id, TechniqueMappingRow.tactic_id)
+            .group_by(TechniqueMappingRow.technique_id, TechniqueMappingRow.tactic_id, AttackTechniqueRow.name)
             .order_by(distinct.desc())
         )
         rows = (await self._s.execute(stmt)).all()
         return [
-            MitreHeatmapCell(technique_id=tid, tactic_id=tac, subject_count=int(n))
-            for tid, tac, n in rows
+            MitreHeatmapCell(technique_id=tid, tactic_id=tac, name=name or "", subject_count=int(n))
+            for tid, tac, name, n in rows
         ]
 
     # ---- entity timeline (detections + alerts for one subject) --
