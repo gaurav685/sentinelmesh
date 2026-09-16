@@ -24,6 +24,22 @@ Status vocabulary: `ARCHITECTURE DEFINED` · `PARTIALLY IMPLEMENTED` ·
 `IMPLEMENTED` · `LOCALLY VERIFIED` · `INTEGRATION VERIFIED` ·
 `EXTERNALLY DEPENDENT` · `NOT VERIFIED`.
 
+**Gap found during Phase 18's final requirements review, not resolved
+here:** this document's own opening line claims "every requirement 1–38
+appears," but **R18 and R36 do not exist anywhere in this file, or in
+`docs/ARCHITECTURE_DECISIONS.md`, or in the README** — grepped for both,
+found nothing. Neither a merge into an adjacent entry nor a deliberate
+renumbering is recorded anywhere, so this is not a documented
+consolidation; the two entries are simply missing, and have been since
+before this repository's own history can attribute it to a specific
+phase. This session does not have the PRIMARY 38-point architecture
+source text available to know what R18/R36 actually specify, and
+inventing plausible-sounding content for them would be exactly the kind
+of fabrication the Constitution prohibits. Recorded here honestly instead
+of silently passing 36 of 38 off as "all 38." **Action required from the
+repository owner:** supply the primary source's R18 and R36 text so they
+can be added for real.
+
 Phase map: P1 Foundation · P2 Telemetry+Normalization · P3 Graph+Detection+MITRE+TI ·
 P4 Attack-chain+Lateral+Temporal+UI · P5 ML/GNN+Benchmark · P6 AI analyst+Memory+
 Predictive+Explanation+NL hunting+RCA · P7 Multi-agent+Autonomous response ·
