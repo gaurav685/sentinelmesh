@@ -39,14 +39,17 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 1000
+        # bitnami/minio's real declared image UID (`docker inspect
+        # bitnamilegacy/minio:latest --format '{{"{{"}}.Config.User{{"}}"}}'`)
+        # -- not the official image's 1000. Its own entrypoint configures
+        # storage/ports from env vars, so no args/command override.
+        runAsUser: 1001
+        fsGroup: 1001
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: minio
           image: {{ .Values.minio.image }}
-          args: ["server", "/data", "--console-address", ":9001"]
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -71,7 +74,10 @@ spec:
             {{- toYaml .Values.minio.resources | nindent 12 }}
           volumeMounts:
             - name: data
-              mountPath: /data
+              # bitnami's real default data dir (/opt/bitnami/scripts/
+              # minio-env.sh inside the image) -- not the official image's
+              # /data.
+              mountPath: /bitnami/minio/data
           readinessProbe:
             httpGet:
               path: /minio/health/ready

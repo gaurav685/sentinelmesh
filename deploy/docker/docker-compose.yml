@@ -636,11 +636,18 @@ services:
 
   minio:
     profiles: ["objects"]
-    # quay.io, not Docker Hub: MinIO's Docker Hub repo no longer serves this
-    # (or any older) release tag to anonymous pulls ("pull access denied");
-    # quay.io/minio/minio is MinIO's own mirror and still does, same digest.
-    image: quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z
-    command: ["server", "/data", "--console-address", ":9001"]
+    # MinIO locked down anonymous pulls of its own official image on BOTH
+    # Docker Hub and quay.io (confirmed by actually trying each -- Phase 18
+    # follow-up), and even their direct binary download server now 410s.
+    # bitnamilegacy/minio is a real, unmodified MinIO server (Bitnami's own
+    # packaging), kept on Docker Hub's still-public "legacy" namespace after
+    # Broadcom's 2024 Bitnami restructuring moved actively-maintained images
+    # behind a subscription. Verified for real before switching: create
+    # bucket, put-bucket-encryption (AES256), put/head/presigned-GET
+    # round-trip, and the missing-bucket error path all behave identically
+    # to the real official image (same env vars, no command override --
+    # bitnami's own entrypoint configures storage/ports itself).
+    image: bitnamilegacy/minio:latest
     environment:
       MINIO_ROOT_USER: ${SM_S3_ACCESS_KEY_ID:-sentinelmesh}
       MINIO_ROOT_PASSWORD: ${SM_S3_SECRET_ACCESS_KEY:?SM_S3_SECRET_ACCESS_KEY must be set in .env}
@@ -655,7 +662,9 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio-data:/data
+      # bitnami's real default data dir (checked inside the image itself,
+      # /opt/bitnami/scripts/minio-env.sh) -- not the official image's /data.
+      - minio-data:/bitnami/minio/data
 
 volumes:
   postgres-data:

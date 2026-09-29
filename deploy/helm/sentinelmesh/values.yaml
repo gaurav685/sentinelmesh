@@ -367,7 +367,18 @@ redpanda:
 
 minio:
   enabled: true
-  image: "quay.io/minio/minio:RELEASE.2024-10-13T13-34-11Z"
+  # MinIO locked down anonymous pulls of its own official image on both
+  # Docker Hub and quay.io (found and fixed for real in deploy/docker/
+  # docker-compose.yml and CI, Phase 18 follow-up) -- bitnamilegacy/minio is
+  # the same real, unmodified MinIO server, still public. Its container
+  # runs as uid 1001 (bitnami's own convention), not the official image's
+  # 1000 -- see templates/stateful/minio.yaml's securityContext and
+  # volumeMount, both updated to match. NOT re-verified against a live
+  # cluster (Phase 16's kind verification predates this image swap); the
+  # image itself was verified for real against a plain Docker container --
+  # create bucket, put-bucket-encryption (AES256), put/head/presigned-GET
+  # round-trip, missing-bucket error path -- not inside this chart.
+  image: "bitnamilegacy/minio:latest"
   storage: 20Gi
   storageClassName: ""
   resources:
