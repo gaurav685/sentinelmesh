@@ -399,6 +399,13 @@ rules apply, because the codebase's own consistency depends on them:
 
 ## Getting started
 
+**Windows quick start:** once the one-time setup below has been done once
+(venv + deps + `.env`), double-click **`start.bat`** — it loads `.env`,
+brings up the full docker stack, seeds the demo tenant, starts the frontend,
+and opens the browser. **`stop.bat`** shuts the stack back down. Everything
+below this is what those two scripts automate; read on if you want to run
+the steps yourself or you're not on Windows.
+
 Requires Python 3.11+, Node 22+, and Docker.
 
 ```bash
