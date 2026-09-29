@@ -12,6 +12,9 @@ dependencies = [
     "sm-common",
     "fastapi>=0.115,<1",
     "uvicorn[standard]>=0.30",
+    # Real dataset upload (Phase 18 follow-up): FastAPI's File/UploadFile
+    # support requires this even though nothing imports it directly.
+    "python-multipart>=0.0.9,<1",
 ]
 
 [project.optional-dependencies]

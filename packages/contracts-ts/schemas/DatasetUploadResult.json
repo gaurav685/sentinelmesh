@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "accepted": {
+      "minimum": 0,
+      "title": "Accepted",
+      "type": "integer"
+    },
+    "dataset": {
+      "description": "Which real, public dataset this was parsed as, e.g. 'nsl-kdd'.",
+      "title": "Dataset",
+      "type": "string"
+    },
+    "ground_truth_labels": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "title": "Ground Truth Labels",
+      "type": "object"
+    },
+    "rejected": {
+      "minimum": 0,
+      "title": "Rejected",
+      "type": "integer"
+    },
+    "rows_read": {
+      "minimum": 0,
+      "title": "Rows Read",
+      "type": "integer"
+    },
+    "sensor_id": {
+      "description": "The per-tenant sensor row this upload's events were attributed to.",
+      "title": "Sensor Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "dataset",
+    "rows_read",
+    "accepted",
+    "rejected",
+    "sensor_id"
+  ],
+  "title": "DatasetUploadResult",
+  "type": "object",
+  "x-sentinelmesh-contracts-version": "0.1.0"
+}

@@ -96,6 +96,12 @@ class AppSettings(BaseSettings):
     hunt_max_depth: int = Field(default=3, ge=1, le=5)
     # Simulation + deception (Phase 12) — api-gateway's SOC BFF proxy target.
     simulation_service_url: str = "http://localhost:8011"
+    # Real-dataset ingestion (Phase 18 follow-up) — api-gateway's target for
+    # replaying an uploaded real dataset through the real sensor-authenticated
+    # ingestion path. A different trust boundary than the internal-JWT service
+    # mesh the other *_url settings above serve, so it is not on
+    # InternalServiceClient — see services/api-gateway/.../routes/datasets.py.
+    ingestion_gateway_url: str = "http://localhost:8001"
     # Threat memory (Phase 13) — api-gateway's SOC BFF proxy target, and
     # memory-service's own retention / campaign-matching policy.
     memory_service_url: str = "http://localhost:8012"

@@ -115,6 +115,7 @@ services:
       SM_SIMULATION_SERVICE_URL: http://simulation-service:8011
       SM_MEMORY_SERVICE_URL: http://memory-service:8012
       SM_REPORTING_SERVICE_URL: http://reporting-service:8013
+      SM_INGESTION_GATEWAY_URL: http://ingestion-gateway:8001
     ports:
       - "8000:8000"
     depends_on:

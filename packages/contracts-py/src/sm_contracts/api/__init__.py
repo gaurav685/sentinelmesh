@@ -16,6 +16,7 @@ from .analyst import (
 )
 from .auth import LoginRequest, LoginResponse, LogoutResponse, MeResponse
 from .benchmark import BenchmarkExperiment
+from .datasets import DatasetUploadResult
 from .graph import GraphEdge, GraphNeighborhood, GraphNode, GraphPath
 from .health import DepStatus, HealthResponse, MetaResponse, ReadyResponse
 from .hunt import (
@@ -78,6 +79,7 @@ __all__ = [
     "BlastRadiusResult",
     "CreateUserRequest",
     "CursorPage",
+    "DatasetUploadResult",
     "Decoy",
     "DecoyInteraction",
     "DecoyInteractionIn",

@@ -18,6 +18,7 @@ const NAV: { href: string; label: string; perm: string }[] = [
   { href: "/hunt", label: "Threat hunting", perm: "hunt:query" },
   { href: "/intel", label: "Threat intel", perm: "detections:read" },
   { href: "/simulation", label: "Simulation", perm: "simulation:run" },
+  { href: "/datasets", label: "Datasets", perm: "sensors:manage" },
   { href: "/deception", label: "Deception", perm: "deception:manage" },
   { href: "/memory", label: "Threat memory", perm: "memory:read" },
   { href: "/reports", label: "Reports", perm: "reports:read" },

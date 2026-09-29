@@ -47,7 +47,18 @@ from sm_common.security import OidcClient
 
 from .clients import InternalServiceClient
 from .deps import Services, SqlRepositoryFactory
-from .routes import admin, auth, benchmarks, health, memory, metrics, reports, simulation, soc
+from .routes import (
+    admin,
+    auth,
+    benchmarks,
+    datasets,
+    health,
+    memory,
+    metrics,
+    reports,
+    simulation,
+    soc,
+)
 from .security.session import RedisOidcStateStore, RedisSessionStore
 from .version import SERVICE_NAME, SERVICE_VERSION
 
@@ -165,5 +176,6 @@ def create_app(
     app.include_router(memory.router)
     app.include_router(reports.router)
     app.include_router(benchmarks.router)
+    app.include_router(datasets.router)
 
     return app

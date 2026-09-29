@@ -22,6 +22,7 @@ from .api import (
     BlastRadiusResult,
     CreateUserRequest,
     CursorPage,
+    DatasetUploadResult,
     Decoy,
     DecoyInteraction,
     DecoyInteractionIn,
@@ -478,4 +479,6 @@ __all__ = [  # noqa: RUF022  (grouped by domain for readability, not alphabetica
     "NarrativeBeat",
     # observability + benchmarking (Phase 15)
     "BenchmarkExperiment",
+    # real-dataset ingestion (Phase 18 follow-up)
+    "DatasetUploadResult",
 ]

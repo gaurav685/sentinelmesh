@@ -493,6 +493,17 @@ export type WeightsVersion = string;
 export type Items3 = ThreatScore[];
 export type Limit3 = number;
 export type NextCursor3 = string | null;
+export type Accepted = number;
+/**
+ * Which real, public dataset this was parsed as, e.g. 'nsl-kdd'.
+ */
+export type Dataset = string;
+export type Rejected = number;
+export type RowsRead = number;
+/**
+ * The per-tenant sensor row this upload's events were attributed to.
+ */
+export type SensorId = string;
 export type CreatedAt9 = string;
 export type Id9 = string;
 export type Kind2 = "honeypot_host" | "honeytoken" | "decoy_credential";
@@ -701,7 +712,7 @@ export type PartitionKey = string;
  * `<service>@<semver>`, e.g. ingestion-gateway@0.1.0
  */
 export type Producer = string;
-export type SensorId = string | null;
+export type SensorId1 = string | null;
 export type Site = string | null;
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
@@ -2330,6 +2341,21 @@ export interface Components {
 }
 /**
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
+ * via the `definition` "DatasetUploadResult".
+ */
+export interface DatasetUploadResult {
+  accepted: Accepted;
+  dataset: Dataset;
+  ground_truth_labels?: GroundTruthLabels;
+  rejected: Rejected;
+  rows_read: RowsRead;
+  sensor_id: SensorId;
+}
+export interface GroundTruthLabels {
+  [k: string]: number;
+}
+/**
+ * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "Decoy".
  */
 export interface Decoy {
@@ -2521,7 +2547,7 @@ export interface Metadata1 {
  * via the `definition` "EventSource".
  */
 export interface EventSource {
-  sensor_id?: SensorId;
+  sensor_id?: SensorId1;
   site?: Site;
   type: SourceType;
 }

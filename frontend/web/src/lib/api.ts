@@ -18,6 +18,7 @@ import type {
   Campaign,
   CursorPageDetection,
   CursorPageSecurityAlert,
+  DatasetUploadResult,
   Decoy,
   DecoyInteraction,
   Detection,
@@ -155,6 +156,32 @@ export const api = {
     apiFetch<void>("/auth/logout", { method: "POST", csrfToken }),
 
   socSummary: (signal?: AbortSignal) => apiFetch<SocSummary>("/soc/summary", { signal }),
+
+  // Multipart, so it bypasses apiFetch's JSON-only body handling -- the
+  // browser sets the multipart Content-Type (with boundary) itself; setting
+  // one manually here would omit the boundary and the server could not
+  // parse the body at all.
+  uploadNslKddDataset: async (file: File, csrfToken: string | null): Promise<DatasetUploadResult> => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${BASE}/soc/datasets/nsl-kdd`, {
+      method: "POST",
+      headers: csrfToken ? { "x-csrf-token": csrfToken } : {},
+      credentials: "include",
+      body: form,
+    });
+    const payload = await res.json().catch(() => null);
+    if (!res.ok) {
+      const body = payload as ErrorResponse | null;
+      throw new ApiError(
+        res.status,
+        body?.error?.message ?? "upload failed",
+        body?.error?.code,
+        body?.error?.request_id ?? undefined,
+      );
+    }
+    return payload as DatasetUploadResult;
+  },
 
   detections: (
     query: { limit?: number; severity?: string; status?: string; before?: string } = {},
