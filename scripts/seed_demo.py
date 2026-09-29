@@ -59,35 +59,37 @@ def _settings() -> AppSettings:
     return AppSettings(service_name="seed-demo")  # SM_PG_* from the env
 
 
-async def _run(password: str) -> int:
+async def _run(
+    password: str, tenant_slug: str, tenant_name: str, email: str, display_name: str
+) -> int:
     db = Database.from_settings(_settings())
     async with db.session() as session:
-        tenant = await session.scalar(select(Tenant).where(Tenant.slug == DEMO_TENANT_SLUG))
+        tenant = await session.scalar(select(Tenant).where(Tenant.slug == tenant_slug))
         if tenant is None:
-            tenant = Tenant(slug=DEMO_TENANT_SLUG, name=DEMO_TENANT_NAME, status="active")
+            tenant = Tenant(slug=tenant_slug, name=tenant_name, status="active")
             session.add(tenant)
             await session.flush()
-            print(f"created tenant: {DEMO_TENANT_SLUG}")
+            print(f"created tenant: {tenant_slug}")
         else:
-            print(f"tenant already exists: {DEMO_TENANT_SLUG}")
+            print(f"tenant already exists: {tenant_slug}")
 
         user = await session.scalar(
-            select(User).where(User.tenant_id == tenant.id, User.email == DEMO_ADMIN_EMAIL)
+            select(User).where(User.tenant_id == tenant.id, User.email == email)
         )
         if user is None:
             user = User(
                 tenant_id=tenant.id,
-                email=DEMO_ADMIN_EMAIL,
-                display_name=DEMO_ADMIN_DISPLAY_NAME,
+                email=email,
+                display_name=display_name,
                 status="active",
                 password_hash=hash_password(password),
             )
             session.add(user)
             await session.flush()
-            print(f"created user: {DEMO_ADMIN_EMAIL}")
+            print(f"created user: {email}")
         else:
             user.password_hash = hash_password(password)
-            print(f"user already exists, password reset: {DEMO_ADMIN_EMAIL}")
+            print(f"user already exists, password reset: {email}")
 
         role = await session.scalar(
             select(Role).where(Role.name == DEMO_ADMIN_ROLE, Role.tenant_id.is_(None))
@@ -132,8 +134,8 @@ async def _run(password: str) -> int:
 
     print()
     print("Demo login (SYNTHETIC tenant, not a real customer):")
-    print(f"  tenant:   {DEMO_TENANT_SLUG}")
-    print(f"  email:    {DEMO_ADMIN_EMAIL}")
+    print(f"  tenant:   {tenant_slug}")
+    print(f"  email:    {email}")
     print(f"  password: {password}")
     print()
     print("Demo sensor credential (for POST /api/v1/ingest/... -- shown once):")
@@ -148,8 +150,30 @@ def main() -> None:
         default="demo-password-change-me",
         help="Password for the demo admin (default: a clearly-labelled placeholder, dev/demo only)",
     )
+    ap.add_argument(
+        "--tenant-slug",
+        default=DEMO_TENANT_SLUG,
+        help="Tenant slug (default: demo-corp). Must match "
+        "^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$ -- a real Postgres CHECK "
+        "constraint, so anything shorter than 3 chars or with an "
+        "uppercase/underscore/leading-hyphen will be rejected by the DB.",
+    )
+    ap.add_argument(
+        "--tenant-name",
+        default=None,
+        help="Tenant display name (default: a name that says SYNTHETIC/demo; "
+        "override only for something you'll still recognize as your own "
+        "throwaway local tenant, never a real org name).",
+    )
+    ap.add_argument("--email", default=DEMO_ADMIN_EMAIL, help="Admin login email.")
+    ap.add_argument("--display-name", default=DEMO_ADMIN_DISPLAY_NAME, help="Admin display name.")
     args = ap.parse_args()
-    sys.exit(asyncio.run(_run(args.password)))
+    tenant_name = args.tenant_name or f"{args.tenant_slug} (SYNTHETIC DATA ONLY -- not a real organization)"
+    sys.exit(
+        asyncio.run(
+            _run(args.password, args.tenant_slug, tenant_name, args.email, args.display_name)
+        )
+    )
 
 
 if __name__ == "__main__":
