@@ -191,6 +191,14 @@ class AppSettings(BaseSettings):
 
     # ---- http hardening --------------------------------------------
     http_max_body_bytes: int = Field(default=1_048_576, ge=1)
+    # Real dataset upload (Phase 18 follow-up): the global cap above is sized
+    # for ordinary JSON API bodies, not a multi-MB file. KDDTrain+.txt (the
+    # largest real NSL-KDD file) is ~19 MiB; a middleware 413 mid-upload
+    # resets the connection under the frontend's proxy and surfaces to the
+    # browser as a bare "NetworkError" rather than a readable error (found
+    # by actually uploading an oversized file, not by reading the code) --
+    # so this needs real headroom, not just "slightly more than one file".
+    dataset_upload_max_body_bytes: int = Field(default=33_554_432, ge=1)  # 32 MiB
     http_request_timeout_s: int = Field(default=30, ge=1)
     cors_allowed_origins: str = "http://localhost:3000"
     rate_limit_per_minute: int = Field(default=120, ge=1)

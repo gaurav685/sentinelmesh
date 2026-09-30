@@ -60,7 +60,7 @@ from .routes import (
     soc,
 )
 from .security.session import RedisOidcStateStore, RedisSessionStore
-from .version import SERVICE_NAME, SERVICE_VERSION
+from .version import API_PREFIX, SERVICE_NAME, SERVICE_VERSION
 
 __all__ = ["build_services", "create_app"]
 
@@ -151,7 +151,13 @@ def create_app(
     )
 
     # Registered bottom-up; see the module docstring for the effective order.
-    app.add_middleware(BodySizeLimitMiddleware, max_bytes=resolved_settings.http_max_body_bytes)
+    app.add_middleware(
+        BodySizeLimitMiddleware,
+        max_bytes=resolved_settings.http_max_body_bytes,
+        path_overrides={
+            f"{API_PREFIX}/soc/datasets": resolved_settings.dataset_upload_max_body_bytes
+        },
+    )
     app.add_middleware(RateLimitMiddleware, settings=resolved_settings)
     app.add_middleware(SecurityHeadersMiddleware, hsts=resolved_settings.is_production)
     # `build_cors_kwargs` returns a plain mapping; Starlette's `add_middleware`

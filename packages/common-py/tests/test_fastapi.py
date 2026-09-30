@@ -107,3 +107,27 @@ def test_body_limit_returns_canonical_413_with_a_real_request_id(client: TestCli
     # the id is the caller's, not a zeroed placeholder
     assert body["request_id"] == rid
     assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_path_override_allows_a_larger_body_on_that_route_only():
+    app = FastAPI()
+    app.add_middleware(
+        BodySizeLimitMiddleware, max_bytes=64, path_overrides={"/upload": 4096}
+    )
+    install_exception_handlers(app)
+
+    @app.post("/echo")
+    def _echo(b: Body) -> dict[str, int]:
+        return {"n": b.n}
+
+    @app.post("/upload")
+    def _upload(b: Body) -> dict[str, int]:
+        return {"n": b.n}
+
+    client = TestClient(app, raise_server_exceptions=False)
+    big_pad = "x" * 200
+
+    # Same oversized-relative-to-the-global-64-byte-cap body: rejected on
+    # the un-overridden route, accepted on the overridden one.
+    assert client.post("/echo", json={"n": 1, "pad": big_pad}).status_code == 413
+    assert client.post("/upload", json={"n": 1, "pad": big_pad}).status_code == 200

@@ -54,18 +54,42 @@ class SecurityHeadersMiddleware:
 
 
 class BodySizeLimitMiddleware:
-    def __init__(self, app: ASGIApp, *, max_bytes: int) -> None:
+    """Rejects an oversized body with 413 before it is buffered.
+
+    `path_overrides` lets one specific route accept a larger real body (e.g.
+    a dataset-file upload) without weakening the default cap everywhere
+    else -- checked by prefix, first match wins, falling back to
+    `max_bytes`. Rejecting *after* the browser has already started
+    streaming an oversized multipart body (rather than before) can reset
+    the connection mid-upload through a proxy and surface to the browser
+    as a bare "NetworkError", not a readable 413 -- found by actually
+    uploading an oversized file through the real frontend proxy, not by
+    reading this middleware's code. The real fix is sizing the cap to the
+    route's actual legitimate need, not just tolerating that failure mode.
+    """
+
+    def __init__(
+        self, app: ASGIApp, *, max_bytes: int, path_overrides: dict[str, int] | None = None
+    ) -> None:
         self.app = app
         self.max_bytes = max_bytes
+        self._overrides = path_overrides or {}
+
+    def _limit_for(self, path: str) -> int:
+        for prefix, limit in self._overrides.items():
+            if path.startswith(prefix):
+                return limit
+        return self.max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
 
+        limit = self._limit_for(scope.get("path", ""))
         headers = {k.decode("latin-1").lower(): v.decode("latin-1") for k, v in scope.get("headers", [])}
         declared = headers.get("content-length")
-        if declared is not None and declared.isdigit() and int(declared) > self.max_bytes:
+        if declared is not None and declared.isdigit() and int(declared) > limit:
             await self._reject(send)
             return
 
@@ -77,7 +101,7 @@ class BodySizeLimitMiddleware:
             message = await receive()
             if message["type"] == "http.request":
                 seen += len(message.get("body", b""))
-                if seen > self.max_bytes:
+                if seen > limit:
                     raise PayloadTooLarge()
             return message
 
