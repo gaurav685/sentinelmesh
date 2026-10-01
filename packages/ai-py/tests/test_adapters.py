@@ -63,7 +63,7 @@ async def test_http_boundary_maps_a_messages_response() -> None:
         return_value=httpx.Response(
             200,
             json={
-                "model": "claude-x",
+                "model": "test-model-x",
                 "stop_reason": "end_turn",
                 "content": [{"type": "text", "text": "hello from the model"}],
                 "usage": {"input_tokens": 12, "output_tokens": 3},

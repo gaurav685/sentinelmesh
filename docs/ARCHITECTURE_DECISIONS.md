@@ -576,9 +576,9 @@ application  →  LlmClient (interface)  →  {AnthropicAdapter | OpenAiAdapter 
 Adapters handle auth, timeout, retry-with-backoff, rate-limit handling, response
 schema validation, token accounting, and error normalization. Default provider
 and model come from config (`SM_LLM_DEFAULT_PROVIDER`, `SM_LLM_DEFAULT_MODEL`);
-**model IDs are pinned at implementation time** — current Anthropic model
-identifiers are documented in the `claude-api` reference and must be looked up
-then, not guessed.
+**model IDs are pinned at implementation time** — current provider model
+identifiers are documented in each provider's own API reference and must be
+looked up then, not guessed.
 
 **No orchestration framework** (LangChain / LlamaIndex / etc.). Rationale:
 abstraction churn, hidden prompt construction, hard-to-audit tool routing — all

@@ -1,6 +1,7 @@
 # Phase 0 consistency-review pass
 
-Purpose: a second read of the Phase-0 doc set + `CLAUDE.md` for internal
+Purpose: a second read of the Phase-0 doc set + the Engineering Constitution
+(`README.md`) for internal
 contradictions before declaring the architecture LOCKED (Engineering Constitution
 §23, and the Phase-0 lock criterion "no unresolved critical architectural
 contradiction").
@@ -20,7 +21,7 @@ Checked pairwise for conflict:
   `service-catalog.md`)
 - Phase assignment of each table/topic/endpoint (data-model vs traceability vs
   implementation-state)
-- `CLAUDE.md` rules vs the ADRs and contracts
+- Engineering Constitution rules vs the ADRs and contracts
 - non-fabrication: every performance/latency/accuracy/deployment field
 
 ## Findings
@@ -50,9 +51,9 @@ Phase-1 migration set. Phase-1 Postgres tables are exactly:
 `tenant`, `user`, `role`, `permission`, `user_role`, `role_permission`,
 `sensor`, `audit_log`.
 
-### F-3 — `CLAUDE.md` vs ADRs — no contradiction
+### F-3 — Engineering Constitution vs ADRs — no contradiction
 
-`CLAUDE.md` §9 ("Never claim exactly-once … unless actually configured and
+Engineering Constitution §9 ("Never claim exactly-once … unless actually configured and
 verified") matches ADR-008 / `event-model.md §4` (at-least-once, exactly-once not
 claimed). §13 (ML: implement pipeline, never claim performance) matches
 ADR-012/024. §5 (Argon2id) matches ADR-016 / `security-model.md §2`. §6 (tenant
@@ -79,7 +80,7 @@ Phase 1 = Foundation/Config/DB/Auth; Phase 2 = Telemetry+Normalization; etc.
 ### F-6 — Non-fabrication — clean
 
 `grep` for benchmark/latency/accuracy/deployment claim language over `docs/`,
-`README.md`, `CLAUDE.md` returns only negations and prohibitions. Every ML
+`README.md` returns only negations and prohibitions. Every ML
 metric field reads `NOT VERIFIED — REQUIRES REAL DATA / TRAINING ENVIRONMENT`;
 every deployment/infra field requiring Docker/K8s/Flink/GPU/cloud reads
 `NOT VERIFIED — REQUIRES EXTERNAL INFRASTRUCTURE`. `IMPLEMENTATION_STATE.md`

@@ -2963,8 +2963,8 @@ The three items that held lock in the prior revision are closed:
    type-checked, tested Pydantic v2 models for the envelope, error contract, and
    Phase-1 entities/APIs. `scripts/gen_contracts.py` emits JSON Schema
    (`packages/contracts-ts/schemas/`) with a `--check` CI mode.
-2. **`CLAUDE.md` reviewed** against the architecture docs — no contradiction
-   (`architecture/consistency-review.md`).
+2. **Engineering Constitution reviewed** against the architecture docs — no
+   contradiction (`architecture/consistency-review.md`).
 3. **Consistency-review pass done** — two doc inconsistencies found and fixed
    (service count 21→18; `identity_link` ownership); recorded in
    `architecture/consistency-review.md`.
@@ -2972,7 +2972,7 @@ The three items that held lock in the prior revision are closed:
 ## Completed files (Phase 0)
 
 **Docs / config (created):**
-`README.md`, `.gitignore`, `.env.example`, `pyproject.toml`, `CLAUDE.md`,
+`README.md`, `.gitignore`, `.env.example`, `pyproject.toml`,
 `docs/ARCHITECTURE_DECISIONS.md`, `docs/CONTRACTS.md`,
 `docs/REQUIREMENTS_TRACEABILITY.md`, `docs/IMPLEMENTATION_STATE.md`,
 `docs/architecture/{repository,overview,service-catalog,data-model,event-model,security-model,failure-model,deployment,consistency-review}.md`,
@@ -3409,8 +3409,8 @@ Typed loader + startup validation is Phase 1 (`packages/common-py`).
 | Local toolchain | `Get-Command` git/python/node/npm/docker/uv/pnpm/helm/kubectl/java | git 2.55.0, Python 3.11.5, Node 24.14.0, npm 11.9.0, Java 8 present; **docker, uv, pnpm, helm, kubectl, JDK≥11 absent** (ADR-001) |
 | Repo skeleton | `mkdir` / `find` | 50 directories under `C:\Users\gmalh\sentinelmesh` |
 | Requirements coverage | `grep -c '^### R' docs/REQUIREMENTS_TRACEABILITY.md` | **38** |
-| Source hierarchy explicit | manual | PRIMARY (38-point) > SECONDARY (Blueprint) stated in README, ADR intro, traceability intro, CLAUDE.md |
-| Fabricated-claim scan | `grep -rniE '(ROC-AUC\|F1 score\|... \|deployed successfully\|benchmark achieved)' docs/ README.md CLAUDE.md` | only negations/prohibitions matched — **no fabricated value** |
+| Source hierarchy explicit | manual | PRIMARY (38-point) > SECONDARY (Blueprint) stated in README, ADR intro, traceability intro |
+| Fabricated-claim scan | `grep -rniE '(ROC-AUC\|F1 score\|... \|deployed successfully\|benchmark achieved)' docs/ README.md` | only negations/prohibitions matched — **no fabricated value** |
 | `contracts-py` install | `pip install -e "packages/contracts-py[dev]"` (in `.venv`) | OK; pydantic 2.13.5 |
 | Contract unit tests | `python -m pytest packages/contracts-py -q` | **19 passed** |
 | Type check | `python -m mypy --strict --python-version 3.11 packages/contracts-py/src/sm_contracts` | **Success: no issues found in 18 source files** |
