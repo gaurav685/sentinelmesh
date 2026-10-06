@@ -58,7 +58,12 @@ def gnn_module_class(conv: str) -> Any:
     `torch.save`/`torch.load` of a whole trained module instance can pickle
     it -- a local class cannot be. Cached per `conv` kind after first build."""
     torch, tg = load_torch()
-    from torch import nn
+    # `nn: Any` deliberately, not `from torch import nn`: whether mypy sees
+    # torch's real type stubs depends on whether `sm-ml[gnn]` is installed
+    # in the *checking* environment (it is not in CI), which would otherwise
+    # make the `type: ignore` below "needed" in one environment and "unused"
+    # (itself a strict-mode error) in another.
+    nn: Any = torch.nn
 
     attr = f"_GnnModule_{conv}"
     existing = globals().get(attr)
@@ -72,7 +77,7 @@ def gnn_module_class(conv: str) -> Any:
     else:
         raise ValueError(f"unknown conv kind: {conv!r}")
 
-    class _GnnModule(nn.Module):
+    class _GnnModule(nn.Module):  # type: ignore[misc]
         def __init__(self, input_dim: int, hidden_dim: int, heads: int, dropout: float) -> None:
             super().__init__()
             kwargs = {"heads": heads} if conv == "gat" else {}

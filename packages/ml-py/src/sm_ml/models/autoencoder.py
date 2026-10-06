@@ -84,13 +84,18 @@ def _autoencoder_class() -> Any:
     a local class cannot be pickled, which `torch.save` only discovers when
     actually called, not at class-definition time."""
     torch = _require_torch()
-    from torch import nn
+    # `nn: Any` deliberately, not `from torch import nn`: whether mypy sees
+    # torch's real type stubs depends on whether `sm-ml[autoencoder]` is
+    # installed in the *checking* environment (it is not in CI), which would
+    # otherwise make the `type: ignore` below "needed" in one environment
+    # and "unused" (itself a strict-mode error) in another.
+    nn: Any = torch.nn
 
     global _AutoencoderModule
     if _AutoencoderModule is not None:
         return _AutoencoderModule
 
-    class _Module(nn.Module):
+    class _Module(nn.Module):  # type: ignore[misc]
         def __init__(self, dims: list[int]) -> None:
             super().__init__()
             encoder_layers: list[Any] = []
