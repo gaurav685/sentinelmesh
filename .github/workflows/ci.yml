@@ -570,6 +570,18 @@ jobs:
         run: kubectl apply -f deploy/k8s/namespaces/namespaces.yaml
 
       - name: Helm install (Postgres + migration Job + api-gateway only)
+        # Every app service lives under the top-level `services:` map in
+        # values.yaml (`.Values.services.api-gateway.replicas`, read by
+        # templates/deployment.yaml's `{{ $svc.replicas }}` and
+        # templates/hpa.yaml's `{{- range $name, $svc := .Values.services }}`)
+        # -- NOT a flat top-level `api-gateway:` key. Found by actually
+        # running this job (its first real run, 2026-10-06): a bare
+        # `--set api-gateway.replicas=1` sets an unused top-level key Helm
+        # accepts without error and no template ever reads, so it silently
+        # does nothing; every service stayed at its default 2 replicas (HPA
+        # then enforces minReplicas: 2 as a floor regardless), and
+        # Postgres/Redis never got scheduled on the runner. `services.` is
+        # the real, required prefix for every one of these.
         run: |
           helm install sentinelmesh deploy/helm/sentinelmesh \
             --set global.imageRepository=sentinelmesh/app \
@@ -590,20 +602,20 @@ jobs:
             --set minio.enabled=false \
             --set keycloak.enabled=false \
             --set networkPolicy.enabled=false \
-            --set api-gateway.replicas=1 \
-            --set ingestion-gateway.replicas=1 \
-            --set normalization-engine.replicas=1 \
-            --set stream-processor.replicas=1 \
-            --set graph-service.replicas=1 \
-            --set ml-inference.replicas=1 \
-            --set detection-engine.replicas=1 \
-            --set threat-intel-service.replicas=1 \
-            --set mitre-service.replicas=1 \
-            --set correlation-engine.replicas=1 \
-            --set ai-analyst.replicas=1 \
-            --set simulation-service.replicas=1 \
-            --set memory-service.replicas=1 \
-            --set reporting-service.replicas=1 \
+            --set services.api-gateway.replicas=1 --set services.api-gateway.hpa.enabled=false \
+            --set services.ingestion-gateway.replicas=1 --set services.ingestion-gateway.hpa.enabled=false \
+            --set services.normalization-engine.replicas=1 --set services.normalization-engine.hpa.enabled=false \
+            --set services.stream-processor.replicas=1 --set services.stream-processor.hpa.enabled=false \
+            --set services.graph-service.replicas=1 --set services.graph-service.hpa.enabled=false \
+            --set services.ml-inference.replicas=1 --set services.ml-inference.hpa.enabled=false \
+            --set services.detection-engine.replicas=1 --set services.detection-engine.hpa.enabled=false \
+            --set services.threat-intel-service.replicas=1 --set services.threat-intel-service.hpa.enabled=false \
+            --set services.mitre-service.replicas=1 --set services.mitre-service.hpa.enabled=false \
+            --set services.correlation-engine.replicas=1 --set services.correlation-engine.hpa.enabled=false \
+            --set services.ai-analyst.replicas=1 --set services.ai-analyst.hpa.enabled=false \
+            --set services.simulation-service.replicas=1 --set services.simulation-service.hpa.enabled=false \
+            --set services.memory-service.replicas=1 --set services.memory-service.hpa.enabled=false \
+            --set services.reporting-service.replicas=1 --set services.reporting-service.hpa.enabled=false \
             --timeout 8m
 
       - name: Migration Job reaches Complete

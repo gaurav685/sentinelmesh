@@ -17,7 +17,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
-EXPECTED_JOBS = {"static", "unit", "integration", "image", "frontend", "security"}
+EXPECTED_JOBS = {"static", "unit", "integration", "image", "frontend", "security", "kind-deploy"}
 
 
 @pytest.fixture(scope="module")
@@ -183,9 +183,17 @@ def test_unit_job_reports_coverage_without_a_fabricated_threshold(
 
 def test_workflow_carries_no_real_secret(workflow: dict[str, Any]):
     """Every credential in the workflow is an obvious CI placeholder, and no
-    `secrets.*` expression is needed — no job talks to a third party."""
+    GitHub Actions `${{ secrets.* }}` expression is needed — no job talks to
+    a third party. Checked precisely as the GitHub Actions expression syntax
+    (`${{ secrets.NAME }}`), not a bare substring match on the word
+    "secrets." — `kind-deploy` legitimately passes literal strings like
+    `secrets.SM_PG_PASSWORD` as a Helm `--set-string` VALUE PATH (addressing
+    `.Values.secrets.SM_PG_PASSWORD` in the chart), which is not a GitHub
+    Actions expression and is not interpolated by the runner at all; a
+    broader substring check would flag that false positive without
+    detecting any real secret exposure more than this precise one does."""
     rendered = json.dumps(workflow)
-    assert "secrets." not in rendered
+    assert "${{ secrets." not in rendered
     for key, value in workflow["env"].items():
         if "PASSWORD" in key or "SECRET" in key or "KEY" in key:
             assert value.startswith("ci-"), f"{key} does not look like a CI placeholder"
