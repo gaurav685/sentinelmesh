@@ -1,0 +1,25 @@
+dataset: nsl-kdd-graph-train (252 samples, 58630 anomalous nodes, sha256 b36c68c885c7)
+preprocessing: 214 train / 38 val samples (seeded split)
+graph_construction: 252 samples, schema 1
+feature_generation: node feature dim {25}
+training: gnn epoch 1/15 mean_benign_mse=0.006841
+training: gnn epoch 2/15 mean_benign_mse=0.001071
+training: gnn epoch 3/15 mean_benign_mse=0.000513
+training: gnn epoch 4/15 mean_benign_mse=0.000245
+training: gnn epoch 5/15 mean_benign_mse=0.000126
+training: gnn epoch 6/15 mean_benign_mse=0.000090
+training: gnn epoch 7/15 mean_benign_mse=0.000065
+training: gnn epoch 8/15 mean_benign_mse=0.000056
+training: gnn epoch 9/15 mean_benign_mse=0.000055
+training: gnn epoch 10/15 mean_benign_mse=0.000043
+training: gnn epoch 11/15 mean_benign_mse=0.000047
+training: gnn epoch 12/15 mean_benign_mse=0.000047
+training: gnn epoch 13/15 mean_benign_mse=0.000038
+training: gnn epoch 14/15 mean_benign_mse=0.000042
+training: gnn epoch 15/15 mean_benign_mse=0.000038
+training: gnn checkpoint written to ml\artifacts\graph\graphsage_0.1.0+a9de8a436ada.pt
+validation: val precision 0.902778 recall 0.00728 f1 0.014444
+checkpoint: params {'method': 'graphsage', 'hidden_dim': 32, 'num_layers': 2, 'heads': 1, 'dropout': 0.2, 'epochs_run': 15, 'final_train_loss': 3.849867314393208e-05, 'feature_schema_version': '1'}
+model_version: 0.1.0+a9de8a436ada
+inference: scored 516 nodes on a held-out sample
+evaluation: benchmark dataset — headline metrics require an independent evaluation run

@@ -1,0 +1,13 @@
+dataset: nsl-kdd-graph-train (252 samples, 58630 anomalous nodes, sha256 b36c68c885c7)
+preprocessing: 214 train / 38 val samples (seeded split)
+graph_construction: 252 samples, schema 1
+feature_generation: node feature dim {25}
+training: gnn epoch 1/3 mean_benign_mse=0.006841
+training: gnn epoch 2/3 mean_benign_mse=0.001071
+training: gnn epoch 3/3 mean_benign_mse=0.000513
+training: gnn checkpoint written to ml\artifacts\graph\graphsage_0.1.0+ab699fe41937.pt
+validation: val precision 0.969231 recall 0.007056 f1 0.014011
+checkpoint: params {'method': 'graphsage', 'hidden_dim': 32, 'num_layers': 2, 'heads': 1, 'dropout': 0.2, 'epochs_run': 3, 'final_train_loss': 0.0005127293582424678, 'feature_schema_version': '1'}
+model_version: 0.1.0+ab699fe41937
+inference: scored 516 nodes on a held-out sample
+evaluation: benchmark dataset — headline metrics require an independent evaluation run

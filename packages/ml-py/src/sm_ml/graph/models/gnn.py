@@ -28,6 +28,8 @@ __all__ = [
     "GRAPHSAGE_SPEC",
     "GNNArchitectureSpec",
     "GnnNodeAnomalyModel",
+    "build_gnn_module",
+    "gnn_module_class",
     "load_torch",
 ]
 
@@ -44,6 +46,69 @@ def load_torch() -> tuple[Any, Any]:
             "torch / torch-geometric not installed (install sm-ml[gnn])"
         ) from exc
     return torch, torch_geometric
+
+
+def gnn_module_class(conv: str) -> Any:
+    """The trainable `nn.Module` class for `conv` ("sage" | "gat"): a 2-layer
+    graph encoder down to `hidden_dim`, then one graph-conv layer back up to
+    the input feature dimension -- a graph autoencoder whose reconstruction
+    error at each node is the anomaly signal `_forward_error` already scores
+    (same convention as `sm_ml.models.autoencoder`'s tabular reconstruction
+    model). Defined at module scope, not inside this function's closure, so
+    `torch.save`/`torch.load` of a whole trained module instance can pickle
+    it -- a local class cannot be. Cached per `conv` kind after first build."""
+    torch, tg = load_torch()
+    from torch import nn
+
+    attr = f"_GnnModule_{conv}"
+    existing = globals().get(attr)
+    if existing is not None:
+        return existing
+
+    if conv == "sage":
+        conv_layer = tg.nn.SAGEConv
+    elif conv == "gat":
+        conv_layer = tg.nn.GATConv
+    else:
+        raise ValueError(f"unknown conv kind: {conv!r}")
+
+    class _GnnModule(nn.Module):
+        def __init__(self, input_dim: int, hidden_dim: int, heads: int, dropout: float) -> None:
+            super().__init__()
+            kwargs = {"heads": heads} if conv == "gat" else {}
+            out1 = hidden_dim * heads if conv == "gat" else hidden_dim
+            self.conv1 = conv_layer(input_dim, hidden_dim, **kwargs)
+            self.conv2 = conv_layer(out1, input_dim, **({"heads": 1} if conv == "gat" else {}))
+            self.dropout = nn.Dropout(dropout)
+            self.activation = nn.ReLU()
+
+        def forward(self, x: Any, edge_index: Any) -> Any:
+            h = self.activation(self.conv1(x, edge_index))
+            h = self.dropout(h)
+            return self.conv2(h, edge_index)
+
+    _GnnModule.__qualname__ = attr
+    _GnnModule.__name__ = attr
+    globals()[attr] = _GnnModule
+    _ = torch
+    return _GnnModule
+
+
+def build_gnn_module(spec: GNNArchitectureSpec) -> Any:
+    """Build an untrained module per `spec` -- shared by `ml-training` (fits
+    the weights) and this module's loader (reconstructs the architecture
+    before unpickling a checkpoint's state)."""
+    cls = gnn_module_class(spec.conv)
+    return cls(
+        input_dim=_graph_feature_dim(), hidden_dim=spec.hidden_dim,
+        heads=spec.heads, dropout=spec.dropout,
+    )
+
+
+def _graph_feature_dim() -> int:
+    from ..schema import GraphFeatureSchema
+
+    return GraphFeatureSchema().node_feature_dim
 
 
 @dataclass(frozen=True)
@@ -91,6 +156,7 @@ class GnnNodeAnomalyModel:
         if self._module is None:
             if not self.checkpoint.exists():
                 raise GraphModelNotTrained(f"no checkpoint at {self.checkpoint}")
+            gnn_module_class(self.spec.conv)  # registers the class so the unpickler below can find it
             self._module = torch.load(self.checkpoint, map_location="cpu", weights_only=False)
             self._module.eval()
         x = torch.tensor(sample.node_features, dtype=torch.float32)

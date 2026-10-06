@@ -40,6 +40,14 @@ of silently passing 36 of 38 off as "all 38." **Action required from the
 repository owner:** supply the primary source's R18 and R36 text so they
 can be added for real.
 
+**Re-confirmed during the priority-remediation pass, 2026-10-06:** asked
+the repository owner directly whether the primary 38-point architecture
+source or the "SentinelMesh Complete Elite Blueprint" exists anywhere
+outside this repository. The owner confirmed they do not have it. R18 and
+R36 are therefore recorded as **BLOCKED — NOT VERIFIED — REQUIRES PRIMARY
+ARCHITECTURE SOURCE**, not merely "missing" — this is now a confirmed,
+permanent gap pending that document, not an open investigation.
+
 Phase map: P1 Foundation · P2 Telemetry+Normalization · P3 Graph+Detection+MITRE+TI ·
 P4 Attack-chain+Lateral+Temporal+UI · P5 ML/GNN+Benchmark · P6 AI analyst+Memory+
 Predictive+Explanation+NL hunting+RCA · P7 Multi-agent+Autonomous response ·

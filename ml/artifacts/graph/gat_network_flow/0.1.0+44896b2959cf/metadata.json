@@ -1,0 +1,43 @@
+{
+  "model_name": "gat_network_flow",
+  "model_version": "0.1.0+44896b2959cf",
+  "model_kind": "gat",
+  "method": "gat",
+  "task": "node_anomaly",
+  "feature_schema_version": "1",
+  "seed": 1337,
+  "config_hash": "44896b2959cfe5e309442028aeb19c67f9a47e75513d86c2582579373dce8152",
+  "dataset_id": "nsl-kdd-graph-train",
+  "dataset_sha256": "b36c68c885c71b994464d7f16866caca3d58a44d332aa774ba5cbdbece8aae79",
+  "git_commit": "2a61938137b45b31ccd07d83bb41e733031c65ae",
+  "created_at": "2026-10-06T12:18:27.195499Z",
+  "sm_ml_version": "0.1.0",
+  "torch_version": "2.5.1+cpu",
+  "torch_geometric_version": "2.8.0.post1",
+  "params": {
+    "method": "gat",
+    "hidden_dim": 32,
+    "num_layers": 2,
+    "heads": 4,
+    "dropout": 0.2,
+    "epochs_run": 15,
+    "final_train_loss": 0.000139681555389369,
+    "feature_schema_version": "1"
+  },
+  "evaluation": {
+    "dataset_id": "nsl-kdd-graph-train",
+    "dataset_kind": "benchmark",
+    "dataset_sha256": "b36c68c885c71b994464d7f16866caca3d58a44d332aa774ba5cbdbece8aae79",
+    "n_val_samples": 38,
+    "n_val_nodes": 19608,
+    "n_val_anomalous": 8928,
+    "val_metrics": {
+      "precision": 0.969231,
+      "recall": 0.007056,
+      "f1": 0.014011
+    },
+    "benchmark_verified": false,
+    "headline_metrics": "NOT VERIFIED — REQUIRES DATASET/TRAINING EXECUTION",
+    "note": "benchmark dataset — headline metrics require an independent evaluation run"
+  }
+}

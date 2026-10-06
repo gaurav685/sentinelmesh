@@ -48,7 +48,7 @@ from .nsl_kdd import PREPROCESSING_VERSION, BenchmarkDataset
 
 __all__ = ["BenchmarkRun", "run_benchmark"]
 
-ModelName = Literal["statistical", "isolation_forest"]
+ModelName = Literal["statistical", "isolation_forest", "autoencoder"]
 
 
 class BenchmarkRun(BaseModel):
@@ -142,6 +142,68 @@ def _score_isolation_forest(forest: Any, row: tuple[float, ...]) -> tuple[float,
     return raw, pred
 
 
+def _fit_autoencoder(
+    benign_rows: list[list[float]], feature_names: tuple[str, ...], *, seed: int
+) -> tuple[Any, str, dict[str, Any]]:
+    """A real PyTorch autoencoder, trained directly in this harness on the
+    same benign-only rows and the same ~100+-dim one-hot NSL-KDD encoding
+    `isolation_forest`/`statistical` are scored on here -- a genuinely
+    different model from `scripts/train_autoencoder_network_flow.py`'s
+    production artifact (which trains on the platform's own 8-dim
+    `extract_features` encoding for train/serve parity with
+    `detection-engine`), exactly mirroring how `isolation_forest` above is
+    *also* a second, independently-fit instance rather than a load of the
+    production artifact. `sm-ml[autoencoder]` (torch) is optional; absent,
+    this raises `ModelUnavailable` rather than silently skipping."""
+    try:
+        import torch
+        from torch import nn
+
+        from sm_ml.models.autoencoder import AutoencoderSpec, build_module
+    except ImportError as exc:
+        raise ModelUnavailable(f"autoencoder needs sm-ml[autoencoder] (torch): {exc}") from exc
+
+    torch.manual_seed(seed)
+    input_dim = len(feature_names)
+    hidden_dims = (max(8, input_dim // 4), max(4, input_dim // 8))
+    spec = AutoencoderSpec(input_dim=input_dim, hidden_dims=hidden_dims)
+    module = build_module(spec)
+    optimizer = torch.optim.Adam(module.parameters(), lr=1e-3)
+    loss_fn = nn.MSELoss()
+
+    x = torch.tensor(benign_rows, dtype=torch.float32)
+    n = x.shape[0]
+    epochs, batch_size = 30, 128
+    for _ in range(epochs):
+        perm = torch.randperm(n)
+        for start in range(0, n, batch_size):
+            batch = x[perm[start : start + batch_size]]
+            optimizer.zero_grad()
+            loss = loss_fn(module(batch), batch)
+            loss.backward()
+            optimizer.step()
+    module.eval()
+    with torch.no_grad():
+        train_errors = torch.mean((module(x) - x) ** 2, dim=1)
+    threshold = float(torch.quantile(train_errors, spec.error_quantile).item())
+
+    params = {
+        "hidden_dims": list(hidden_dims), "epochs": epochs, "batch_size": batch_size,
+        "error_quantile": spec.error_quantile, "n_features": input_dim,
+    }
+    return (module, threshold), "autoencoder", params
+
+
+def _score_autoencoder(fitted: Any, row: tuple[float, ...]) -> tuple[float, int]:
+    import torch
+
+    module, threshold = fitted
+    x = torch.tensor([list(row)], dtype=torch.float32)
+    with torch.no_grad():
+        err = float(torch.mean((module(x) - x) ** 2).item())
+    return err, (1 if err >= threshold else 0)
+
+
 def run_benchmark(
     train: BenchmarkDataset,
     test: BenchmarkDataset,
@@ -165,6 +227,9 @@ def run_benchmark(
             benign_rows, train.feature_names, seed=seed
         )
         score_one = _score_isolation_forest
+    elif model == "autoencoder":
+        fitted, model_name, params = _fit_autoencoder(benign_rows, train.feature_names, seed=seed)
+        score_one = _score_autoencoder
     else:
         raise ValueError(f"unknown model: {model!r}")
 

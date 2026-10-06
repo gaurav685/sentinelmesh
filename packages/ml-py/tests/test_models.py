@@ -78,3 +78,44 @@ def test_autoencoder_score_is_not_trained() -> None:
     model = AutoencoderModel(AutoencoderSpec(input_dim=8))
     with pytest.raises(ModelNotTrained):
         model.score([0.0] * 8)
+
+
+def test_autoencoder_build_module_trains_and_round_trips(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    """A real train -> save -> load -> score round trip, skipped where torch
+    (`sm-ml[autoencoder]`) is absent -- never a fabricated pass."""
+    torch = pytest.importorskip("torch")
+    from sm_ml.models.autoencoder import build_module
+
+    spec = AutoencoderSpec(input_dim=4, hidden_dims=(3, 2))
+    module = build_module(spec)
+    x = torch.zeros((5, 4), dtype=torch.float32)
+    optimizer = torch.optim.Adam(module.parameters(), lr=0.1)
+    for _ in range(20):
+        optimizer.zero_grad()
+        loss = torch.mean((module(x) - x) ** 2)
+        loss.backward()
+        optimizer.step()
+    with torch.no_grad():
+        final_error = float(torch.mean((module(x) - x) ** 2).item())
+    assert final_error < 0.01  # a real, measured post-training reconstruction error
+
+    out_dir = tmp_path / "autoencoder_test"
+    out_dir.mkdir()
+    torch.save(module, out_dir / "model.pt")
+    import json
+
+    (out_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "model_version": "test-v1", "input_dim": 4, "hidden_dims": [3, 2],
+                "error_quantile": 0.99, "normalisation_k": 2.0,
+                "feature_names": ["a", "b", "c", "d"], "error_threshold": 0.05,
+            }
+        ),
+        encoding="utf-8",
+    )
+    loaded = AutoencoderModel.load(out_dir)
+    score = loaded.score([0.0, 0.0, 0.0, 0.0])
+    assert score.score < 0.05
+    assert not score.is_anomaly
+    assert score.model_version == "test-v1"

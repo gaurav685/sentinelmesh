@@ -4,14 +4,26 @@ deploy/docker/docker-compose.yml's `migrate` service exactly (same
 command, same image as the app itself -- one image knob, not two, so
 this can never drift to a different build than what's being deployed).
 
-Only a pre-upgrade hook, deliberately NOT pre-install: a pre-install
-hook runs before ANY other manifest in the release, including the
-Postgres StatefulSet, so Postgres would not exist yet for a first
-install to migrate against. On first install this Job is a normal
-release resource instead (scheduled alongside Postgres; its
-initContainer below waits for Postgres to actually be reachable before
-alembic runs). On upgrade, Postgres already exists from the prior
-install, so the pre-upgrade hook can safely require it up front.
+A pre-upgrade hook only on `helm upgrade` (`.Release.IsUpgrade`),
+deliberately NOT pre-install: a pre-install hook runs before ANY other
+manifest in the release, including the Postgres StatefulSet, so
+Postgres would not exist yet for a first install to migrate against.
+On first install this Job is a normal release resource instead
+(scheduled alongside Postgres; its initContainer below waits for
+Postgres to actually be reachable before alembic runs). On upgrade,
+Postgres already exists from the prior install, so the pre-upgrade
+hook can safely require it up front.
+
+Found by actually running `helm install` against a real kind cluster
+(remediation, 2026-10-06): this file previously set the `helm.sh/hook:
+pre-upgrade` annotation unconditionally, with no `.Release.IsUpgrade`
+guard -- so on every first install the Job was annotated as a
+pre-upgrade hook that Helm never fires during an install, and the Job
+was never created at all. This is not the DNS-flakiness issue Phase 16
+investigated (the retry loops below are real and still needed); it is
+a separate, more fundamental bug that meant the migration never even
+started on a fresh cluster, which plausibly explains why Phase 16's
+repeated attempts never saw it succeed.
 */}}
 apiVersion: batch/v1
 kind: Job
@@ -20,10 +32,12 @@ metadata:
   namespace: {{ .Values.global.namespaces.app }}
   labels:
     {{- include "sentinelmesh.labels" . | nindent 4 }}
+  {{- if .Release.IsUpgrade }}
   annotations:
     "helm.sh/hook": pre-upgrade
     "helm.sh/hook-weight": "0"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+  {{- end }}
 spec:
   backoffLimit: 2
   template:
@@ -45,16 +59,33 @@ spec:
             - python
             - -c
             - |
-              import socket, time
+              import signal, socket, time
               host, port = "{{ .Values.global.env.SM_PG_HOST }}", {{ .Values.global.env.SM_PG_PORT }}
-              for _ in range(60):
+              # `socket.create_connection(..., timeout=2)` only bounds the TCP
+              # connect phase -- it does NOT bound the DNS lookup
+              # (getaddrinfo) that happens first, which is a separate,
+              # un-timed syscall. Found by actually running this against a
+              # real kind cluster under memory pressure (remediation,
+              # 2026-10-06): a single hung CoreDNS lookup made this whole
+              # init container block forever, never reaching the
+              # retry/sleep loop at all -- a real bug, not the DNS flakiness
+              # this loop was originally written to tolerate. SIGALRM
+              # forcibly bounds the ENTIRE attempt, lookup included.
+              def _on_alarm(signum, frame):
+                  raise TimeoutError("attempt exceeded 2s (DNS lookup or connect)")
+              signal.signal(signal.SIGALRM, _on_alarm)
+              for attempt in range(60):
+                  signal.alarm(2)
                   try:
                       socket.create_connection((host, port), timeout=2).close()
+                      signal.alarm(0)
                       break
-                  except OSError:
+                  except (OSError, TimeoutError) as exc:
+                      signal.alarm(0)  # cancelled BEFORE sleeping -- a stale armed alarm must
+                      print(f"attempt {attempt + 1}/60: {host}:{port} not reachable ({exc}), retrying in 2s")  # never fire mid-sleep and crash this except block with an unrelated TimeoutError
                       time.sleep(2)
               else:
-                  raise SystemExit(f"postgres {host}:{port} never became reachable")
+                  raise SystemExit(f"postgres {host}:{port} never became reachable after 60 attempts")
           volumeMounts:
             - name: tmp
               mountPath: /tmp

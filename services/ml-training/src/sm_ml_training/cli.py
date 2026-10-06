@@ -29,7 +29,7 @@ from .pipeline import PipelineSkipped, TrainingPipeline
 __all__ = ["main"]
 
 _BENCHMARK_LOADERS = {"nsl-kdd": load_nsl_kdd}
-_BENCHMARK_MODELS: tuple[ModelName, ...] = ("statistical", "isolation_forest")
+_BENCHMARK_MODELS: tuple[ModelName, ...] = ("statistical", "isolation_forest", "autoencoder")
 
 
 def _build_config(args: argparse.Namespace) -> TrainingConfig:

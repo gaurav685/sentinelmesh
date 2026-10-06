@@ -1,0 +1,15 @@
+{
+  "model_name": "gat_network_flow",
+  "model_kind": "gat",
+  "task": "node_anomaly",
+  "dataset_kind": "benchmark",
+  "dataset_path": "ml/datasets/nsl-kdd-graph/train.jsonl",
+  "dataset_id": "nsl-kdd-graph-train",
+  "seed": 1337,
+  "val_fraction": 0.15,
+  "hidden_dim": 32,
+  "num_layers": 2,
+  "epochs": 15,
+  "learning_rate": 0.01,
+  "output_dir": "ml/artifacts/graph"
+}

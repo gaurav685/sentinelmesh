@@ -179,11 +179,13 @@ invent one. Phase 18's own final integration status is `PARTIAL`, not
 | 16 | Kubernetes + enterprise deployment | complete — CI green (see caveat below) |
 | 17 | Testing + CI/CD + security hardening | complete — 1096 tests added; its own CI jobs, it turns out, did not actually all pass until Phase 18 found and fixed them |
 | 18 | Final integration + demo mode | complete — **PARTIAL** final status; found and fixed ~10 real bugs across CI/config/contracts by actually running everything; see exit report |
+| — | Priority remediation pass (2026-10-06) | **PARTIAL** — real trained Autoencoder + GraphSAGE/GAT checkpoints added (previously architecture-only); two real Kubernetes/Helm bugs found and fixed (migration Job never ran on first install; a chart default tripped the production config guard on every deploy); a real `kind`-based CI job added. CICIDS2017/UNSW-NB15 remain blocked on manual registration; see `docs/PRIORITY_REMEDIATION_REPORT.md` |
 
 **Known gaps, carried forward honestly rather than hidden:** two
 requirements (R18, R36) are missing from `docs/REQUIREMENTS_TRACEABILITY.md`
-with no record of why, and this session has no access to the primary
-architecture source to fill them in; interactive OIDC/SSO browser login is
+with no record of why, and the primary architecture source needed to fill
+them in is confirmed not to exist (re-confirmed directly with the
+repository owner, 2026-10-06); interactive OIDC/SSO browser login is
 `NOT VERIFIED` in the local Docker Compose topology specifically (Keycloak
 cannot serve two different self-identities to the browser and the
 container network without a reverse proxy this compose file doesn't have)

@@ -1,0 +1,10 @@
+{
+  "dropout": 0.2,
+  "epochs_run": 15,
+  "feature_schema_version": "1",
+  "final_train_loss": 3.849867314393208e-05,
+  "heads": 1,
+  "hidden_dim": 32,
+  "method": "graphsage",
+  "num_layers": 2
+}

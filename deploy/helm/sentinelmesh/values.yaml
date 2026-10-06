@@ -29,7 +29,21 @@ global:
   # -- one values.yaml.env.example is the single source of truth for the
   # split, not a manually re-derived list per service.
   env:
-    SM_ENV: production
+    # Found by actually running `helm install` against a real kind cluster
+    # (remediation, 2026-10-06): this was `production`, which trips
+    # `AppSettings`'s own production fail-fast guard ("SM_KAFKA_SECURITY_
+    # PROTOCOL must be SASL_SSL in production") against the very next line
+    # below -- `SM_KAFKA_SECURITY_PROTOCOL: PLAINTEXT` -- because this
+    # chart's self-hosted Redpanda StatefulSet has no SASL configured at
+    # all. Every migration Job and every app pod failed this validator on
+    # every install of this chart; it never surfaced before because the
+    # migration Job never actually ran before this remediation (see
+    # migration-job.yaml). `staging` is accurate: this chart's shipped
+    # defaults (self-hosted everything, PLAINTEXT Kafka, the dev-only
+    # secretsProvider=manual path) are a self-hosted/staging posture, not a
+    # hardened production one -- a real production deployer swapping in
+    # managed Kafka + SASL_SSL should set `production` explicitly then.
+    SM_ENV: staging
     SM_LOG_LEVEL: INFO
     SM_LOG_FORMAT: json
     SM_DEPLOYMENT_PROFILE: distributed

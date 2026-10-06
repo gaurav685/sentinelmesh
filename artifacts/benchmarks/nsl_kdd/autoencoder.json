@@ -1,0 +1,39 @@
+{
+  "dataset_id": "nsl-kdd",
+  "train_sha256": "1b86d2f957b33082081bba410fe129b475efebcc13c9014c3f447c8271aadf95",
+  "test_sha256": "fa46b0935342616aa83b7c2578db355b6a7aaabbc492248172c7a1e8b7ab8f84",
+  "preprocessing_version": "nsl-kdd-v1",
+  "n_train": 125973,
+  "n_train_benign_used_for_fit": 67343,
+  "n_test": 22544,
+  "n_test_anomalous": 12833,
+  "model_name": "autoencoder",
+  "params": {
+    "hidden_dims": [
+      31,
+      15
+    ],
+    "epochs": 30,
+    "batch_size": 128,
+    "error_quantile": 0.99,
+    "n_features": 125
+  },
+  "seed": 1337,
+  "metrics": {
+    "roc_auc": 0.434284,
+    "precision": 0.905882,
+    "recall": 0.018,
+    "f1": 0.0353,
+    "false_positive_rate": 0.002471,
+    "mean_detection_latency_ms": 0.253307
+  },
+  "environment": {
+    "python_version": "3.11.5",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "sm_ml_version": "0.1.0",
+    "sm_ml_training_version": "0.1.0",
+    "git_commit": "2a61938137b45b31ccd07d83bb41e733031c65ae"
+  },
+  "generated_at": "2026-10-06T12:33:48.408916Z",
+  "executed": true
+}

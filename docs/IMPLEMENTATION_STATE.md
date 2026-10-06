@@ -7,6 +7,22 @@ Update it at the end of every coherent implementation unit.
 
 ## Current phase
 
+**Priority remediation pass (2026-10-06, post-Phase-18, not a numbered
+phase — a prompted remediation of known weaknesses). Status: PARTIAL. Full
+account in `docs/PRIORITY_REMEDIATION_REPORT.md`; plan/tracking table in
+`docs/PRIORITY_REMEDIATION_PLAN.md`; real benchmark numbers in
+`docs/ML_BENCHMARK_REPORT.md`. Summary: trained and checkpointed a real
+Autoencoder and real GraphSAGE/GAT models for the first time (previously
+architecture-only); found and fixed two real Kubernetes/Helm bugs (the
+migration Job was never created on a first `helm install` at all; the
+chart's own default `SM_ENV`/`SM_KAFKA_SECURITY_PROTOCOL` combination
+tripped the production fail-fast guard on every deployment); added a real
+`kind`-based Kubernetes job to CI (not yet run on a real runner). CICIDS2017
+and UNSW-NB15 remain BLOCKED on manual registration/access; R18/R36 remain
+BLOCKED on a primary source document confirmed not to exist. Exact next
+action: push this commit, watch the new `kind-deploy` CI job's first real
+run (`gh run watch`), fix whatever it finds.**
+
 **Phase 18 — Final Integration + Demo Mode. COMPLETE / CI-VERIFIED (commits
 `754c5e7`..`f8b4187`, CI run `35077067659`, all six jobs green — the first
 time this repository's full CI (including `security`, added Phase 17) has
@@ -14,8 +30,7 @@ ever actually passed end-to-end; see exit report below for the roughly
 dozen real, previously-unverified bugs this phase found and fixed by
 running things instead of trusting that they worked). SentinelMesh's
 FINAL INTEGRATION STATUS: see the Phase 18 exit report's Final Status
-section below. Exact next action: none named by this phase's prompt —
-await further instruction.**
+section below.**
 
 **Phase 17 — Testing + CI/CD + Security Hardening. COMPLETE / CI-VERIFIED
 (All 4 Units complete: Unit 1 `d9b07d0`, Unit 2 `b008818`, Unit 3 `8844bd5`,
