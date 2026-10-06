@@ -626,6 +626,26 @@ jobs:
         # this Job. Before this remediation it was never even created.
         run: kubectl -n sentinelmesh-app wait --for=condition=complete job/sentinelmesh-migrate-1 --timeout=300s
 
+      - name: Remove the app services this job does not test
+        # The chart has no per-app-service enable flag (confirmed reading
+        # templates/deployment.yaml -- every service in .Values.services
+        # always renders). Found by this job's own 3rd and 4th real runs:
+        # leaving all 13 other services deployed (1 replica, HPA off, but
+        # still scheduled, still CrashLoopBackOff needing the disabled
+        # Neo4j/Redpanda/MinIO) consumed enough of the runner's scheduling
+        # capacity that api-gateway's own single pod sometimes sat Pending
+        # past a 300s rollout timeout -- a real, measured flake, not a
+        # one-off. Deleting them outright (not just disabling their HPA)
+        # is what "only Postgres + migration Job + api-gateway" in this
+        # job's name actually requires.
+        run: |
+          kubectl -n sentinelmesh-app delete deployment \
+            sm-ingestion-gateway sm-normalization-engine sm-stream-processor \
+            sm-graph-service sm-ml-inference sm-detection-engine \
+            sm-threat-intel-service sm-mitre-service sm-correlation-engine \
+            sm-ai-analyst sm-simulation-service sm-memory-service sm-reporting-service \
+            --ignore-not-found
+
       - name: api-gateway becomes Ready
         run: kubectl -n sentinelmesh-app rollout status deploy/sm-api-gateway --timeout=300s
 
@@ -633,9 +653,11 @@ jobs:
         if: failure()
         run: |
           kubectl get pods -A
+          kubectl describe nodes || true
           kubectl -n sentinelmesh-app describe job sentinelmesh-migrate-1 || true
           kubectl -n sentinelmesh-app logs -l app.kubernetes.io/name=sentinelmesh-migrate --all-containers --tail=200 || true
           kubectl -n sentinelmesh-app describe deploy/sm-api-gateway || true
+          kubectl -n sentinelmesh-app describe pod -l app.kubernetes.io/name=api-gateway || true
           kubectl -n sentinelmesh-app logs -l app.kubernetes.io/name=api-gateway --tail=200 || true
 
       - name: Teardown
