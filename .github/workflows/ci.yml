@@ -533,16 +533,18 @@ jobs:
     # (deploy/helm/sentinelmesh/templates/migration-job.yaml: the Job was
     # never created on a first install at all, and a separate SM_ENV/
     # SM_KAFKA_SECURITY_PROTOCOL mismatch rejected every deployment's
-    # config before any of that). Deliberately scoped down (practical CI,
-    # item 28): only Postgres + the migration Job + api-gateway, not the
-    # full 6-stateful/14-service stack, which does not fit a GitHub-hosted
-    # runner's ~7GB RAM any more than it fit this session's local kind node
-    # (see docs/PRIORITY_REMEDIATION_REPORT.md's Kubernetes section) --
-    # a full-stack kind job would be flaky from resource pressure, not from
-    # a real defect, which is not a meaningful CI signal.
+    # config before any of that). Scoped down where the chart allows it
+    # (practical CI, item 28): Neo4j/Redpanda/MinIO/Keycloak/frontend/
+    # ingress disabled, every app service pinned to 1 replica with its HPA
+    # off. The chart has no per-app-service enable flag, so all 14 app
+    # Deployments still get created and most sit in CrashLoopBackOff
+    # (needing the disabled stateful deps) -- this job only asserts the
+    # two things it actually checks (the migration Job, api-gateway), but
+    # that churn competes for the runner's scheduler, which is why the
+    # rollout-status timeout below is generous rather than tight.
     runs-on: ubuntu-latest
     needs: [image]
-    timeout-minutes: 12
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
 
@@ -625,7 +627,7 @@ jobs:
         run: kubectl -n sentinelmesh-app wait --for=condition=complete job/sentinelmesh-migrate-1 --timeout=300s
 
       - name: api-gateway becomes Ready
-        run: kubectl -n sentinelmesh-app rollout status deploy/sm-api-gateway --timeout=180s
+        run: kubectl -n sentinelmesh-app rollout status deploy/sm-api-gateway --timeout=300s
 
       - name: Dump cluster state on failure
         if: failure()
