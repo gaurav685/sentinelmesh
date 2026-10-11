@@ -51,7 +51,21 @@ Write-Host "Seeding the demo tenant / admin / sensor..." -ForegroundColor Cyan
 Write-Host "Starting the frontend dev server (its own window -- closing that window stops it)..." -ForegroundColor Cyan
 Start-Process cmd -ArgumentList "/k", "cd frontend\web && npm run dev" -WindowStyle Normal
 
-Start-Sleep -Seconds 8
+# A fixed sleep here raced Next.js's real cold-compile time (commonly well
+# over 8s) and opened the browser before anything was actually listening on
+# :3000 -- Firefox would show "Unable to connect", repeatably, on every
+# fresh start. Poll the port itself instead of guessing a duration.
+Write-Host "Waiting for the frontend to start listening on :3000..." -ForegroundColor Cyan
+$frontendDeadline = (Get-Date).AddMinutes(2)
+$frontendUp = $false
+do {
+    Start-Sleep -Seconds 1
+    $frontendUp = (Test-NetConnection -ComputerName "localhost" -Port 3000 -WarningAction SilentlyContinue -InformationLevel Quiet)
+} while (-not $frontendUp -and (Get-Date) -lt $frontendDeadline)
+
+if (-not $frontendUp) {
+    Write-Host "Frontend didn't come up within 2 minutes -- check the npm run dev window for errors." -ForegroundColor Red
+}
 Start-Process "http://localhost:3000"
 
 Write-Host ""

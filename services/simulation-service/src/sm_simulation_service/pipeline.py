@@ -21,6 +21,7 @@ from sm_common.observability import current_trace_id
 from sm_contracts import (
     AuthEventPayload,
     AuthOutcome,
+    Direction,
     EventEnvelope,
     EventSource,
     EventType,
@@ -87,8 +88,22 @@ def _to_payload(ev: SimEvent, env: SyntheticEnvironment, at: datetime) -> tuple[
         dst = env.get(ev.target)
         src_ip = src.name if src is not None and src.kind.value == "ip" else _FALLBACK_IP
         dst_ip = dst.name if dst is not None and dst.kind.value == "ip" else _FALLBACK_IP
+        # Found by actually running the `apt` scenario through the real
+        # pipeline with `feed_pipeline=true`: this never set `bytes_sent` or
+        # `direction` at all, so `extract_features`'s `bytes_sent_log` and
+        # `direction_outbound` were always 0 -- `rule.lateral.auth_then_egress`
+        # could structurally never fire, no matter what its threshold was
+        # (tuning the threshold alone would have done nothing). A flow headed
+        # to an `ip` node is leaving the simulated environment -- outbound,
+        # the direction every exfil/staging rule actually checks for; one
+        # headed to a `host` node is internal movement. `bytes` only exists
+        # on the exfil step's attributes (`_apt`'s `attributes={"bytes": ...}`)
+        # -- absent elsewhere, so other phases still legitimately report 0.
+        direction = Direction.outbound if dst is not None and dst.kind.value == "ip" else Direction.lateral
+        bytes_sent = int(ev.attributes["bytes"]) if "bytes" in ev.attributes else 0
         return EventType.telemetry_network_flow, NetworkFlowPayload(
             occurred_at=at, src_ip=src_ip, dst_ip=dst_ip, protocol="tcp",
+            direction=direction, bytes_sent=bytes_sent,
         )
 
 
