@@ -62,6 +62,15 @@ ml/notebooks/**/*.ipynb_checkpoints/
 *.jsonl
 *.arff
 
+# Phase 1 (modern flow datasets): raw downloads and derived Parquet are never
+# committed -- data/metadata/ (checksums, row counts, schema notes) IS
+# committed, so leave that one out of this ignore. A blanket `*.csv` would
+# also catch the small, real, intentionally-committed synthetic test
+# fixtures under packages/ml-py/tests/fixtures/ -- scoped to /data/ instead.
+/data/raw/
+/data/processed/
+*.parquet
+
 # --- Infra / local state ---
 .docker-data/
 pgdata/
