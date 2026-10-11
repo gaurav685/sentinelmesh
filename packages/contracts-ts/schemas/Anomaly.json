@@ -5,7 +5,8 @@
         "mad_zscore",
         "rolling_quantile",
         "isolation_forest",
-        "autoencoder"
+        "autoencoder",
+        "gradient_boosting"
       ],
       "title": "AnomalyMethod",
       "type": "string"

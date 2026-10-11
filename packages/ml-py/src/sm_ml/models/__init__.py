@@ -11,6 +11,7 @@ from .base import (
     ModelNotTrained,
     ModelUnavailable,
 )
+from .gradient_boosting import GradientBoostingModel
 from .isolation_forest import IsolationForestModel
 from .statistical import DEFAULT_Z_THRESHOLD, StatisticalModel
 
@@ -20,6 +21,7 @@ __all__ = [
     "AnomalyScore",
     "AutoencoderModel",
     "AutoencoderSpec",
+    "GradientBoostingModel",
     "IsolationForestModel",
     "ModelError",
     "ModelNotTrained",

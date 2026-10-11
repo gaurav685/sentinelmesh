@@ -98,7 +98,8 @@ export type IsAnomaly = boolean;
  * This interface was referenced by `SentinelMeshContracts`'s JSON-Schema
  * via the `definition` "AnomalyMethod".
  */
-export type AnomalyMethod = "mad_zscore" | "rolling_quantile" | "isolation_forest" | "autoencoder";
+export type AnomalyMethod =
+  "mad_zscore" | "rolling_quantile" | "isolation_forest" | "autoencoder" | "gradient_boosting";
 export type ModelVersion = string | null;
 /**
  * Score mapped to [0,1].
