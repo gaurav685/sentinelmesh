@@ -1,0 +1,11 @@
+No.,Name,Type,Description
+1,srcip,nominal,Source IP
+2,sport,integer,Source port
+3,dstip,nominal,Destination IP
+4,dsport,integer,Destination port
+5,proto,nominal,Protocol
+6,state,nominal,State
+7,dur,Float,Duration
+8,sbytes,Integer,Source bytes
+9,attack_cat,nominal,Attack category
+10,Label,binary,0 benign 1 attack
