@@ -3,6 +3,11 @@ list + leakage confirmation, near-duplicate check, LightGBM feature
 importance (gain) + SHAP, a TTL-feature ablation, and the held-out-DoS
 confirmation + its driving features. Writes a single JSON report.
 
+Needs `shap` (not part of any installed extra -- `pip install shap`, pulls
+in pandas/numba as its own transitive deps). A one-off analysis script,
+not committed library code, so this is intentionally not added to any
+package's pyproject.toml extras.
+
 Run: .venv/Scripts/python.exe scripts/analyze_unsw_nb15_audit.py
 """
 
