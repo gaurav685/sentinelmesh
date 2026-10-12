@@ -48,7 +48,7 @@ from .nsl_kdd import PREPROCESSING_VERSION, BenchmarkDataset
 
 __all__ = ["BenchmarkRun", "run_benchmark"]
 
-ModelName = Literal["statistical", "isolation_forest", "autoencoder"]
+ModelName = Literal["statistical", "isolation_forest", "autoencoder", "gradient_boosting"]
 
 
 class BenchmarkRun(BaseModel):
@@ -202,6 +202,31 @@ def _score_autoencoder(fitted: Any, row: tuple[float, ...]) -> tuple[float, int]
     with torch.no_grad():
         err = float(torch.mean((module(x) - x) ** 2).item())
     return err, (1 if err >= threshold else 0)
+
+
+def _fit_gradient_boosting(
+    rows: list[list[float]], labels: list[int], feature_names: tuple[str, ...], *, seed: int
+) -> tuple[Any, str, dict[str, Any]]:
+    """Unlike the other three fitters in this module, this one is
+    **supervised** -- `GradientBoostingModel.fit` needs real attack labels,
+    so the caller (`run_flow_benchmark`, not `run_benchmark`) passes the
+    full labelled train split here, not the benign-only subset. Raises
+    `ModelUnavailable` if `sm-ml[boosting]` (LightGBM) is absent."""
+    from sm_ml.models.gradient_boosting import GradientBoostingModel
+
+    model = GradientBoostingModel.fit(
+        feature_names, rows, labels, seed=seed, model_version="phase1-eval"
+    )
+    params = {
+        "num_leaves": 31, "n_estimators": 200, "learning_rate": 0.05,
+        "seed": seed, "n_features": len(feature_names),
+    }
+    return model, "gradient_boosting", params
+
+
+def _score_gradient_boosting(model: Any, row: tuple[float, ...]) -> tuple[float, int]:
+    result = model.score(row)
+    return result.normalized_score, (1 if result.is_anomaly else 0)
 
 
 def run_benchmark(

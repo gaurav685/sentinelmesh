@@ -98,8 +98,13 @@ def recall_at_fpr(scores: Sequence[float], labels: Sequence[int], *, target_fpr:
     not exceed `target_fpr` -- answers "how much do we actually catch if we
     cap false alarms at target_fpr", a real operating-point question a bare
     ROC-AUC/F1 number doesn't answer. Sweeps every distinct score value as a
-    candidate threshold (no interpolation, no library). Returns 0.0 if no
-    threshold achieves `target_fpr` (every row scores identically, say)."""
+    candidate threshold (no interpolation, no library), accumulating tp/fp
+    incrementally in one descending pass -- O(n log n), not the naive O(n *
+    distinct_scores) full rescan per threshold (found by actually running
+    this against a 700K-row real test split, not just the small NSL-KDD
+    fixture the original version happened to stay fast on; same sweep
+    `pr_auc` above already uses). Returns 0.0 if no threshold achieves
+    `target_fpr` (every row scores identically, say)."""
     n = len(scores)
     if n != len(labels):
         raise ValueError("scores and labels must be the same length")
@@ -108,14 +113,24 @@ def recall_at_fpr(scores: Sequence[float], labels: Sequence[int], *, target_fpr:
     if n_pos == 0 or n_neg == 0:
         raise ValueError("recall_at_fpr is undefined when only one class is present")
 
-    thresholds = sorted(set(scores), reverse=True)
+    order = sorted(range(n), key=lambda i: scores[i], reverse=True)
+    tp = 0
+    fp = 0
     best_recall = 0.0
-    for t in thresholds:
-        tp = sum(1 for s, y in zip(scores, labels, strict=True) if s >= t and y == 1)
-        fp = sum(1 for s, y in zip(scores, labels, strict=True) if s >= t and y == 0)
+    i = 0
+    while i < n:
+        j = i
+        score_here = scores[order[i]]
+        while j < n and scores[order[j]] == score_here:
+            if labels[order[j]] == 1:
+                tp += 1
+            else:
+                fp += 1
+            j += 1
         fpr = fp / n_neg
         if fpr <= target_fpr:
             best_recall = max(best_recall, tp / n_pos)
+        i = j
     return round(best_recall, 6)
 
 
