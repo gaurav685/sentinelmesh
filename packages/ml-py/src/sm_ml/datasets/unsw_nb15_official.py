@@ -13,9 +13,20 @@ assumed from a paper):
 - 3 categorical columns, not 2: `proto` (131 real distinct values),
   `service` (13, including the literal string `"-"` for "unknown/none"),
   `state` (7).
-- `training-set` has 82,332 real rows; `testing-set` has 175,341 -- yes,
-  the official "testing" file is more than twice the size of "training"
-  (a real, documented UNSW-NB15 quirk, not a bug in this loader).
+- **A real file-naming/content mismatch in this mirror, verified by
+  counting real rows, not assumed**: the dataset's own documented
+  convention (Moustafa & Slay; the UNSW-NB15 project page; the Kaggle
+  listing's own description) is 175,341 real rows in the TRAINING
+  partition and 82,332 in the TESTING partition. On this mirror,
+  `UNSW_NB15_training-set.csv` physically has 82,332 rows and
+  `UNSW_NB15_testing-set.csv` has 175,341 -- the two files' CONTENTS are
+  swapped relative to their FILENAMES. `load_unsw_nb15_official_split`'s
+  default `orientation="standard"` picks train/test BY REAL ROW COUNT
+  (whichever file actually has ~175,341 rows becomes train), not by
+  filename, matching the documented convention regardless of which
+  physical file a given mirror copy happens to name which way.
+  `orientation="literal"` reproduces this mirror's own (reversed)
+  filenames as-is, kept only as a labelled secondary comparison.
 - Both files are small enough (≤175K rows, ≤45 columns) to load directly
   with Polars' eager `read_csv` -- no streaming/Parquet-conversion step
   needed, unlike the 4 raw row files at ~2.5M rows total.
@@ -61,13 +72,29 @@ def feature_columns(data_dir: Path) -> tuple[str, ...]:
     return tuple(c for c in cols if c not in (_ID_COLUMN, _ATTACK_CAT_COLUMN, _LABEL_COLUMN))
 
 
-def load_unsw_nb15_official_split(data_dir: Path) -> tuple[ArrayFlowDataset, ArrayFlowDataset, dict[str, Any]]:
-    """Load the real official train/test partition. Returns
+_DOCUMENTED_TRAIN_ROWS = 175_341  # Moustafa & Slay's own published partition sizes
+_DOCUMENTED_TEST_ROWS = 82_332
+
+
+def load_unsw_nb15_official_split(
+    data_dir: Path, *, orientation: str = "standard",
+) -> tuple[ArrayFlowDataset, ArrayFlowDataset, dict[str, Any]]:
+    """Load the real official train/test partition. `orientation="standard"`
+    (the default) assigns train/test BY REAL ROW COUNT against the
+    documented 175,341-train/82,332-test convention, not by filename --
+    this mirror's `training-set.csv`/`testing-set.csv` contents are
+    swapped relative to their names (verified: 82,332 rows in the file
+    named "training", 175,341 in the one named "testing"). Pass
+    `orientation="literal"` to reproduce this mirror's own (reversed)
+    filenames as-is instead, kept only for a labelled secondary
+    comparison against the standard-orientation primary result. Returns
     `(train, test, info)` where `info["feature_columns"]` is the exact
     real list used (for the leakage audit: confirm no identifier/IP/port/
-    timestamp column ever appears in it) and `info["onehot_vocab"]` is
-    the real train-only categorical vocabulary (so held-out-type and
-    ablation re-runs can reuse the identical encoding, not refit it)."""
+    timestamp column ever appears in it), `info["onehot_vocab"]` is the
+    real train-only categorical vocabulary, and `info["swapped_vs_filename"]`
+    records whether this call actually swapped the two physical files."""
+    if orientation not in ("standard", "literal"):
+        raise ValueError(f"orientation must be 'standard' or 'literal', got {orientation!r}")
     pl = _require_polars()
     train_path = data_dir / TRAIN_FILE
     test_path = data_dir / TEST_FILE
@@ -81,10 +108,21 @@ def load_unsw_nb15_official_split(data_dir: Path) -> tuple[ArrayFlowDataset, Arr
         df = df.rename({c: c.strip().lstrip("﻿") for c in df.columns})
         return df
 
-    train_df = _read(train_path)
-    test_df = _read(test_path)
-    train_sha = file_sha256(train_path)
-    test_sha = file_sha256(test_path)
+    file_a = _read(train_path)  # the file literally named "...training-set.csv"
+    file_b = _read(test_path)  # the file literally named "...testing-set.csv"
+    sha_a = file_sha256(train_path)
+    sha_b = file_sha256(test_path)
+
+    swapped = False
+    if orientation == "standard":
+        a_is_train = abs(file_a.height - _DOCUMENTED_TRAIN_ROWS) <= abs(file_b.height - _DOCUMENTED_TRAIN_ROWS)
+        if a_is_train:
+            train_df, test_df, train_sha, test_sha = file_a, file_b, sha_a, sha_b
+        else:
+            train_df, test_df, train_sha, test_sha = file_b, file_a, sha_b, sha_a
+            swapped = True
+    else:
+        train_df, test_df, train_sha, test_sha = file_a, file_b, sha_a, sha_b
 
     feat_cols = feature_columns(data_dir)
     numeric_cols = tuple(c for c in feat_cols if c not in _CATEGORICAL_COLUMNS)
@@ -118,12 +156,22 @@ def load_unsw_nb15_official_split(data_dir: Path) -> tuple[ArrayFlowDataset, Arr
 
     train = _to_array(train_df, train_sha)
     test = _to_array(test_df, test_sha)
+    n_train_anomalous = int(train.y.sum())
+    n_test_anomalous = int(test.y.sum())
     info: dict[str, Any] = {
+        "orientation": orientation,
+        "swapped_vs_filename": swapped,
         "feature_columns": list(feat_cols),
         "numeric_columns": list(numeric_cols),
         "categorical_columns": list(_CATEGORICAL_COLUMNS),
         "onehot_vocab": {c: list(v) for c, v in vocabs.items()},
         "train_sha256": train_sha,
         "test_sha256": test_sha,
+        "n_train": train.n_rows,
+        "n_train_anomalous": n_train_anomalous,
+        "train_attack_prevalence": round(n_train_anomalous / train.n_rows, 6),
+        "n_test": test.n_rows,
+        "n_test_anomalous": n_test_anomalous,
+        "test_attack_prevalence": round(n_test_anomalous / test.n_rows, 6),
     }
     return train, test, info

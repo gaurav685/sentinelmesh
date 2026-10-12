@@ -51,3 +51,36 @@ def test_load_unsw_nb15_official_split_onehot_vocab_from_train_only() -> None:
 def test_load_unsw_nb15_official_split_missing_file_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_unsw_nb15_official_split(tmp_path)
+
+
+_REVERSED_FIXTURES = Path(__file__).parent / "fixtures" / "unsw_nb15_official_reversed"
+
+
+def test_load_unsw_nb15_official_split_standard_orientation_swaps_by_row_count() -> None:
+    # This fixture mirrors the REAL mrwellsdavid/unsw-nb15 mirror: the file
+    # named "training-set.csv" has fewer rows than "testing-set.csv" --
+    # the real-world reversed case this loader exists to correct.
+    train, test, info = load_unsw_nb15_official_split(_REVERSED_FIXTURES, orientation="standard")
+    assert info["swapped_vs_filename"] is True
+    assert train.n_rows == 4  # the physically-named "testing-set.csv" file, picked as train
+    assert test.n_rows == 2
+
+
+def test_load_unsw_nb15_official_split_literal_orientation_keeps_filenames() -> None:
+    train, test, info = load_unsw_nb15_official_split(_REVERSED_FIXTURES, orientation="literal")
+    assert info["swapped_vs_filename"] is False
+    assert train.n_rows == 2  # the physically-named "training-set.csv" file, used as-is
+    assert test.n_rows == 4
+
+
+def test_load_unsw_nb15_official_split_reports_attack_prevalence() -> None:
+    _train, _test, info = load_unsw_nb15_official_split(_REVERSED_FIXTURES, orientation="standard")
+    assert info["n_train"] == 4
+    assert info["n_test"] == 2
+    assert info["train_attack_prevalence"] == pytest.approx(3 / 4)
+    assert info["test_attack_prevalence"] == pytest.approx(0.0)
+
+
+def test_load_unsw_nb15_official_split_invalid_orientation_raises() -> None:
+    with pytest.raises(ValueError, match="orientation"):
+        load_unsw_nb15_official_split(_REVERSED_FIXTURES, orientation="sideways")
