@@ -1,0 +1,363 @@
+{
+  "run_id": "20261012T050433Z-2a3ec96db848",
+  "generated_at": "2026-10-12T05:13:42.142774+00:00",
+  "git_commit": "ca6aa80aaa8c",
+  "label": "SUBSET SMOKE TEST -- NOT for README or resume. Reduced file scope, chosen for real measured RAM safety during initial pipeline debugging (see commit history). Superseded by the full-data run once the memory-reduction work lands.",
+  "scope": {
+    "cicids2017": {
+      "train_files_used": [
+        "Friday-WorkingHours-Morning.pcap_ISCX.csv (189067 BENIGN + 1966 Bot)",
+        "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv (168186 BENIGN + 1507 WebAttack-BruteForce + 652 WebAttack-XSS + 21 WebAttack-SqlInjection)"
+      ],
+      "test_files_used": [
+        "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv (127537 BENIGN + 158930 PortScan)"
+      ],
+      "files_excluded_this_run": [
+        "Monday-WorkingHours.pcap_ISCX.csv (529918 BENIGN only)",
+        "Tuesday-WorkingHours.pcap_ISCX.csv (432074 BENIGN + 7938 FTP-Patator + 5897 SSH-Patator)",
+        "Wednesday-workingHours.pcap_ISCX.csv (440031 BENIGN + 231073 DoS Hulk + 10293 DoS GoldenEye + 5796 DoS slowloris + 5499 DoS Slowhttptest + 11 Heartbleed)",
+        "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv (288566 BENIGN + 36 Infiltration)",
+        "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv (97718 BENIGN + 128027 DDoS)"
+      ],
+      "attack_types_excluded_entirely_this_run": ["FTP-Patator", "SSH-Patator", "DoS Hulk", "DoS GoldenEye", "DoS slowloris", "DoS Slowhttptest", "Heartbleed", "Infiltration", "DDoS"],
+      "day_based_split_mechanism": "intact -- train/test are still disjoint real capture-day files, never a random row split. Reduced to 2 of 5 real train-day files and 1 of 3 real test-day files.",
+      "held_out_attack_type_mechanism": "intact and verified working: PortScan is real, chosen at runtime (set-difference of test vs. train attack_types, not hardcoded), never present in either train file."
+    },
+    "unsw_nb15": {
+      "row_files_used": ["UNSW-NB15_4.csv (1 of 4 real parts, ~17% of the full ~2.54M real rows)"],
+      "row_files_excluded_this_run": ["UNSW-NB15_1.csv", "UNSW-NB15_2.csv", "UNSW-NB15_3.csv"],
+      "attack_categories_excluded_entirely_this_run": [],
+      "note": "all 10 real attack_cat categories (Normal/Generic/Exploits/Fuzzers/DoS/Reconnaissance/Analysis/Backdoor/Shellcode/Worms) are present in UNSW-NB15_4.csv alone -- no category is fully excluded, only each category's row count is reduced to roughly this file's real share.",
+      "split_mechanism": "unaffected by file-count reduction -- UNSW-NB15 has no day field; split is a seeded random 30% test_fraction over whichever rows are loaded, same as the full-data design.",
+      "held_out_attack_type_mechanism": "intact and verified working: DoS, chosen at runtime from real train class counts (median-frequency category with >=50 rows, not hardcoded), removed entirely from train, scored against the matching real test rows."
+    }
+  },
+  "runs": [
+    {
+      "dataset": "cicids2017",
+      "dataset_id": "cicids2017",
+      "train_sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000+ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b+d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "test_sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000+ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b+d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "n_train": 361399,
+      "n_train_used_for_fit": 357253,
+      "n_test": 286467,
+      "n_test_anomalous": 158930,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 78
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.552491,
+        "pr_auc": 0.538314,
+        "recall_at_0.01_fpr": 0.000233,
+        "precision": 0.022424,
+        "recall": 0.001661,
+        "f1": 0.003093,
+        "false_positive_rate": 0.09024,
+        "mean_detection_latency_ms": 0.021698
+      },
+      "per_class_recall": {
+        "PortScan": 0.001661
+      },
+      "roc_auc_ci95": [
+        0.543245,
+        0.562841
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 0.001661,
+      "n_held_out": 158930,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ca6aa80aaa8c47d476023c9a018d26f4cc2a5186"
+      },
+      "generated_at": "2026-10-12T05:05:58.632859Z",
+      "executed": true
+    },
+    {
+      "dataset": "cicids2017",
+      "dataset_id": "cicids2017",
+      "train_sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000+ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b+d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "test_sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000+ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b+d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "n_train": 361399,
+      "n_train_used_for_fit": 357253,
+      "n_test": 286467,
+      "n_test_anomalous": 158930,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          19,
+          9
+        ],
+        "epochs": 30,
+        "batch_size": 128,
+        "error_quantile": 0.99,
+        "n_features": 78
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.471132,
+        "pr_auc": 0.483114,
+        "recall_at_0.01_fpr": 1.9e-05,
+        "precision": 0.002947,
+        "recall": 1.9e-05,
+        "f1": 3.8e-05,
+        "false_positive_rate": 0.007958,
+        "mean_detection_latency_ms": 0.015301
+      },
+      "per_class_recall": {
+        "PortScan": 1.9e-05
+      },
+      "roc_auc_ci95": [
+        0.46032,
+        0.480079
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 1.9e-05,
+      "n_held_out": 158930,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ca6aa80aaa8c47d476023c9a018d26f4cc2a5186"
+      },
+      "generated_at": "2026-10-12T05:09:14.664695Z",
+      "executed": true
+    },
+    {
+      "dataset": "cicids2017",
+      "dataset_id": "cicids2017",
+      "train_sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000+ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b+d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "test_sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000+ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b+d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "n_train": 361399,
+      "n_train_used_for_fit": 361399,
+      "n_test": 286467,
+      "n_test_anomalous": 158930,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 78
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.973571,
+        "pr_auc": 0.94083,
+        "recall_at_0.01_fpr": 0.041647,
+        "precision": 0.014107,
+        "recall": 5.7e-05,
+        "f1": 0.000113,
+        "false_positive_rate": 0.004932,
+        "mean_detection_latency_ms": 0.011481
+      },
+      "per_class_recall": {
+        "PortScan": 5.7e-05
+      },
+      "roc_auc_ci95": [
+        0.970811,
+        0.976738
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 5.7e-05,
+      "n_held_out": 158930,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ca6aa80aaa8c47d476023c9a018d26f4cc2a5186"
+      },
+      "generated_at": "2026-10-12T05:09:42.877630Z",
+      "executed": true
+    },
+    {
+      "dataset": "unsw_nb15",
+      "dataset_id": "unsw-nb15",
+      "train_sha256": "c55f19cceebb6360dc50f44f8a5f246ccefbcf8a6c604ac1ad46e643869cafce+cdf563692d51d405541dd659ddcdad9fa01f001f05fe9fc4b67f00ca12fbc96a",
+      "test_sha256": "c55f19cceebb6360dc50f44f8a5f246ccefbcf8a6c604ac1ad46e643869cafce+cdf563692d51d405541dd659ddcdad9fa01f001f05fe9fc4b67f00ca12fbc96a",
+      "n_train": 304562,
+      "n_train_used_for_fit": 245862,
+      "n_test": 132013,
+      "n_test_anomalous": 26725,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 192
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.936682,
+        "pr_auc": 0.621595,
+        "recall_at_0.01_fpr": 0.027877,
+        "precision": 0.676767,
+        "recall": 0.52232,
+        "f1": 0.589597,
+        "false_positive_rate": 0.063322,
+        "mean_detection_latency_ms": 0.045702
+      },
+      "per_class_recall": {
+        "Analysis": 0.995074,
+        "Backdoor": 0.961353,
+        "DoS": 0.953408,
+        "Exploits": 0.909635,
+        "Fuzzers": 0.97914,
+        "Generic": 0.342472,
+        "Reconnaissance": 0.904398,
+        "Shellcode": 0.936508,
+        "Worms": 1.0
+      },
+      "roc_auc_ci95": [
+        0.933967,
+        0.941076
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "DoS",
+      "held_out_recall": 0.953408,
+      "n_held_out": 1438,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ca6aa80aaa8c47d476023c9a018d26f4cc2a5186"
+      },
+      "generated_at": "2026-10-12T05:10:45.856539Z",
+      "executed": true
+    },
+    {
+      "dataset": "unsw_nb15",
+      "dataset_id": "unsw-nb15",
+      "train_sha256": "c55f19cceebb6360dc50f44f8a5f246ccefbcf8a6c604ac1ad46e643869cafce+cdf563692d51d405541dd659ddcdad9fa01f001f05fe9fc4b67f00ca12fbc96a",
+      "test_sha256": "c55f19cceebb6360dc50f44f8a5f246ccefbcf8a6c604ac1ad46e643869cafce+cdf563692d51d405541dd659ddcdad9fa01f001f05fe9fc4b67f00ca12fbc96a",
+      "n_train": 304562,
+      "n_train_used_for_fit": 245862,
+      "n_test": 132013,
+      "n_test_anomalous": 26725,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          48,
+          24
+        ],
+        "epochs": 30,
+        "batch_size": 128,
+        "error_quantile": 0.99,
+        "n_features": 192
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.309691,
+        "pr_auc": 0.143185,
+        "recall_at_0.01_fpr": 0.005762,
+        "precision": 0.122709,
+        "recall": 0.005762,
+        "f1": 0.011008,
+        "false_positive_rate": 0.010457,
+        "mean_detection_latency_ms": 0.023551
+      },
+      "per_class_recall": {
+        "Analysis": 0.009852,
+        "Backdoor": 0.004831,
+        "DoS": 0.011127,
+        "Exploits": 0.0248,
+        "Fuzzers": 0.016435,
+        "Generic": 0.000538,
+        "Reconnaissance": 0.00956,
+        "Shellcode": 0.015873,
+        "Worms": 0.0
+      },
+      "roc_auc_ci95": [
+        0.305289,
+        0.321184
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "DoS",
+      "held_out_recall": 0.011127,
+      "n_held_out": 1438,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ca6aa80aaa8c47d476023c9a018d26f4cc2a5186"
+      },
+      "generated_at": "2026-10-12T05:13:11.852486Z",
+      "executed": true
+    },
+    {
+      "dataset": "unsw_nb15",
+      "dataset_id": "unsw-nb15",
+      "train_sha256": "c55f19cceebb6360dc50f44f8a5f246ccefbcf8a6c604ac1ad46e643869cafce+cdf563692d51d405541dd659ddcdad9fa01f001f05fe9fc4b67f00ca12fbc96a",
+      "test_sha256": "c55f19cceebb6360dc50f44f8a5f246ccefbcf8a6c604ac1ad46e643869cafce+cdf563692d51d405541dd659ddcdad9fa01f001f05fe9fc4b67f00ca12fbc96a",
+      "n_train": 304562,
+      "n_train_used_for_fit": 304562,
+      "n_test": 132013,
+      "n_test_anomalous": 26725,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 192
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.999854,
+        "pr_auc": 0.999433,
+        "recall_at_0.01_fpr": 0.996969,
+        "precision": 0.987055,
+        "recall": 0.987166,
+        "f1": 0.98711,
+        "false_positive_rate": 0.003286,
+        "mean_detection_latency_ms": 0.023365
+      },
+      "per_class_recall": {
+        "Analysis": 0.8867,
+        "Backdoor": 1.0,
+        "DoS": 0.995132,
+        "Exploits": 0.992303,
+        "Fuzzers": 0.821113,
+        "Generic": 0.999839,
+        "Reconnaissance": 1.0,
+        "Shellcode": 1.0,
+        "Worms": 1.0
+      },
+      "roc_auc_ci95": [
+        0.999848,
+        0.999917
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "DoS",
+      "held_out_recall": 0.995132,
+      "n_held_out": 1438,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ca6aa80aaa8c47d476023c9a018d26f4cc2a5186"
+      },
+      "generated_at": "2026-10-12T05:13:41.204003Z",
+      "executed": true
+    }
+  ]
+}

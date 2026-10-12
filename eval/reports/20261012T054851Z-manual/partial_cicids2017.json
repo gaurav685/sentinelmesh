@@ -1,0 +1,211 @@
+{
+  "memory_steps": [
+    {
+      "step": "start",
+      "elapsed_s": 0.0,
+      "rss_mb": 40.5,
+      "peak_wset_mb": 40.5
+    },
+    {
+      "step": "convert_cicids2017_to_parquet (8 files)",
+      "elapsed_s": 6.2,
+      "rss_mb": 572.4,
+      "peak_wset_mb": 778.4
+    },
+    {
+      "step": "load_cicids2017_arrays (full 5 train-day / 3 test-day files)",
+      "elapsed_s": 1.2,
+      "rss_mb": 3047.3,
+      "peak_wset_mb": 3052.9
+    },
+    {
+      "step": "cicids2017/isolation_forest",
+      "elapsed_s": 32.4,
+      "rss_mb": 1664.0,
+      "peak_wset_mb": 3833.9
+    },
+    {
+      "step": "cicids2017/autoencoder",
+      "elapsed_s": 75.8,
+      "rss_mb": 2070.9,
+      "peak_wset_mb": 3833.9
+    },
+    {
+      "step": "cicids2017/gradient_boosting",
+      "elapsed_s": 29.3,
+      "rss_mb": 2101.5,
+      "peak_wset_mb": 3833.9
+    },
+    {
+      "step": "after cicids2017 (freed)",
+      "elapsed_s": 0.0,
+      "rss_mb": 1888.9,
+      "peak_wset_mb": 3833.9
+    }
+  ],
+  "benign_sampling_info": {
+    "benign_sample_fraction": null,
+    "n_benign_total": 1858775,
+    "n_benign_sampled": 1858775
+  },
+  "runs": [
+    {
+      "dataset": "cicids2017",
+      "dataset_id": "cicids2017",
+      "train_sha256": "34ab27f1c59b9eb53034f6a5f66dca9e47b9fd53448b941849f423169bf55476+84b93d7b1ccdfd713efa01de72379c7a0f1dd2fbe6c5b66966b023f6459d2fe1+a3c6dc7e9bd8d8fe32c2500b807459bcb32700a015af950506701b4b53c5bf8e+d977c967e2986d65b780ad96b6efcb2edbefdea49a1ff4a1129c505ddede408c+fd99e4e249a91b35ecf0d9df266a0d48f8b5ff58185ecbe4b73595cf96e7c0ae",
+      "test_sha256": "012a7000a04f597ea5ac67b3a2c125a8aa2fdd4901fecc19a9ae3dc101a2cc0c+54fc2e86871418d6173effd543119d164e71bbb48e0abe22fcedc414cb36d48c+9c806fba82ffd39c1c55861375f77612a7ee3eafed96724396fed65adbc88582",
+      "n_train": 2127498,
+      "n_train_used_for_fit": 1858775,
+      "n_test": 703245,
+      "n_test_anomalous": 288923,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 78
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.607588,
+        "pr_auc": 0.48719,
+        "recall_at_0.01_fpr": 0.009349,
+        "precision": 0.625664,
+        "recall": 0.282674,
+        "f1": 0.389412,
+        "false_positive_rate": 0.117937,
+        "mean_detection_latency_ms": 0.008436
+      },
+      "per_class_recall": {
+        "Bot": 0.022889,
+        "DDoS": 0.635546,
+        "PortScan": 0.00163
+      },
+      "roc_auc_ci95": [
+        0.59992,
+        0.616044
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 0.00163,
+      "n_held_out": 158930,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "6bf8605e88fc730c9b2957512d425e9ddb60cec0"
+      },
+      "generated_at": "2026-10-12T05:49:33.184156Z",
+      "executed": true
+    },
+    {
+      "dataset": "cicids2017",
+      "dataset_id": "cicids2017",
+      "train_sha256": "34ab27f1c59b9eb53034f6a5f66dca9e47b9fd53448b941849f423169bf55476+84b93d7b1ccdfd713efa01de72379c7a0f1dd2fbe6c5b66966b023f6459d2fe1+a3c6dc7e9bd8d8fe32c2500b807459bcb32700a015af950506701b4b53c5bf8e+d977c967e2986d65b780ad96b6efcb2edbefdea49a1ff4a1129c505ddede408c+fd99e4e249a91b35ecf0d9df266a0d48f8b5ff58185ecbe4b73595cf96e7c0ae",
+      "test_sha256": "012a7000a04f597ea5ac67b3a2c125a8aa2fdd4901fecc19a9ae3dc101a2cc0c+54fc2e86871418d6173effd543119d164e71bbb48e0abe22fcedc414cb36d48c+9c806fba82ffd39c1c55861375f77612a7ee3eafed96724396fed65adbc88582",
+      "n_train": 2127498,
+      "n_train_used_for_fit": 1858775,
+      "n_test": 703245,
+      "n_test_anomalous": 288923,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          19,
+          9
+        ],
+        "epochs": 10,
+        "streaming_batch_rows": 50000,
+        "error_quantile": 0.99,
+        "n_features": 78
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.617107,
+        "pr_auc": 0.496133,
+        "recall_at_0.01_fpr": 0.061529,
+        "precision": 0.789418,
+        "recall": 0.066561,
+        "f1": 0.12277,
+        "false_positive_rate": 0.012382,
+        "mean_detection_latency_ms": 0.000681
+      },
+      "per_class_recall": {
+        "Bot": 0.0,
+        "DDoS": 0.149679,
+        "PortScan": 0.000428
+      },
+      "roc_auc_ci95": [
+        0.613041,
+        0.62864
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 0.000428,
+      "n_held_out": 158930,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "6bf8605e88fc730c9b2957512d425e9ddb60cec0"
+      },
+      "generated_at": "2026-10-12T05:50:48.942704Z",
+      "executed": true
+    },
+    {
+      "dataset": "cicids2017",
+      "dataset_id": "cicids2017",
+      "train_sha256": "34ab27f1c59b9eb53034f6a5f66dca9e47b9fd53448b941849f423169bf55476+84b93d7b1ccdfd713efa01de72379c7a0f1dd2fbe6c5b66966b023f6459d2fe1+a3c6dc7e9bd8d8fe32c2500b807459bcb32700a015af950506701b4b53c5bf8e+d977c967e2986d65b780ad96b6efcb2edbefdea49a1ff4a1129c505ddede408c+fd99e4e249a91b35ecf0d9df266a0d48f8b5ff58185ecbe4b73595cf96e7c0ae",
+      "test_sha256": "012a7000a04f597ea5ac67b3a2c125a8aa2fdd4901fecc19a9ae3dc101a2cc0c+54fc2e86871418d6173effd543119d164e71bbb48e0abe22fcedc414cb36d48c+9c806fba82ffd39c1c55861375f77612a7ee3eafed96724396fed65adbc88582",
+      "n_train": 2127498,
+      "n_train_used_for_fit": 2127498,
+      "n_test": 703245,
+      "n_test_anomalous": 288923,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 78,
+        "free_raw_data": true
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.816306,
+        "pr_auc": 0.781633,
+        "recall_at_0.01_fpr": 0.284245,
+        "precision": 0.99581,
+        "recall": 0.070745,
+        "f1": 0.132106,
+        "false_positive_rate": 0.000208,
+        "mean_detection_latency_ms": 0.001539
+      },
+      "per_class_recall": {
+        "Bot": 0.0,
+        "DDoS": 0.156826,
+        "PortScan": 0.002278
+      },
+      "roc_auc_ci95": [
+        0.812209,
+        0.823795
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 0.002278,
+      "n_held_out": 158930,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "6bf8605e88fc730c9b2957512d425e9ddb60cec0"
+      },
+      "generated_at": "2026-10-12T05:51:18.243080Z",
+      "executed": true
+    }
+  ]
+}

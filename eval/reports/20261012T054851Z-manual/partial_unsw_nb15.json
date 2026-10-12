@@ -1,0 +1,227 @@
+{
+  "memory_steps": [
+    {
+      "step": "start",
+      "elapsed_s": 0.0,
+      "rss_mb": 40.5,
+      "peak_wset_mb": 40.5
+    },
+    {
+      "step": "convert_unsw_nb15_to_parquet (4 files)",
+      "elapsed_s": 2.9,
+      "rss_mb": 745.0,
+      "peak_wset_mb": 1084.7
+    },
+    {
+      "step": "load_unsw_nb15_arrays (2 of 4 files -- real-measured RAM floor)",
+      "elapsed_s": 2.0,
+      "rss_mb": 2413.7,
+      "peak_wset_mb": 2468.0
+    },
+    {
+      "step": "unsw_nb15/isolation_forest",
+      "elapsed_s": 28.5,
+      "rss_mb": 2560.2,
+      "peak_wset_mb": 4037.3
+    },
+    {
+      "step": "unsw_nb15/autoencoder",
+      "elapsed_s": 50.2,
+      "rss_mb": 2775.9,
+      "peak_wset_mb": 4037.3
+    },
+    {
+      "step": "unsw_nb15/gradient_boosting",
+      "elapsed_s": 18.5,
+      "rss_mb": 2798.3,
+      "peak_wset_mb": 4037.3
+    },
+    {
+      "step": "after unsw_nb15 (freed)",
+      "elapsed_s": 0.0,
+      "rss_mb": 1921.8,
+      "peak_wset_mb": 4037.3
+    }
+  ],
+  "benign_sampling_info": {},
+  "runs": [
+    {
+      "dataset": "unsw_nb15",
+      "dataset_id": "unsw-nb15",
+      "train_sha256": "a3f277b8aeb229c40a4bdecff426efd8ef8e376884aba8c8568bd8be4eea8964+eff05813c6892bf8ecb9cb0ff4501f6344f55991c46e1337fba81443564efbbb",
+      "test_sha256": "a3f277b8aeb229c40a4bdecff426efd8ef8e376884aba8c8568bd8be4eea8964+eff05813c6892bf8ecb9cb0ff4501f6344f55991c46e1337fba81443564efbbb",
+      "n_train": 975956,
+      "n_train_used_for_fit": 927482,
+      "n_test": 420001,
+      "n_test_anomalous": 22445,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 196
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.972234,
+        "pr_auc": 0.497418,
+        "recall_at_0.01_fpr": 0.175184,
+        "precision": 0.430821,
+        "recall": 0.995946,
+        "f1": 0.601464,
+        "false_positive_rate": 0.074286,
+        "mean_detection_latency_ms": 0.011306
+      },
+      "per_class_recall": {
+        "Analysis": 1.0,
+        "Backdoor": 0.996094,
+        "DoS": 0.992609,
+        "Exploits": 0.98978,
+        "Fuzzers": 0.995525,
+        "Generic": 0.999526,
+        "Reconnaissance": 0.99441,
+        "Shellcode": 1.0,
+        "Worms": 1.0
+      },
+      "roc_auc_ci95": [
+        0.968463,
+        0.973021
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "DoS",
+      "held_out_recall": 0.992609,
+      "n_held_out": 1759,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "97dfa4f9daf0d243f38cc9ae126b04b5a8fa4a0f"
+      },
+      "generated_at": "2026-10-12T06:00:01.127370Z",
+      "executed": true
+    },
+    {
+      "dataset": "unsw_nb15",
+      "dataset_id": "unsw-nb15",
+      "train_sha256": "a3f277b8aeb229c40a4bdecff426efd8ef8e376884aba8c8568bd8be4eea8964+eff05813c6892bf8ecb9cb0ff4501f6344f55991c46e1337fba81443564efbbb",
+      "test_sha256": "a3f277b8aeb229c40a4bdecff426efd8ef8e376884aba8c8568bd8be4eea8964+eff05813c6892bf8ecb9cb0ff4501f6344f55991c46e1337fba81443564efbbb",
+      "n_train": 975956,
+      "n_train_used_for_fit": 927482,
+      "n_test": 420001,
+      "n_test_anomalous": 22445,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          49,
+          24
+        ],
+        "epochs": 10,
+        "chunk_rows": 50000,
+        "error_quantile": 0.99,
+        "n_features": 196,
+        "source": "in-memory (not Parquet-streamed)"
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.433965,
+        "pr_auc": 0.057673,
+        "recall_at_0.01_fpr": 0.035242,
+        "precision": 0.472303,
+        "recall": 0.014435,
+        "f1": 0.028014,
+        "false_positive_rate": 0.000911,
+        "mean_detection_latency_ms": 0.001115
+      },
+      "per_class_recall": {
+        "Analysis": 0.013774,
+        "Backdoor": 0.003906,
+        "DoS": 0.010233,
+        "Exploits": 0.022244,
+        "Fuzzers": 0.044406,
+        "Generic": 0.001706,
+        "Reconnaissance": 0.024458,
+        "Shellcode": 0.030303,
+        "Worms": 0.08
+      },
+      "roc_auc_ci95": [
+        0.42155,
+        0.45652
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "DoS",
+      "held_out_recall": 0.010233,
+      "n_held_out": 1759,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "97dfa4f9daf0d243f38cc9ae126b04b5a8fa4a0f"
+      },
+      "generated_at": "2026-10-12T06:00:51.281243Z",
+      "executed": true
+    },
+    {
+      "dataset": "unsw_nb15",
+      "dataset_id": "unsw-nb15",
+      "train_sha256": "a3f277b8aeb229c40a4bdecff426efd8ef8e376884aba8c8568bd8be4eea8964+eff05813c6892bf8ecb9cb0ff4501f6344f55991c46e1337fba81443564efbbb",
+      "test_sha256": "a3f277b8aeb229c40a4bdecff426efd8ef8e376884aba8c8568bd8be4eea8964+eff05813c6892bf8ecb9cb0ff4501f6344f55991c46e1337fba81443564efbbb",
+      "n_train": 975956,
+      "n_train_used_for_fit": 975956,
+      "n_test": 420001,
+      "n_test_anomalous": 22445,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 196,
+        "free_raw_data": true
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.999857,
+        "pr_auc": 0.997533,
+        "recall_at_0.01_fpr": 1.0,
+        "precision": 0.973152,
+        "recall": 0.968946,
+        "f1": 0.971045,
+        "false_positive_rate": 0.001509,
+        "mean_detection_latency_ms": 0.001481
+      },
+      "per_class_recall": {
+        "Analysis": 0.936639,
+        "Backdoor": 1.0,
+        "DoS": 0.994315,
+        "Exploits": 0.992986,
+        "Fuzzers": 0.785542,
+        "Generic": 0.999621,
+        "Reconnaissance": 0.998602,
+        "Shellcode": 1.0,
+        "Worms": 1.0
+      },
+      "roc_auc_ci95": [
+        0.999734,
+        0.999869
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "DoS",
+      "held_out_recall": 0.994315,
+      "n_held_out": 1759,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "97dfa4f9daf0d243f38cc9ae126b04b5a8fa4a0f"
+      },
+      "generated_at": "2026-10-12T06:01:09.825182Z",
+      "executed": true
+    }
+  ],
+  "scope_note": "Used 2 of 4 real UNSW-NB15 row files (UNSW-NB15_1.csv, UNSW-NB15_2.csv), not all 4 -- real-measured RAM floor on this machine (see module docstring / docs/ML_BENCHMARK_REPORT.md)."
+}
