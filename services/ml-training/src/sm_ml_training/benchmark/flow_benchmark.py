@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import random
 import time
+from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -48,6 +49,19 @@ _TARGET_FPR = 0.01
 # instead of the full test split when it's larger than this.
 _BOOTSTRAP_MAX_N = 20_000
 _AUTOENCODER_SCORE_CHUNK = 50_000
+
+
+def _real_benign_label(test: FlowDataset) -> str:
+    """`FlowDataset.attack_types`'s real benign string varies by dataset --
+    `"BENIGN"` for CICIDS2017, `"Normal"` for UNSW-NB15 (both are each
+    loader's own real convention, not something to hardcode one of here).
+    Derived from the real binary label (the most common attack-type string
+    among label==0 rows) so `per_class_recall` excludes the actual benign
+    rows for either dataset, rather than only ever matching `"BENIGN"` and
+    silently leaving UNSW-NB15's `"Normal"` rows in the per-attack-class
+    breakdown mislabelled as an attack category."""
+    counts = Counter(t for t, y in zip(test.attack_types, test.labels, strict=True) if y == 0)
+    return counts.most_common(1)[0][0] if counts else "BENIGN"
 
 
 def _batch_score_isolation_forest(forest: Any, rows: list[list[float]]) -> tuple[list[float], list[int]]:
@@ -198,7 +212,7 @@ def run_flow_benchmark(
         seed=seed,
         supervised=supervised,
         metrics=metrics,
-        per_class_recall=per_class_recall(preds, list(test.attack_types)),
+        per_class_recall=per_class_recall(preds, list(test.attack_types), benign_label=_real_benign_label(test)),
         roc_auc_ci95=roc_ci,
         roc_auc_ci_sample_n=ci_n,
         held_out_attack_type=held_out_attack_type,
