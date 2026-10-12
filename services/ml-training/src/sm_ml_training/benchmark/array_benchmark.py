@@ -177,7 +177,12 @@ def _fit_autoencoder_streaming(
     optimizer = torch.optim.Adam(module.parameters(), lr=1e-3)
     loss_fn = nn.MSELoss()
 
-    class _TorchIterableWrapper(torch.utils.data.IterableDataset[Any]):
+    # torch is an optional dependency (absent in CI's base lint env, where
+    # ignore_missing_imports makes IterableDataset resolve to Any -- "cannot
+    # subclass Any" [misc]; present locally, where it's a real generic class
+    # needing a type param -- [type-arg] if omitted). A bare ignore covers
+    # both error codes across environments without being "unused" in either.
+    class _TorchIterableWrapper(torch.utils.data.IterableDataset):  # type: ignore
         """Real `torch.utils.data.IterableDataset` subclass, defined here
         (not at module level) because `torch` is an optional dependency
         this module only imports at call time -- subclassing it at module

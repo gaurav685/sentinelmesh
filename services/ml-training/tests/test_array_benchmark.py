@@ -40,6 +40,7 @@ def test_run_array_benchmark_isolation_forest() -> None:
 
 
 def test_run_array_benchmark_gradient_boosting_free_raw_data() -> None:
+    pytest.importorskip("lightgbm")
     train, test = _synthetic()
     run = run_array_benchmark(train, test, model="gradient_boosting", seed=1)
     assert run.metrics["roc_auc"] > 0.9
@@ -48,7 +49,8 @@ def test_run_array_benchmark_gradient_boosting_free_raw_data() -> None:
 
 
 def test_run_array_benchmark_autoencoder_streams_from_parquet(tmp_path: Path) -> None:
-    import polars as pl
+    pytest.importorskip("torch")
+    pl = pytest.importorskip("polars")
 
     train, test = _synthetic()
     df = pl.DataFrame({
@@ -73,6 +75,7 @@ def test_run_array_benchmark_autoencoder_onehot_features_use_inmemory_fallback()
     exist as literal Parquet columns -- `StreamingBenignBatches` would
     raise ColumnNotFoundError against the real file. No train_parquet_paths
     needed for this path; it must not try to stream at all."""
+    pytest.importorskip("torch")
     train, test = _synthetic()
     train = ArrayFlowDataset(
         dataset_id=train.dataset_id, sha256=train.sha256,
@@ -93,6 +96,7 @@ def test_run_array_benchmark_no_benign_rows_raises() -> None:
 
 
 def test_run_array_benchmark_held_out_attack_type() -> None:
+    pytest.importorskip("lightgbm")
     train, test = _synthetic()
     held_out_rows = test.X[test.y == 1]
     run = run_array_benchmark(

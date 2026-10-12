@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import polars as pl
 import pytest
 
-from sm_ml.datasets.parquet_convert import convert_cicids2017_to_parquet, convert_unsw_nb15_to_parquet
+pl = pytest.importorskip("polars")
+
+from sm_ml.datasets.parquet_convert import convert_cicids2017_to_parquet, convert_unsw_nb15_to_parquet  # noqa: E402
 
 _CICIDS_FIXTURES = Path(__file__).parent / "fixtures" / "cicids2017"
 _UNSW_FIXTURES = Path(__file__).parent / "fixtures" / "unsw_nb15"

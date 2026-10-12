@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import numpy as np
 import pytest
 
-from sm_ml.datasets.arrays import load_cicids2017_arrays, load_unsw_nb15_arrays
-from sm_ml.datasets.parquet_convert import convert_cicids2017_to_parquet, convert_unsw_nb15_to_parquet
+np = pytest.importorskip("numpy")
+pytest.importorskip("polars")
+
+from sm_ml.datasets.arrays import load_cicids2017_arrays, load_unsw_nb15_arrays  # noqa: E402
+from sm_ml.datasets.parquet_convert import convert_cicids2017_to_parquet, convert_unsw_nb15_to_parquet  # noqa: E402
 
 _CICIDS_FIXTURES = Path(__file__).parent / "fixtures" / "cicids2017"
 _UNSW_FIXTURES = Path(__file__).parent / "fixtures" / "unsw_nb15"
