@@ -219,6 +219,62 @@ def _fit_autoencoder_streaming(
     return (module, threshold), params
 
 
+def _fit_autoencoder_inmemory(
+    x_benign: Any, feature_names: tuple[str, ...], *, seed: int
+) -> tuple[Any, dict[str, Any]]:
+    """Fallback for datasets whose `feature_names` don't exist as literal
+    Parquet columns -- UNSW-NB15's one-hot-expanded names (`"proto=tcp"`,
+    etc.) are computed by `sm_ml.datasets.arrays` at load time, not stored
+    in the Parquet file, so `StreamingBenignBatches`' plain `.select()`
+    fails (`ColumnNotFoundError`, found by actually running this against
+    the real data, not assumed). Mini-batches straight from the already-
+    resident `x_benign` array instead -- real for this pipeline, since the
+    whole point of the Parquet+float32 rework is that this array is now
+    small enough to hold resident (measured: ~2.5 GB for UNSW-NB15's
+    2-of-4-file real scope); true disk streaming's marginal benefit here
+    would be reproducing the one-hot encoding per batch for no real memory
+    gain. Still never forms one single giant batch -- `_CHUNK_ROWS` rows
+    per step, same bound as the streaming path."""
+    import numpy as np
+    import torch
+    from torch import nn
+
+    from sm_ml.models.autoencoder import AutoencoderSpec, build_module
+
+    torch.manual_seed(seed)
+    rng = np.random.RandomState(seed)
+    input_dim = len(feature_names)
+    hidden_dims = (max(8, input_dim // 4), max(4, input_dim // 8))
+    spec = AutoencoderSpec(input_dim=input_dim, hidden_dims=hidden_dims)
+    module = build_module(spec)
+    optimizer = torch.optim.Adam(module.parameters(), lr=1e-3)
+    loss_fn = nn.MSELoss()
+
+    epochs = 10
+    n = x_benign.shape[0]
+    train_errors: list[float] = []
+    for epoch in range(epochs):
+        train_errors = []
+        perm = rng.permutation(n)
+        for start in range(0, n, _CHUNK_ROWS):
+            batch = torch.from_numpy(x_benign[perm[start : start + _CHUNK_ROWS]]).to(torch.float32)
+            optimizer.zero_grad()
+            recon = module(batch)
+            loss = loss_fn(recon, batch)
+            loss.backward()
+            optimizer.step()
+            if epoch == epochs - 1:
+                with torch.no_grad():
+                    train_errors.extend(torch.mean((module(batch) - batch) ** 2, dim=1).tolist())
+    module.eval()
+    threshold = float(torch.quantile(torch.tensor(train_errors), spec.error_quantile).item()) if train_errors else 0.0
+    params = {
+        "hidden_dims": list(hidden_dims), "epochs": epochs, "chunk_rows": _CHUNK_ROWS,
+        "error_quantile": spec.error_quantile, "n_features": input_dim, "source": "in-memory (not Parquet-streamed)",
+    }
+    return (module, threshold), params
+
+
 def _score_autoencoder_chunked(fitted: Any, x: Any) -> tuple[list[float], list[int]]:
     import torch
 
@@ -279,11 +335,18 @@ def run_array_benchmark(
     elif model == "autoencoder":
         if n_benign == 0:
             raise ValueError("no benign rows in the train split to fit the baseline on")
-        if not train_parquet_paths:
+        # One-hot-expanded feature names (e.g. UNSW-NB15's "proto=tcp") don't exist as
+        # literal Parquet columns -- those are computed at array-load time, not stored
+        # on disk -- so the streaming-from-Parquet path only works for datasets whose
+        # feature names are real raw columns (CICIDS2017).
+        if any("=" in f for f in train.feature_names):
+            fitted, params = _fit_autoencoder_inmemory(train.X[train.y == 0], train.feature_names, seed=seed)
+        elif train_parquet_paths:
+            fitted, params = _fit_autoencoder_streaming(
+                train_parquet_paths, train.feature_names, seed=seed, label_col=label_col, benign_value=benign_value,
+            )
+        else:
             raise ValueError("autoencoder streaming fit needs train_parquet_paths")
-        fitted, params = _fit_autoencoder_streaming(
-            train_parquet_paths, train.feature_names, seed=seed, label_col=label_col, benign_value=benign_value,
-        )
         model_name = "autoencoder"
         score_chunked = _score_autoencoder_chunked
         n_used_for_fit = n_benign

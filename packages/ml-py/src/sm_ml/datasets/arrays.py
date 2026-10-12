@@ -155,13 +155,27 @@ def load_unsw_nb15_arrays(
     )
 
     def _to_array(df: Any) -> ArrayFlowDataset:
-        encoded = df.with_columns([*_onehot_exprs("proto"), *_onehot_exprs("state")])
-        onehot_cols = [f"{c}={v}" for c in ("proto", "state") for v in (*vocabs[c], "__unknown")]
-        x = encoded.select([*numeric_cols, *onehot_cols]).to_numpy()
+        # y/attack_types extracted BEFORE the one-hot select so `df` can be
+        # dropped by the caller right after this call returns -- the
+        # one-shot `.select()` below (numeric cols + onehot exprs together)
+        # also avoids an earlier real mistake: building a full `with_columns`
+        # intermediate (every original column plus every onehot column, ~210
+        # columns resident at once) before narrowing with a second `.select()`.
+        # Found by measuring real RSS against the full 4-file UNSW-NB15 load
+        # (not assumed) -- peak RSS was high enough to trip the 3 GB free-
+        # memory floor on this machine.
         y = df["Label"].cast(pl.Int8).to_numpy()
+        attack_types = tuple(df["attack_cat"].to_list())
+        x = df.select([
+            *(pl.col(c) for c in numeric_cols), *_onehot_exprs("proto"), *_onehot_exprs("state"),
+        ]).to_numpy()
         return ArrayFlowDataset(
             dataset_id="unsw-nb15", sha256="+".join(sorted(hashes)),
-            feature_names=feature_names, X=x, y=y, attack_types=tuple(df["attack_cat"].to_list()),
+            feature_names=feature_names, X=x, y=y, attack_types=attack_types,
         )
 
-    return _to_array(train_df), _to_array(test_df), {}
+    train_array = _to_array(train_df)
+    del train_df
+    test_array = _to_array(test_df)
+    del test_df
+    return train_array, test_array, {}

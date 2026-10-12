@@ -68,6 +68,20 @@ def test_run_array_benchmark_autoencoder_without_parquet_paths_raises() -> None:
         run_array_benchmark(train, test, model="autoencoder", seed=1)
 
 
+def test_run_array_benchmark_autoencoder_onehot_features_use_inmemory_fallback() -> None:
+    """One-hot-expanded feature names (e.g. UNSW-NB15's "proto=tcp") don't
+    exist as literal Parquet columns -- `StreamingBenignBatches` would
+    raise ColumnNotFoundError against the real file. No train_parquet_paths
+    needed for this path; it must not try to stream at all."""
+    train, test = _synthetic()
+    train = ArrayFlowDataset(
+        dataset_id=train.dataset_id, sha256=train.sha256,
+        feature_names=("a", "b", "proto=tcp"), X=train.X, y=train.y, attack_types=train.attack_types,
+    )
+    run = run_array_benchmark(train, test, model="autoencoder", seed=1)
+    assert run.params["source"] == "in-memory (not Parquet-streamed)"
+
+
 def test_run_array_benchmark_no_benign_rows_raises() -> None:
     train, test = _synthetic()
     all_attack = ArrayFlowDataset(
