@@ -105,3 +105,20 @@ def test_run_array_benchmark_held_out_attack_type() -> None:
     )
     assert run.held_out_attack_type == "DoS"
     assert run.n_held_out == held_out_rows.shape[0]
+
+
+def test_run_array_benchmark_calibration_targets_real_fpr_on_validation() -> None:
+    pytest.importorskip("lightgbm")
+    train, test = _synthetic()
+    run = run_array_benchmark(train, test, model="gradient_boosting", seed=1, calibrate_at_fpr=0.1)
+    assert "calibrated_threshold" in run.metrics
+    assert run.metrics["calibration_target_fpr"] == pytest.approx(0.1)
+    assert "precision_at_calibrated_threshold" in run.metrics
+    assert "recall_at_calibrated_threshold" in run.metrics
+
+
+def test_run_array_benchmark_no_calibration_keys_when_disabled() -> None:
+    pytest.importorskip("lightgbm")
+    train, test = _synthetic()
+    run = run_array_benchmark(train, test, model="gradient_boosting", seed=1)
+    assert "calibrated_threshold" not in run.metrics

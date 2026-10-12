@@ -42,7 +42,15 @@ from sm_ml.datasets.arrays import ArrayFlowDataset
 
 from .flow_benchmark import FlowBenchmarkRun
 from .harness import ModelName, _environment
-from .metrics import bootstrap_ci, per_class_recall, pr_auc, precision_recall_f1_fpr, recall_at_fpr, roc_auc
+from .metrics import (
+    bootstrap_ci,
+    per_class_recall,
+    pr_auc,
+    precision_recall_f1_fpr,
+    recall_at_fpr,
+    roc_auc,
+    threshold_at_fpr,
+)
 
 __all__ = ["StreamingBenignBatches", "run_array_benchmark"]
 
@@ -371,6 +379,20 @@ def _real_benign_label(test: ArrayFlowDataset) -> str:
     return counts.most_common(1)[0][0] if counts else "BENIGN"
 
 
+def _carve_calibration_split(n: int, *, seed: int, val_fraction: float = 0.2) -> tuple[Any, Any]:
+    """A seeded, reproducible (fit_idx, val_idx) partition of `range(n)` --
+    the validation split a threshold is calibrated on must be carved from
+    TRAIN only, never test, so the operating point is chosen the way a
+    real deployment would (before ever seeing test data), not picked to
+    flatter test numbers."""
+    import numpy as np
+
+    rng = np.random.RandomState(seed)
+    idx = rng.permutation(n)
+    n_val = max(1, round(n * val_fraction))
+    return idx[n_val:], idx[:n_val]
+
+
 def run_array_benchmark(
     train: ArrayFlowDataset,
     test: ArrayFlowDataset,
@@ -382,42 +404,78 @@ def run_array_benchmark(
     benign_value: str = "BENIGN",
     held_out_attack_type: str | None = None,
     held_out_x: Any = None,
+    calibrate_at_fpr: float | None = None,
 ) -> FlowBenchmarkRun:
     """Array-native counterpart to `flow_benchmark.run_flow_benchmark` --
     same `FlowBenchmarkRun` output shape, so report-writing code is
     unchanged, but every fit/score step here operates on `train.X`/`test.X`
     (float32 numpy, from `sm_ml.datasets.arrays`) directly. `autoencoder`
     additionally needs `train_parquet_paths` (the real files `train` was
-    read from) to stream its fit rather than use `train.X` at all."""
+    read from) to stream its fit rather than use `train.X` at all.
+
+    `calibrate_at_fpr`, when given (e.g. `0.01`), carves a validation split
+    from TRAIN (20% of rows, seeded, never touching test), scores it with
+    the fitted model, and picks the threshold achieving that real FPR on
+    it (`metrics.threshold_at_fpr`) -- the resulting
+    `precision_at_calibrated_threshold`/`recall_...`/`f1_...` replace each
+    model's own ad-hoc default decision rule (sklearn's internal
+    contamination cutoff, LightGBM's bare 0.5, the autoencoder's train-
+    error quantile) with one comparable, validation-chosen operating point
+    across all three models. `None` (the default) keeps the original
+    per-model default-threshold behaviour unchanged -- existing callers
+    and their asserted metric values are unaffected. The autoencoder uses
+    the in-memory fit path when calibrating (never the Parquet-streaming
+    one), since calibration needs an explicit train/validation row split
+    the streaming reader has no way to express."""
     supervised = model in _SUPERVISED_MODELS
     y_train_list = train.y.tolist()
     n_benign = y_train_list.count(0)
 
+    if calibrate_at_fpr is not None:
+        fit_idx, val_idx = _carve_calibration_split(train.n_rows, seed=seed)
+    else:
+        fit_idx, val_idx = None, None
+
+    def _fit_rows(mask: Any = None) -> Any:
+        if fit_idx is None:
+            return train.X if mask is None else train.X[mask]
+        sub_x = train.X[fit_idx]
+        return sub_x if mask is None else sub_x[mask[fit_idx]]
+
+    def _fit_labels() -> Any:
+        return train.y if fit_idx is None else train.y[fit_idx]
+
     score_chunked: Callable[[Any, Any], tuple[list[float], list[int]]]
     if model == "isolation_forest":
         benign_mask = train.y == 0
-        if not benign_mask.any():
+        fit_benign = _fit_rows(benign_mask)
+        if fit_benign.shape[0] == 0:
             raise ValueError("no benign rows in the train split to fit the baseline on")
-        fitted, params = _fit_isolation_forest_arrays(train.X[benign_mask], train.feature_names, seed=seed)
+        fitted, params = _fit_isolation_forest_arrays(fit_benign, train.feature_names, seed=seed)
         model_name = "isolation_forest"
         score_chunked = _score_isolation_forest_chunked
-        n_used_for_fit = int(benign_mask.sum())
+        n_used_for_fit = int(fit_benign.shape[0])
     elif model == "gradient_boosting":
-        if len(set(y_train_list)) < 2:
+        fit_labels = _fit_labels()
+        if len(set(fit_labels.tolist())) < 2:
             raise ValueError(f"{model} needs both classes in the train split to fit")
-        fitted, params = _fit_gradient_boosting_arrays(train.X, train.y, train.feature_names, seed=seed)
+        fitted, params = _fit_gradient_boosting_arrays(_fit_rows(), fit_labels, train.feature_names, seed=seed)
         model_name = "gradient_boosting"
         score_chunked = _score_gradient_boosting_chunked
-        n_used_for_fit = train.n_rows
+        n_used_for_fit = int(_fit_rows().shape[0])
     elif model == "autoencoder":
         if n_benign == 0:
             raise ValueError("no benign rows in the train split to fit the baseline on")
+        benign_mask = train.y == 0
+        fit_benign = _fit_rows(benign_mask)
         # One-hot-expanded feature names (e.g. UNSW-NB15's "proto=tcp") don't exist as
         # literal Parquet columns -- those are computed at array-load time, not stored
         # on disk -- so the streaming-from-Parquet path only works for datasets whose
-        # feature names are real raw columns (CICIDS2017).
-        if any("=" in f for f in train.feature_names):
-            fitted, params = _fit_autoencoder_inmemory(train.X[train.y == 0], train.feature_names, seed=seed)
+        # feature names are real raw columns (CICIDS2017). Calibration also forces the
+        # in-memory path: the streaming reader has no concept of a fit/validation row
+        # split, only "all benign rows in this Parquet file".
+        if calibrate_at_fpr is not None or any("=" in f for f in train.feature_names):
+            fitted, params = _fit_autoencoder_inmemory(fit_benign, train.feature_names, seed=seed)
         elif train_parquet_paths:
             fitted, params = _fit_autoencoder_streaming(
                 train_parquet_paths, train.feature_names, seed=seed, label_col=label_col, benign_value=benign_value,
@@ -426,7 +484,7 @@ def run_array_benchmark(
             raise ValueError("autoencoder streaming fit needs train_parquet_paths")
         model_name = "autoencoder"
         score_chunked = _score_autoencoder_chunked
-        n_used_for_fit = n_benign
+        n_used_for_fit = int(fit_benign.shape[0])
     else:
         raise ValueError(f"unsupported model for array benchmark: {model!r}")
 
@@ -459,6 +517,24 @@ def run_array_benchmark(
         ci_n = None
     metrics.update(precision_recall_f1_fpr(preds, labels))
     metrics["mean_detection_latency_ms"] = round((elapsed_s / len(test.X)) * 1000, 6)
+
+    if calibrate_at_fpr is not None and val_idx is not None:
+        val_scores, _ = score_chunked(fitted, train.X[val_idx])
+        val_labels = train.y[val_idx].tolist()
+        try:
+            calibrated_threshold = threshold_at_fpr(val_scores, val_labels, target_fpr=calibrate_at_fpr)
+            calibrated_preds = [1 if s >= calibrated_threshold else 0 for s in scores]
+            cal_metrics = precision_recall_f1_fpr(calibrated_preds, labels)
+            metrics["calibrated_threshold"] = round(calibrated_threshold, 6)
+            metrics["calibration_target_fpr"] = calibrate_at_fpr
+            metrics["precision_at_calibrated_threshold"] = cal_metrics["precision"]
+            metrics["recall_at_calibrated_threshold"] = cal_metrics["recall"]
+            metrics["f1_at_calibrated_threshold"] = cal_metrics["f1"]
+            metrics["fpr_at_calibrated_threshold"] = cal_metrics["false_positive_rate"]
+        except ValueError:
+            # validation split had only one real class present -- can't compute an FPR
+            # to calibrate against; leave the default-threshold metrics as the only ones.
+            pass
 
     held_out_recall: float | None = None
     n_held_out: int | None = None

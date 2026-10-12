@@ -20,6 +20,7 @@ __all__ = [
     "precision_recall_f1_fpr",
     "recall_at_fpr",
     "roc_auc",
+    "threshold_at_fpr",
 ]
 
 
@@ -132,6 +133,45 @@ def recall_at_fpr(scores: Sequence[float], labels: Sequence[int], *, target_fpr:
             best_recall = max(best_recall, tp / n_pos)
         i = j
     return round(best_recall, 6)
+
+
+def threshold_at_fpr(scores: Sequence[float], labels: Sequence[int], *, target_fpr: float) -> float:
+    """The lowest score threshold whose real false-positive rate (on
+    `scores`/`labels`) does not exceed `target_fpr` -- meant to be called
+    on a VALIDATION split carved from TRAIN only (never on test), so the
+    operating point a model is scored at on test is chosen the same way a
+    real deployment would choose it, not picked to flatter the test
+    numbers. Only real negative (benign) rows matter for this computation
+    (false-positive rate has no dependence on how many positives exist);
+    raises if there are none to compute an FPR from. Same O(n log n)
+    descending sweep as `recall_at_fpr`, which this mirrors."""
+    n = len(scores)
+    if n != len(labels):
+        raise ValueError("scores and labels must be the same length")
+    n_neg = sum(1 for y in labels if y == 0)
+    if n_neg == 0:
+        raise ValueError("threshold_at_fpr needs at least one real negative (benign) row")
+
+    order = sorted(range(n), key=lambda i: scores[i], reverse=True)
+    fp = 0
+    best_threshold: float | None = None
+    i = 0
+    while i < n:
+        j = i
+        score_here = scores[order[i]]
+        while j < n and scores[order[j]] == score_here:
+            if labels[order[j]] == 0:
+                fp += 1
+            j += 1
+        fpr = fp / n_neg
+        if fpr <= target_fpr:
+            best_threshold = float(score_here)
+        i = j
+    if best_threshold is None:
+        # even including every row at the single highest score already exceeds
+        # target_fpr -- no real threshold achieves it; flag everything as benign.
+        return float(scores[order[0]]) + 1.0
+    return best_threshold
 
 
 def per_class_recall(

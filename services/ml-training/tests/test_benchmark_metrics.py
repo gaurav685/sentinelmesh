@@ -9,6 +9,7 @@ from sm_ml_training.benchmark.metrics import (
     precision_recall_f1_fpr,
     recall_at_fpr,
     roc_auc,
+    threshold_at_fpr,
 )
 
 
@@ -125,3 +126,33 @@ def test_bootstrap_ci_is_deterministic_for_a_fixed_seed() -> None:
     a = bootstrap_ci(roc_auc, scores, labels, n_resamples=200, seed=11)
     b = bootstrap_ci(roc_auc, scores, labels, n_resamples=200, seed=11)
     assert a == b
+
+
+def test_threshold_at_fpr_perfect_separation_finds_the_true_gap() -> None:
+    scores = [0.1, 0.2, 0.3, 0.9, 0.95, 1.0]
+    labels = [0, 0, 0, 1, 1, 1]
+    t = threshold_at_fpr(scores, labels, target_fpr=0.0)
+    assert 0.3 < t <= 0.9  # any threshold strictly between the classes works
+
+
+def test_threshold_at_fpr_real_fpr_at_returned_threshold_is_within_budget() -> None:
+    scores = [0.1, 0.2, 0.85, 0.9, 0.5, 1.0]
+    labels = [0, 0, 0, 1, 1, 1]
+    t = threshold_at_fpr(scores, labels, target_fpr=0.34)  # 1 of 3 negatives allowed
+    fp = sum(1 for s, y in zip(scores, labels, strict=True) if s >= t and y == 0)
+    n_neg = sum(1 for y in labels if y == 0)
+    assert fp / n_neg <= 0.34 + 1e-9
+
+
+def test_threshold_at_fpr_no_achievable_threshold_flags_nothing() -> None:
+    # Every negative scores higher than the lowest allowed threshold could
+    # tolerate -- 0.0 target FPR with ties among negatives at the top score.
+    scores = [1.0, 1.0, 0.1]
+    labels = [0, 1, 0]
+    t = threshold_at_fpr(scores, labels, target_fpr=0.0)
+    assert t > max(scores)  # nothing in the real data would ever be flagged
+
+
+def test_threshold_at_fpr_no_negatives_raises() -> None:
+    with pytest.raises(ValueError, match="negative"):
+        threshold_at_fpr([0.1, 0.9], [1, 1], target_fpr=0.01)
