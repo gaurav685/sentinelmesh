@@ -19,6 +19,15 @@ It checks every expected file exists, computes a real sha256 and row count for e
 - **Citation required** if this data or the fixed CICFlowMeter tool is used in anything published: cite the paper above.
 - **Licence**: as published by the Distrinet research group (KU Leuven); research/academic use, see their page for exact terms.
 
+### What was actually used on this machine
+
+The corrected release above was not used — no Kaggle mirror of it exists (searched
+2026-10-12, none found). Instead, the Kaggle mirror
+[`shadman1028/cicids2017-official-flow-feature-csv-files`](https://www.kaggle.com/datasets/shadman1028/cicids2017-official-flow-feature-csv-files)
+was used (CC BY 4.0, original uncorrected 2017 labels, unmodified CSVs, filenames
+matching exactly what's listed above). Full provenance, sha256s and the licence
+note: see `data/README.md`.
+
 ### Known alternative, not used here: LYCOS-IDS2017
 
 Rosay, Carlier et al. also corrected CICIDS2017 (feature duplication, wrong protocol detection, inconsistent TCP termination, labelling errors), producing *LYCOS-IDS2017*. Tooling: <https://github.com/17204612710214/lycos-ids2017> (mirror of <https://maupiti-git.univ-lemans.fr/lycos/lycos-ids2017>). **Not used**: their pipeline re-extracts features starting from the **original** UNB CICIDS2017 files, so it doesn't avoid the registration wall above — using it would mean registering at UNB anyway, with no access benefit over the Engelen release. Noted here in case a future comparison against it is wanted.
@@ -39,3 +48,12 @@ The official page's download link is a SharePoint folder — a cloud-share link,
 ### Fallback mirror, only if the SharePoint link doesn't work for you
 
 Kaggle: <https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15> — a widely-used mirror of the same 4 CSV parts + feature list. **This is a mirror, not the official source** — if used, record its own file sizes/sha256 in `data/metadata/unsw_nb15.json` (the verify script does this automatically) and this file gets a note added recording that the mirror was used instead of the official SharePoint link.
+
+### What was actually used on this machine
+
+The SharePoint link was not used — this mirror was used instead. Its features file
+ships as `NUSW-NB15_features.csv` (a typo in the original UNB release, carried
+through by the mirror); renamed to `UNSW-NB15_features.csv` on download to match the
+expected filename above, re-verified after the rename. Full provenance, sha256s and
+the licence note (the mirror's own quote of the original authors' usage grant): see
+`data/README.md`.

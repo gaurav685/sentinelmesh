@@ -1,0 +1,69 @@
+{
+  "dataset": "unsw_nb15",
+  "checked_at": "2026-10-12T04:24:53.707795+00:00",
+  "files": [
+    {
+      "name": "UNSW-NB15_1.csv",
+      "present": true,
+      "required": true,
+      "sha256": "7d851bbeabd27894ce39c8e78835c73341fc946652fb7743b9eff193b55eb511",
+      "size_bytes": 168979718,
+      "row_count": 700001,
+      "note": ""
+    },
+    {
+      "name": "UNSW-NB15_2.csv",
+      "present": true,
+      "required": true,
+      "sha256": "6130ad02873cc6069ae695cf2844f2e8c2e9a9a1b7532dd82ab8f202757cacf8",
+      "size_bytes": 165221021,
+      "row_count": 700001,
+      "note": ""
+    },
+    {
+      "name": "UNSW-NB15_3.csv",
+      "present": true,
+      "required": true,
+      "sha256": "ae990a96c3dfcd425ce2801aadb1727a34d5e0ae6d8215dbcdae60dedfaef640",
+      "size_bytes": 154588103,
+      "row_count": 700001,
+      "note": ""
+    },
+    {
+      "name": "UNSW-NB15_4.csv",
+      "present": true,
+      "required": true,
+      "sha256": "cdf563692d51d405541dd659ddcdad9fa01f001f05fe9fc4b67f00ca12fbc96a",
+      "size_bytes": 97588754,
+      "row_count": 440044,
+      "note": ""
+    },
+    {
+      "name": "UNSW-NB15_features.csv",
+      "present": true,
+      "required": true,
+      "sha256": "c55f19cceebb6360dc50f44f8a5f246ccefbcf8a6c604ac1ad46e643869cafce",
+      "size_bytes": 4044,
+      "row_count": 50,
+      "note": "column names -- the 4 row files above have no header"
+    },
+    {
+      "name": "UNSW_NB15_training-set.csv",
+      "present": true,
+      "required": false,
+      "sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+      "size_bytes": 15380800,
+      "row_count": 82333,
+      "note": "authors' own split; sanity check only"
+    },
+    {
+      "name": "UNSW_NB15_testing-set.csv",
+      "present": true,
+      "required": false,
+      "sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+      "size_bytes": 32293018,
+      "row_count": 175342,
+      "note": "authors' own split; sanity check only"
+    }
+  ]
+}
