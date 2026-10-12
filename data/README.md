@@ -1,4 +1,4 @@
-# Phase 1 dataset provenance
+# Phase 1 / Phase 2 dataset provenance
 
 `data/raw/` is git-ignored (see `scripts/download_datasets.md` for placement/sourcing
 instructions). This file records exactly what is actually in it on this machine right
@@ -84,3 +84,53 @@ Full machine-checked detail (including `checked_at` timestamps) lives in
 `scripts/verify_datasets.py` — this file is a human-readable summary of those, not a
 separate source of truth. If the files on disk ever change, re-run the script; it will
 fail loudly if a checksum no longer matches what's recorded here.
+
+## Phase 2: DARPA TC CADETS E3
+
+### Raw data — NOT YET DOWNLOADED (blocked, see `docs/PHASE2_PLAN.md`)
+
+Source: DARPA Transparent Computing program, hosted by Five Directions Inc. on Google
+Drive, linked from `darpa-i2o/Transparent-Computing`'s `README-E3.md`
+(<https://github.com/darpa-i2o/Transparent-Computing/blob/master/README-E3.md>).
+Licence: DARPA's own public-domain release statement in that same README ("DARPA is
+releasing these files in the public domain to stimulate further research... released
+as-is... no warranties"). Real size, confirmed via `ubc-provenance/PIDSMaker`'s own
+install docs (<https://ubc-provenance.github.io/PIDSMaker/ten-minute-install/>):
+**1.4 GB compressed / 10 GB loaded**.
+
+Attempted via `gdown` against the file IDs in PIDSMaker's
+`dataset_preprocessing/darpa_tc/scripts/download_cadets_e3.sh` (Apache-2.0) — both a
+small schema file and one of the main data files returned Google Drive's real "too
+many users have viewed or downloaded this file recently" quota error, independent of
+file size. This is a genuine, confirmed external blocker, not a bug in this project's
+code. See `docs/PHASE2_PLAN.md` for the two real unblock paths under consideration.
+
+### Ground-truth labels — downloaded, real, committed
+
+Not DARPA's own machine-readable output (`ground_truth/tc_ground_truth_report_e3_update.pdf`
+is a narrative PDF, no structured labels) — these are pre-derived label files already
+redistributed by **`ubc-provenance/PIDSMaker`** (Apache-2.0, fetched directly from its
+`Ground_Truth/` directory, commit as cloned 2026-10-13), themselves derived by two
+separate third-party research groups:
+
+| File | sha256 | Derived by | Granularity |
+|---|---|---|---|
+| `threatrace_node_labels.txt` (from `Ground_Truth/threatrace/E3-CADETS/ground_truth.txt`) | `736f1f57a477edba2b6861ab3b1dd2702805bc454f7befbab77ac6d61cbdf201` | ThreaTrace (`threaTrace-detector/threaTrace`, MIT) | Flat list, 12,858 node UUIDs (12,851 map into the real graph per PIDSMaker's own verification), no time windows — covers the whole test period as one combined window. Labels the full attack *neighbourhood*, not just the attack chain. |
+| `node_Nginx_Backdoor_06.csv` | `28e8b199e9b8b4237be4d41e03d5e38ddd90455cdb6ac2051eb769fbc05ee9ff` | Orthrus | 8 attack-chain node UUIDs, 2018-04-06 11:20–12:09 |
+| `node_Nginx_Backdoor_11.csv` | `21f280c6fade0d077e55c6bed882db6724a2e8b25e881acb17f939a2c5b8e53a` | Orthrus | 4 node UUIDs, 2018-04-11 15:07–15:16 — excluded by PIDSMaker's own config (not used in its reported results); kept here, inclusion decided in Week 1 |
+| `node_Nginx_Backdoor_12.csv` | `43947c3b0d48a04104ae6a913e2d25890e7465aeb8ec6eb9272fdb7519833986` | Orthrus | 43 node UUIDs, 2018-04-12 13:59–14:39 |
+| `node_Nginx_Backdoor_13.csv` | `0925031e65b24e999d0406cb89accd0ac1a8ae5e31fb8caa2f8e3d95aa0147de` | Orthrus | 24 node UUIDs, 2018-04-13 09:03–09:16 |
+
+All four Orthrus files share one real attack scenario, "Nginx_Backdoor" — a partially-
+successful FreeBSD Nginx exploit chain, attempted on four different days of the
+engagement (per PIDSMaker's `Ground_Truth/orthrus/readme.md`, itself quoting the real
+DARPA ground-truth report). Orthrus labels only the precise attack-chain nodes (76
+nodes across the 3 used attacks); ThreaTrace labels the much larger attack
+neighbourhood (12,858 nodes) — the two overlap only 28% at the node level. Both are
+kept, matching the user's instruction to report node-level and time-window-level
+results separately rather than collapsing them into one number.
+
+Citations: Wang et al., *"ThreaTrace: Detecting and Tracing Host-Based Threats in Node
+Level Through Provenance Graph Learning,"* IEEE TIFS 2022 (ground truth derivation);
+Jiang et al. (Orthrus authors — paper citation to be confirmed when its ground-truth
+methodology is read directly, not assumed from the filename alone).

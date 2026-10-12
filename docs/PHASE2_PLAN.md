@@ -11,8 +11,8 @@ over Postgres unless label alignment proves that wrong.
 
 | # | Condition | Status | Basis |
 |---|---|---|---|
-| 1 | Ground-truth labels from a published, citable source | **MET** | `ground_truth/tc_ground_truth_report_e3_update.pdf`, published by DARPA TC, hosted alongside the data and cited directly by both reference papers (see below). It is a narrative PDF, not a machine-readable label file — node/edge labels still need deriving from it, same as every prior system that used this dataset did. |
-| 2 | Total disk fits in ~30 GB | **MET (as currently sourced)** | CADETS_E3 = 10 GB, per `ubc-provenance/PIDSMaker`'s own README table (primary source, fetched directly) — leaves real headroom under 30 GB for the Parquet/DuckDB conversion and checkpoints. A secondary "1.4 GB raw / 10.1 GB loaded" figure surfaced in search but isn't independently confirmed at a primary source — re-verify against the real downloaded file size in Week 1, don't take 10 GB as final until then. |
+| 1 | Ground-truth labels from a published, citable source | **MET — real label files secured, no hand-derivation needed** | Confirmed by cloning `ubc-provenance/PIDSMaker` directly: it already redistributes two independent third-party derivations of DARPA's own `tc_ground_truth_report_e3_update.pdf` for CADETS_E3 — ThreaTrace's flat 12,858-node-UUID list and Orthrus's 4 per-attack CSVs with real timestamps (76 attack-chain nodes total). Both copied into `data/ground_truth/cadets_e3/` with sha256s, cited in `data/README.md`. No hand-derivation from the PDF was needed. |
+| 2 | Total disk fits in ~30 GB | **MET — now primary-confirmed** | **1.4 GB compressed / 10 GB loaded**, per `ubc-provenance/PIDSMaker`'s own install docs (<https://ubc-provenance.github.io/PIDSMaker/ten-minute-install/>, fetched directly) — resolves the earlier "unconfirmed" secondary figure from initial research. Comfortable margin under 30 GB. |
 | 3 | Estimated training time per run under ~4 hours on this CPU | **NOT MET — no real estimate exists** | Checked both reference papers directly: KAIROS's paper (§5, Table 10) reports only per-time-window *inference* cost (median 2.5s, max 19.7s per 15-min window on a 20-core Xeon, no GPU) — total training wall-clock is never stated. ThreaTrace's paper (§VI-E) reports its own 16-vCPU/64GB CPU-only hardware but likewise never states total training time. Neither repo's README states one either (KAIROS's README says only "due to the extended amount of time it takes to train a model, we provide pre-trained models"). There is no real number to compare against the 4-hour bound — inventing one to pass this gate would be exactly the kind of fabrication this project's rule forbids. **This condition fails by default until a real pilot run produces a measured number.** |
 | 4 | A baseline exists (published result and/or a simple non-GNN detector) | **MET** | Published: KAIROS Table 4 (time-window-level, CADETS_E3) and ThreaTrace Table VII (node-level, CADETS_E3) — both real, cited below. Non-GNN: this plan's own step 5(b) builds a LightGBM/rare-event-frequency baseline on the same node features, same convention as Phase 1's gradient-boosting comparison. |
 | 5 | Reference repo's licence allows reuse | **MET** | `ubc-provenance/PIDSMaker`, **Apache-2.0** (confirmed via GitHub). The original `ubc-provenance/kairos` repo has **no licence file** (`license: null`) — used as an architecture/paper reference only, its code is not reused directly. |
@@ -20,6 +20,40 @@ over Postgres unless label alignment proves that wrong.
 **4 of 5 conditions are met; condition 3 cannot be met with a real number before a pilot run
 exists. Per your own fallback instruction, this stops here — plan shown below, no download yet,
 waiting for explicit go-ahead.**
+
+## Week 1 status (after go-ahead) — real download blocker found, needs a decision
+
+Approved and attempted. Real findings:
+
+- **Ground-truth labels (gate 1) are done** — see table above and `data/README.md`'s new
+  "Phase 2: DARPA TC CADETS E3" section. No PDF hand-derivation needed.
+- **Raw CDM audit-log download is blocked by a real, confirmed Google Drive quota**, not a bug
+  in this project. Tested `gdown` (installed this session) against two of the file IDs in
+  PIDSMaker's `download_cadets_e3.sh` (one small schema file, one main data file) — both
+  returned Google's real "Too many users have viewed or downloaded this file recently... may
+  take up to 24 hours" error, independent of file size, meaning the whole shared folder's public
+  anonymous-link quota is currently exhausted (a very popular public dataset).
+- **Two real paths found, not yet chosen between:**
+  1. **Wait and retry** the same anonymous `gdown` method later (quota may clear in anywhere
+     from an hour to 24 hours per Google's own message). No new credentials needed; keeps the
+     plan's original intent of parsing raw CDM/Avro records ourselves into Parquet.
+  2. **Authenticated Google Drive API download**, found in PIDSMaker's own
+     `download_datasets.sh` and install docs: `curl -H "Authorization: Bearer <TOKEN>"
+     https://www.googleapis.com/drive/v3/files/<ID>?alt=media`. This uses a per-user OAuth2
+     access token (obtained via Google's own OAuth 2.0 Playground) rather than the anonymous
+     public link — authenticated API quota is normally separate from the exhausted anonymous
+     one, so this would likely work *now*, but getting the token is an interactive Google login
+     step only you can do (same category as `gcloud auth login` — not something to automate or
+     ask you to paste a token for). **This project's own version of this path would point the
+     same Bearer-token request at the raw CDM file IDs** (not PIDSMaker's pre-built Postgres
+     dump, which would reintroduce a Postgres dependency and skip the parsing step the plan
+     calls for) — worth trying if you want to unblock immediately rather than wait.
+- **Decision needed**: wait for quota to clear (I can retry on a schedule), or get a token via
+  the OAuth Playground yourself and run the authenticated download (I'll give the exact command
+  once you have one) — your call.
+
+Everything else not blocked by the raw download continues in parallel (this doc, ground truth
+integration, Parquet/DuckDB schema design, parser scaffolding, small synthetic-fixture tests).
 
 ## 1. Reference repo + licence
 
@@ -41,12 +75,24 @@ Secondary references, not reused as code:
 
 ## 2. Ground-truth label source
 
-`ground_truth/tc_ground_truth_report_e3_update.pdf`, hosted with the data (Five Directions
-Google Drive, linked from `darpa-i2o/Transparent-Computing`'s `README-E3.md`), published by
-DARPA TC's adversarial team (TA5.1). It is a **narrative description of attack scenarios and
-IOCs, not a machine-readable label file** — both KAIROS and ThreaTrace derived their own
-node/edge/time-window labels from it by hand. Week 1 checks whether PIDSMaker's repo already
-ships a derived CADETS_E3 label file before re-deriving one from the PDF ourselves.
+DARPA's own `ground_truth/tc_ground_truth_report_e3_update.pdf` (narrative, not machine-
+readable) is the ultimate source, but **real, already-derived label files exist and were used
+directly — no hand-derivation needed**, per the Week 1 status above:
+- `data/ground_truth/cadets_e3/threatrace_node_labels.txt` — 12,858 node UUIDs (ThreaTrace's
+  derivation), full attack-neighbourhood labelling, one combined window over the test period.
+- `data/ground_truth/cadets_e3/node_Nginx_Backdoor_{06,11,12,13}.csv` — 8/4/43/24 attack-chain
+  node UUIDs (Orthrus's derivation) with real per-attack time windows (below), a far narrower
+  labelling than ThreaTrace's (28% node-level overlap, per PIDSMaker's own cross-check).
+
+Real per-attack time windows (Orthrus, `US/Eastern`), reused directly for the time-window-level
+evaluation KAIROS's own methodology uses:
+
+| File | Window | Used in PIDSMaker's own reported results? |
+|---|---|---|
+| `node_Nginx_Backdoor_06.csv` | 2018-04-06 11:20–12:09 | Yes |
+| `node_Nginx_Backdoor_11.csv` | 2018-04-11 15:07–15:16 | No — excluded by their own config; kept here, inclusion decided once we see real detection behaviour on it |
+| `node_Nginx_Backdoor_12.csv` | 2018-04-12 13:59–14:39 | Yes |
+| `node_Nginx_Backdoor_13.csv` | 2018-04-13 09:03–09:16 | Yes |
 
 Known attack in this engagement (KAIROS Table 11, confirmed from the paper): FreeBSD host,
 55-minute window, Nginx exploited by `81.49.200.166`, payload dropped to `/tmp/vUgefal`,
@@ -60,13 +106,14 @@ file; this is DARPA's own public-domain release statement, cited directly.
 
 ## 3. Download size
 
-**10 GB** for CADETS_E3 specifically (PIDSMaker README table, primary source) — comfortably
-inside the ~30 GB budget alongside the Parquet/DuckDB conversion and model checkpoints. Graph
-scale per KAIROS's own measurement: 178,965 nodes, 10.1M edges, 1,248 attack edges (0.012% of
-all edges). ThreaTrace's paper reports a different split of the same corpus (706,966 benign +
-12,852 abnormal nodes, 8.66M edges) — the two papers used different subsets/windows of the same
-E3-CADETS data; whichever split this project adopts will have its own real counts reported in
-Week 1, not borrowed from either paper.
+**1.4 GB compressed / 10 GB loaded**, per `ubc-provenance/PIDSMaker`'s own install docs
+(fetched directly) — comfortably inside the ~30 GB budget alongside the Parquet/DuckDB
+conversion and model checkpoints. Graph scale per KAIROS's own measurement: 178,965 nodes,
+10.1M edges, 1,248 attack edges (0.012% of all edges). ThreaTrace's paper reports a different
+split of the same corpus (706,966 benign + 12,852 abnormal nodes, 8.66M edges) — the two papers
+used different subsets/windows of the same E3-CADETS data; whichever split this project adopts
+will have its own real counts reported once the raw data is actually loaded (blocked — see
+Week 1 status above), not borrowed from either paper.
 
 ## 4. Expected training time on this CPU
 
@@ -134,10 +181,11 @@ This project's own evaluation reports:
 
 ## Unconfirmed items, carried forward from research (not guessed, flagged)
 
-- File-level public accessibility of the Five Directions Google Drive folder (responds HTTP
-  200 at the folder level; real per-file download not yet attempted).
-- Exact raw-vs-processed size split (10 GB is the primary-sourced total; a conflicting
-  "1.4 GB raw" figure is unconfirmed).
-- Total training wall-clock for either reference system (the reason gate condition 3 is unmet).
+- File-level public accessibility of the Five Directions Google Drive folder —
+  **now confirmed blocked** (real quota error, not merely unconfirmed), see Week 1 status above.
+- Total training wall-clock for either reference system (the reason gate condition 3 is unmet) —
+  still unconfirmed; needs the pilot run, still blocked on raw data.
 - Whether Unicorn/ProvDetector/Rapsheet/Flash/Orthrus have real, working CADETS_E3 scripts —
-  not found; not assumed to exist.
+  Orthrus confirmed real (its ground-truth derivation is in active use, above); Unicorn/
+  ProvDetector/Rapsheet/Flash still not found, not assumed to exist.
+- Exact raw-vs-processed size split — **resolved**: 1.4 GB / 10 GB, primary-confirmed above.
