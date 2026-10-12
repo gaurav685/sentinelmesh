@@ -125,10 +125,16 @@ def _apt(spec: ScenarioSpec, env: SyntheticEnvironment, rng: random.Random) -> l
             actor=spec.target_identity, target=f"sim-file-{k:02d}",
             attributes={"phase": "collection", "op": "read"},
         ))
-    # exfil
+    # exfil. 2_000_000 * intensity (2-10MB): a real large-transfer size, not
+    # a placeholder -- `rule.lateral.auth_then_egress` (sm_detection_engine)
+    # checks a real production threshold (ln1p(bytes_sent) >= 14.0, ~1.2MB)
+    # that a toy byte count could never cross; this scenario is supposed to
+    # be *detected* by that real rule, so it needs to generate something an
+    # actual large exfil would look like, not weaken the rule to notice a
+    # toy one.
     out.append(SimEvent(
         step=0, at_offset_s=base + 300, kind=SimEventKind.network_flow,
-        actor=pivot, target=src, attributes={"phase": "exfiltration", "bytes": str(10_000 * spec.intensity)},
+        actor=pivot, target=src, attributes={"phase": "exfiltration", "bytes": str(2_000_000 * spec.intensity)},
     ))
     return out
 
