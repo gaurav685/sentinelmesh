@@ -50,6 +50,10 @@ mlartifacts/
 *.onnx
 *.pkl
 *.joblib
+# LightGBM's own text save format -- same "reproduce via training script,
+# never commit the binary" convention as *.joblib/*.pt above. Scoped to
+# ml/artifacts specifically, not a blanket *.txt (too generic repo-wide).
+ml/artifacts/**/model.txt
 ml/datasets/**/data/
 ml/notebooks/**/*.ipynb_checkpoints/
 # Benchmark datasets live outside the repo (C:\Sentinel_Mesh). Never commit them.
@@ -61,6 +65,15 @@ ml/notebooks/**/*.ipynb_checkpoints/
 *.binetflow
 *.jsonl
 *.arff
+
+# Phase 1 (modern flow datasets): raw downloads and derived Parquet are never
+# committed -- data/metadata/ (checksums, row counts, schema notes) IS
+# committed, so leave that one out of this ignore. A blanket `*.csv` would
+# also catch the small, real, intentionally-committed synthetic test
+# fixtures under packages/ml-py/tests/fixtures/ -- scoped to /data/ instead.
+/data/raw/
+/data/processed/
+*.parquet
 
 # --- Infra / local state ---
 .docker-data/

@@ -1,0 +1,23 @@
+{
+  "generated_at": "2026-10-12T13:54:57.378233+00:00",
+  "model_dir": "ml/artifacts/gradient_boosting_network_flow/v1",
+  "eval_file": "C:\\Sentinel_Mesh\\archive\\KDDTest+.txt",
+  "n_single_requests": 2000,
+  "single_request_latency_ms": {
+    "p50": 0.14660018496215343,
+    "p99": 0.4523000679910183,
+    "mean": 0.16308059764560312
+  },
+  "single_request_throughput_flows_per_s": 6090.5,
+  "n_batches": 30,
+  "batch_size": 1000,
+  "sequential_1000_calls_latency_ms": {
+    "p50": 156.4001999795437,
+    "p99": 272.0163001213223
+  },
+  "vectorised_batch_predict_latency_ms": {
+    "p50": 2.4317000061273575,
+    "p99": 3.37349995970726
+  },
+  "vectorised_batch_throughput_flows_per_s": 411234.9
+}

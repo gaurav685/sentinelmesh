@@ -1,0 +1,909 @@
+{
+  "generated_at": "2026-10-12T13:33:41.459961+00:00",
+  "feature_audit": {
+    "feature_columns_used": [
+      "dur",
+      "proto",
+      "service",
+      "state",
+      "spkts",
+      "dpkts",
+      "sbytes",
+      "dbytes",
+      "rate",
+      "sttl",
+      "dttl",
+      "sload",
+      "dload",
+      "sloss",
+      "dloss",
+      "sinpkt",
+      "dinpkt",
+      "sjit",
+      "djit",
+      "swin",
+      "stcpb",
+      "dtcpb",
+      "dwin",
+      "tcprtt",
+      "synack",
+      "ackdat",
+      "smean",
+      "dmean",
+      "trans_depth",
+      "response_body_len",
+      "ct_srv_src",
+      "ct_state_ttl",
+      "ct_dst_ltm",
+      "ct_src_dport_ltm",
+      "ct_dst_sport_ltm",
+      "ct_dst_src_ltm",
+      "is_ftp_login",
+      "ct_ftp_cmd",
+      "ct_flw_http_mthd",
+      "ct_src_ltm",
+      "ct_srv_dst",
+      "is_sm_ips_ports"
+    ],
+    "leaky_columns_confirmed_absent": [
+      "srcip",
+      "dstip",
+      "sport",
+      "dsport",
+      "Stime",
+      "Ltime",
+      "id"
+    ],
+    "note": "this release never shipped srcip/dstip/sport/dsport/Stime/Ltime at all -- 'id' (a plain row counter) is the only identifier-shaped column, and it is dropped."
+  },
+  "split_orientation": {
+    "standard_swapped_vs_filename": true,
+    "standard_train_n": 175341,
+    "standard_train_prevalence": 0.680622,
+    "standard_test_n": 82332,
+    "standard_test_prevalence": 0.5506,
+    "note": "the mirror's 'training-set.csv' file physically has 82,332 rows and 'testing-set.csv' has 175,341 -- reversed vs. the documented 175,341-train/82,332-test convention. 'standard' orientation (this run's primary) picks by real row count, not filename."
+  },
+  "near_duplicate_check_standard": {
+    "method": "exact row-hash match on the real float32 feature vector, rounded to 6 decimals",
+    "n_train_unique_rows": 101028,
+    "n_test_unique_rows": 53939,
+    "n_exact_duplicate_feature_vectors_shared": 1295,
+    "fraction_of_test_rows_duplicated_in_train": 0.024009
+  },
+  "primary_runs_standard_orientation": {
+    "isolation_forest": {
+      "dataset_id": "unsw-nb15-official",
+      "train_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+      "test_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+      "n_train": 175341,
+      "n_train_used_for_fit": 44756,
+      "n_test": 82332,
+      "n_test_anomalous": 45332,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 197
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.781905,
+        "pr_auc": 0.820115,
+        "recall_at_0.01_fpr": 0.214683,
+        "precision": 0.856171,
+        "recall": 0.380416,
+        "f1": 0.526774,
+        "false_positive_rate": 0.078297,
+        "mean_detection_latency_ms": 0.013179,
+        "calibrated_threshold": 0.071572,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.975203,
+        "recall_at_calibrated_threshold": 0.206477,
+        "f1_at_calibrated_threshold": 0.340797,
+        "fpr_at_calibrated_threshold": 0.006432
+      },
+      "per_class_recall": {
+        "Analysis": 0.029542,
+        "Backdoor": 0.049743,
+        "DoS": 0.060406,
+        "Exploits": 0.104294,
+        "Fuzzers": 0.088915,
+        "Generic": 0.805946,
+        "Reconnaissance": 0.009725,
+        "Shellcode": 0.0,
+        "Worms": 0.136364
+      },
+      "roc_auc_ci95": [
+        0.77348,
+        0.785916
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+      },
+      "generated_at": "2026-10-12T13:34:16.181132Z",
+      "executed": true
+    },
+    "autoencoder": {
+      "dataset_id": "unsw-nb15-official",
+      "train_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+      "test_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+      "n_train": 175341,
+      "n_train_used_for_fit": 44756,
+      "n_test": 82332,
+      "n_test_anomalous": 45332,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          49,
+          24
+        ],
+        "epochs": 10,
+        "chunk_rows": 50000,
+        "error_quantile": 0.99,
+        "n_features": 197,
+        "source": "in-memory (not Parquet-streamed)",
+        "scaling": "log1p+standardize(benign-train)"
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.772533,
+        "pr_auc": 0.80137,
+        "recall_at_0.01_fpr": 0.240823,
+        "precision": 0.956422,
+        "recall": 0.247882,
+        "f1": 0.393721,
+        "false_positive_rate": 0.013838,
+        "mean_detection_latency_ms": 0.006377,
+        "calibrated_threshold": 1.088177,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.970729,
+        "recall_at_calibrated_threshold": 0.237757,
+        "f1_at_calibrated_threshold": 0.381962,
+        "fpr_at_calibrated_threshold": 0.008784
+      },
+      "per_class_recall": {
+        "Analysis": 0.032496,
+        "Backdoor": 0.063465,
+        "DoS": 0.066275,
+        "Exploits": 0.07447,
+        "Fuzzers": 0.016991,
+        "Generic": 0.525038,
+        "Reconnaissance": 0.019165,
+        "Shellcode": 0.0,
+        "Worms": 0.0
+      },
+      "roc_auc_ci95": [
+        0.765572,
+        0.778519
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+      },
+      "generated_at": "2026-10-12T13:34:51.955791Z",
+      "executed": true
+    },
+    "gradient_boosting": {
+      "dataset_id": "unsw-nb15-official",
+      "train_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+      "test_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+      "n_train": 175341,
+      "n_train_used_for_fit": 140273,
+      "n_test": 82332,
+      "n_test_anomalous": 45332,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 197,
+        "free_raw_data": true
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.985255,
+        "pr_auc": 0.989187,
+        "recall_at_0.01_fpr": 0.872673,
+        "precision": 0.822764,
+        "recall": 0.984205,
+        "f1": 0.896273,
+        "false_positive_rate": 0.259757,
+        "mean_detection_latency_ms": 0.004002,
+        "calibrated_threshold": 0.894429,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.973719,
+        "recall_at_calibrated_threshold": 0.899034,
+        "f1_at_calibrated_threshold": 0.934887,
+        "fpr_at_calibrated_threshold": 0.02973
+      },
+      "per_class_recall": {
+        "Analysis": 0.957164,
+        "Backdoor": 1.0,
+        "DoS": 0.999266,
+        "Exploits": 0.99479,
+        "Fuzzers": 0.897724,
+        "Generic": 0.999947,
+        "Reconnaissance": 0.999142,
+        "Shellcode": 0.994709,
+        "Worms": 1.0
+      },
+      "roc_auc_ci95": [
+        0.984119,
+        0.986477
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+      },
+      "generated_at": "2026-10-12T13:35:19.266031Z",
+      "executed": true
+    }
+  },
+  "deduplicated_rerun": {
+    "n_test_before": 82332,
+    "n_test_after": 73791,
+    "test_prevalence_before": 0.5506,
+    "test_prevalence_after": 0.518532,
+    "runs": {
+      "isolation_forest": {
+        "dataset_id": "unsw-nb15-official",
+        "train_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+        "test_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+        "n_train": 175341,
+        "n_train_used_for_fit": 44756,
+        "n_test": 73791,
+        "n_test_anomalous": 38263,
+        "model_name": "isolation_forest",
+        "params": {
+          "n_estimators": 100,
+          "random_state": 1337,
+          "n_features": 197
+        },
+        "seed": 1337,
+        "supervised": false,
+        "metrics": {
+          "roc_auc": 0.79051,
+          "pr_auc": 0.814388,
+          "recall_at_0.01_fpr": 0.224969,
+          "precision": 0.847175,
+          "recall": 0.405222,
+          "f1": 0.548219,
+          "false_positive_rate": 0.078727,
+          "mean_detection_latency_ms": 0.026399,
+          "calibrated_threshold": 0.071572,
+          "calibration_target_fpr": 0.01,
+          "precision_at_calibrated_threshold": 0.972319,
+          "recall_at_calibrated_threshold": 0.218488,
+          "f1_at_calibrated_threshold": 0.3568,
+          "fpr_at_calibrated_threshold": 0.006699
+        },
+        "per_class_recall": {
+          "Analysis": 0.036232,
+          "Backdoor": 0.050086,
+          "DoS": 0.097842,
+          "Exploits": 0.11522,
+          "Fuzzers": 0.091536,
+          "Generic": 0.794157,
+          "Reconnaissance": 0.008906,
+          "Shellcode": 0.0,
+          "Worms": 0.136364
+        },
+        "roc_auc_ci95": [
+          0.784384,
+          0.797148
+        ],
+        "roc_auc_ci_sample_n": 20000,
+        "held_out_attack_type": null,
+        "held_out_recall": null,
+        "n_held_out": null,
+        "environment": {
+          "python_version": "3.11.5",
+          "platform": "Windows-10-10.0.26200-SP0",
+          "sm_ml_version": "0.1.0",
+          "sm_ml_training_version": "0.1.0",
+          "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+        },
+        "generated_at": "2026-10-12T13:35:49.669169Z",
+        "executed": true
+      },
+      "autoencoder": {
+        "dataset_id": "unsw-nb15-official",
+        "train_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+        "test_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+        "n_train": 175341,
+        "n_train_used_for_fit": 44756,
+        "n_test": 73791,
+        "n_test_anomalous": 38263,
+        "model_name": "autoencoder",
+        "params": {
+          "hidden_dims": [
+            49,
+            24
+          ],
+          "epochs": 10,
+          "chunk_rows": 50000,
+          "error_quantile": 0.99,
+          "n_features": 197,
+          "source": "in-memory (not Parquet-streamed)",
+          "scaling": "log1p+standardize(benign-train)"
+        },
+        "seed": 1337,
+        "supervised": false,
+        "metrics": {
+          "roc_auc": 0.772808,
+          "pr_auc": 0.78993,
+          "recall_at_0.01_fpr": 0.245119,
+          "precision": 0.949848,
+          "recall": 0.252437,
+          "f1": 0.398869,
+          "false_positive_rate": 0.014355,
+          "mean_detection_latency_ms": 0.005606,
+          "calibrated_threshold": 1.088177,
+          "calibration_target_fpr": 0.01,
+          "precision_at_calibrated_threshold": 0.966365,
+          "recall_at_calibrated_threshold": 0.242532,
+          "f1_at_calibrated_threshold": 0.387749,
+          "fpr_at_calibrated_threshold": 0.009091
+        },
+        "per_class_recall": {
+          "Analysis": 0.038043,
+          "Backdoor": 0.063903,
+          "DoS": 0.070024,
+          "Exploits": 0.07299,
+          "Fuzzers": 0.017411,
+          "Generic": 0.503586,
+          "Reconnaissance": 0.015691,
+          "Shellcode": 0.0,
+          "Worms": 0.0
+        },
+        "roc_auc_ci95": [
+          0.767101,
+          0.780804
+        ],
+        "roc_auc_ci_sample_n": 20000,
+        "held_out_attack_type": null,
+        "held_out_recall": null,
+        "n_held_out": null,
+        "environment": {
+          "python_version": "3.11.5",
+          "platform": "Windows-10-10.0.26200-SP0",
+          "sm_ml_version": "0.1.0",
+          "sm_ml_training_version": "0.1.0",
+          "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+        },
+        "generated_at": "2026-10-12T13:36:17.901418Z",
+        "executed": true
+      },
+      "gradient_boosting": {
+        "dataset_id": "unsw-nb15-official",
+        "train_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+        "test_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+        "n_train": 175341,
+        "n_train_used_for_fit": 140273,
+        "n_test": 73791,
+        "n_test_anomalous": 38263,
+        "model_name": "gradient_boosting",
+        "params": {
+          "num_leaves": 31,
+          "n_estimators": 200,
+          "learning_rate": 0.05,
+          "seed": 1337,
+          "n_features": 197,
+          "free_raw_data": true
+        },
+        "seed": 1337,
+        "supervised": true,
+        "metrics": {
+          "roc_auc": 0.982895,
+          "pr_auc": 0.985835,
+          "recall_at_0.01_fpr": 0.849045,
+          "precision": 0.804985,
+          "recall": 0.981601,
+          "f1": 0.884563,
+          "false_positive_rate": 0.256108,
+          "mean_detection_latency_ms": 0.003778,
+          "calibrated_threshold": 0.894429,
+          "calibration_target_fpr": 0.01,
+          "precision_at_calibrated_threshold": 0.969519,
+          "recall_at_calibrated_threshold": 0.881165,
+          "f1_at_calibrated_threshold": 0.923233,
+          "fpr_at_calibrated_threshold": 0.029836
+        },
+        "per_class_recall": {
+          "Analysis": 0.947464,
+          "Backdoor": 1.0,
+          "DoS": 0.998561,
+          "Exploits": 0.993783,
+          "Fuzzers": 0.895018,
+          "Generic": 0.999942,
+          "Reconnaissance": 0.999152,
+          "Shellcode": 0.994521,
+          "Worms": 1.0
+        },
+        "roc_auc_ci95": [
+          0.981694,
+          0.984
+        ],
+        "roc_auc_ci_sample_n": 20000,
+        "held_out_attack_type": null,
+        "held_out_recall": null,
+        "n_held_out": null,
+        "environment": {
+          "python_version": "3.11.5",
+          "platform": "Windows-10-10.0.26200-SP0",
+          "sm_ml_version": "0.1.0",
+          "sm_ml_training_version": "0.1.0",
+          "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+        },
+        "generated_at": "2026-10-12T13:36:46.199853Z",
+        "executed": true
+      }
+    }
+  },
+  "near_duplicate_check_literal": {
+    "method": "exact row-hash match on the real float32 feature vector, rounded to 6 decimals",
+    "n_train_unique_rows": 53939,
+    "n_test_unique_rows": 101028,
+    "n_exact_duplicate_feature_vectors_shared": 1295,
+    "fraction_of_test_rows_duplicated_in_train": 0.012818
+  },
+  "secondary_runs_literal_orientation": {
+    "train_n": 82332,
+    "train_prevalence": 0.5506,
+    "test_n": 175341,
+    "test_prevalence": 0.680622,
+    "runs": {
+      "isolation_forest": {
+        "dataset_id": "unsw-nb15-official",
+        "train_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+        "test_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+        "n_train": 82332,
+        "n_train_used_for_fit": 29660,
+        "n_test": 175341,
+        "n_test_anomalous": 119341,
+        "model_name": "isolation_forest",
+        "params": {
+          "n_estimators": 100,
+          "random_state": 1337,
+          "n_features": 193
+        },
+        "seed": 1337,
+        "supervised": false,
+        "metrics": {
+          "roc_auc": 0.733151,
+          "pr_auc": 0.863872,
+          "recall_at_0.01_fpr": 0.214687,
+          "precision": 0.889944,
+          "recall": 0.374632,
+          "f1": 0.527294,
+          "false_positive_rate": 0.098732,
+          "mean_detection_latency_ms": 0.015004,
+          "calibrated_threshold": 0.075912,
+          "calibration_target_fpr": 0.01,
+          "precision_at_calibrated_threshold": 0.974311,
+          "recall_at_calibrated_threshold": 0.250115,
+          "f1_at_calibrated_threshold": 0.398048,
+          "fpr_at_calibrated_threshold": 0.014054
+        },
+        "per_class_recall": {
+          "Analysis": 0.07,
+          "Backdoor": 0.041237,
+          "DoS": 0.055855,
+          "Exploits": 0.089809,
+          "Fuzzers": 0.091014,
+          "Generic": 0.97575,
+          "Reconnaissance": 0.010676,
+          "Shellcode": 0.0,
+          "Worms": 0.123077
+        },
+        "roc_auc_ci95": [
+          0.725572,
+          0.739073
+        ],
+        "roc_auc_ci_sample_n": 20000,
+        "held_out_attack_type": null,
+        "held_out_recall": null,
+        "n_held_out": null,
+        "environment": {
+          "python_version": "3.11.5",
+          "platform": "Windows-10-10.0.26200-SP0",
+          "sm_ml_version": "0.1.0",
+          "sm_ml_training_version": "0.1.0",
+          "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+        },
+        "generated_at": "2026-10-12T13:37:18.139560Z",
+        "executed": true
+      },
+      "autoencoder": {
+        "dataset_id": "unsw-nb15-official",
+        "train_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+        "test_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+        "n_train": 82332,
+        "n_train_used_for_fit": 29660,
+        "n_test": 175341,
+        "n_test_anomalous": 119341,
+        "model_name": "autoencoder",
+        "params": {
+          "hidden_dims": [
+            48,
+            24
+          ],
+          "epochs": 10,
+          "chunk_rows": 50000,
+          "error_quantile": 0.99,
+          "n_features": 193,
+          "source": "in-memory (not Parquet-streamed)",
+          "scaling": "log1p+standardize(benign-train)"
+        },
+        "seed": 1337,
+        "supervised": false,
+        "metrics": {
+          "roc_auc": 0.753158,
+          "pr_auc": 0.869708,
+          "recall_at_0.01_fpr": 0.318776,
+          "precision": 0.974366,
+          "recall": 0.323284,
+          "f1": 0.485488,
+          "false_positive_rate": 0.018125,
+          "mean_detection_latency_ms": 0.004902,
+          "calibrated_threshold": 1.328454,
+          "calibration_target_fpr": 0.01,
+          "precision_at_calibrated_threshold": 0.970391,
+          "recall_at_calibrated_threshold": 0.324876,
+          "f1_at_calibrated_threshold": 0.486782,
+          "fpr_at_calibrated_threshold": 0.021125
+        },
+        "per_class_recall": {
+          "Analysis": 0.0545,
+          "Backdoor": 0.085338,
+          "DoS": 0.06621,
+          "Exploits": 0.073758,
+          "Fuzzers": 0.020733,
+          "Generic": 0.861925,
+          "Reconnaissance": 0.018492,
+          "Shellcode": 0.0,
+          "Worms": 0.0
+        },
+        "roc_auc_ci95": [
+          0.745747,
+          0.759062
+        ],
+        "roc_auc_ci_sample_n": 20000,
+        "held_out_attack_type": null,
+        "held_out_recall": null,
+        "n_held_out": null,
+        "environment": {
+          "python_version": "3.11.5",
+          "platform": "Windows-10-10.0.26200-SP0",
+          "sm_ml_version": "0.1.0",
+          "sm_ml_training_version": "0.1.0",
+          "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+        },
+        "generated_at": "2026-10-12T13:37:47.356847Z",
+        "executed": true
+      },
+      "gradient_boosting": {
+        "dataset_id": "unsw-nb15-official",
+        "train_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+        "test_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+        "n_train": 82332,
+        "n_train_used_for_fit": 65866,
+        "n_test": 175341,
+        "n_test_anomalous": 119341,
+        "model_name": "gradient_boosting",
+        "params": {
+          "num_leaves": 31,
+          "n_estimators": 200,
+          "learning_rate": 0.05,
+          "seed": 1337,
+          "n_features": 193,
+          "free_raw_data": true
+        },
+        "seed": 1337,
+        "supervised": true,
+        "metrics": {
+          "roc_auc": 0.986397,
+          "pr_auc": 0.993491,
+          "recall_at_0.01_fpr": 0.829824,
+          "precision": 0.989039,
+          "recall": 0.861933,
+          "f1": 0.921122,
+          "false_positive_rate": 0.020357,
+          "mean_detection_latency_ms": 0.003935,
+          "calibrated_threshold": 0.624875,
+          "calibration_target_fpr": 0.01,
+          "precision_at_calibrated_threshold": 0.991317,
+          "recall_at_calibrated_threshold": 0.851401,
+          "f1_at_calibrated_threshold": 0.916047,
+          "fpr_at_calibrated_threshold": 0.015893
+        },
+        "per_class_recall": {
+          "Analysis": 0.7385,
+          "Backdoor": 0.985682,
+          "DoS": 0.976027,
+          "Exploits": 0.964394,
+          "Fuzzers": 0.229048,
+          "Generic": 0.998575,
+          "Reconnaissance": 0.985893,
+          "Shellcode": 0.805825,
+          "Worms": 0.984615
+        },
+        "roc_auc_ci95": [
+          0.986104,
+          0.988185
+        ],
+        "roc_auc_ci_sample_n": 20000,
+        "held_out_attack_type": null,
+        "held_out_recall": null,
+        "n_held_out": null,
+        "environment": {
+          "python_version": "3.11.5",
+          "platform": "Windows-10-10.0.26200-SP0",
+          "sm_ml_version": "0.1.0",
+          "sm_ml_training_version": "0.1.0",
+          "git_commit": "788af9975300eaa7573644a7524ff15ace05832f"
+        },
+        "generated_at": "2026-10-12T13:38:15.616857Z",
+        "executed": true
+      }
+    }
+  },
+  "lightgbm_top15_gain": [
+    {
+      "feature": "sttl",
+      "gain": 1370537.8545837402
+    },
+    {
+      "feature": "ct_srv_dst",
+      "gain": 131843.39890241623
+    },
+    {
+      "feature": "sbytes",
+      "gain": 114177.62723255157
+    },
+    {
+      "feature": "smean",
+      "gain": 86257.26754975319
+    },
+    {
+      "feature": "ct_dst_sport_ltm",
+      "gain": 22362.863600969315
+    },
+    {
+      "feature": "ct_dst_src_ltm",
+      "gain": 19540.794607162476
+    },
+    {
+      "feature": "dbytes",
+      "gain": 18374.66012954712
+    },
+    {
+      "feature": "ct_srv_src",
+      "gain": 17339.05420279503
+    },
+    {
+      "feature": "sloss",
+      "gain": 14004.363670825958
+    },
+    {
+      "feature": "dmean",
+      "gain": 13558.578628540039
+    },
+    {
+      "feature": "service=dns",
+      "gain": 10270.633019924164
+    },
+    {
+      "feature": "sinpkt",
+      "gain": 9261.61075592041
+    },
+    {
+      "feature": "state=CON",
+      "gain": 8818.887799739838
+    },
+    {
+      "feature": "proto=unas",
+      "gain": 8558.456302404404
+    },
+    {
+      "feature": "tcprtt",
+      "gain": 8188.345755577087
+    }
+  ],
+  "lightgbm_top15_shap": [
+    {
+      "feature": "sttl",
+      "mean_abs_shap": 3.2499982485709378
+    },
+    {
+      "feature": "sbytes",
+      "mean_abs_shap": 0.7124291750262891
+    },
+    {
+      "feature": "proto=unas",
+      "mean_abs_shap": 0.5568957769170403
+    },
+    {
+      "feature": "service=dns",
+      "mean_abs_shap": 0.48101885934099037
+    },
+    {
+      "feature": "ct_dst_sport_ltm",
+      "mean_abs_shap": 0.41567148777734064
+    },
+    {
+      "feature": "ct_srv_dst",
+      "mean_abs_shap": 0.3998254170623991
+    },
+    {
+      "feature": "smean",
+      "mean_abs_shap": 0.2880778123460527
+    },
+    {
+      "feature": "dbytes",
+      "mean_abs_shap": 0.1868271151406762
+    },
+    {
+      "feature": "ct_state_ttl",
+      "mean_abs_shap": 0.16329224207993512
+    },
+    {
+      "feature": "proto=udp",
+      "mean_abs_shap": 0.1527956370937142
+    },
+    {
+      "feature": "ct_srv_src",
+      "mean_abs_shap": 0.1394757920703531
+    },
+    {
+      "feature": "ct_dst_src_ltm",
+      "mean_abs_shap": 0.11824722012205843
+    },
+    {
+      "feature": "tcprtt",
+      "mean_abs_shap": 0.09034389405207834
+    },
+    {
+      "feature": "synack",
+      "mean_abs_shap": 0.0887329646720296
+    },
+    {
+      "feature": "proto=ospf",
+      "mean_abs_shap": 0.08662961976142422
+    }
+  ],
+  "ttl_ablation": {
+    "dropped_features": [
+      "sttl",
+      "dttl",
+      "ct_state_ttl"
+    ],
+    "with_ttl": {
+      "roc_auc": 0.985255,
+      "pr_auc": 0.989187,
+      "recall_at_0.01_fpr": 0.872673,
+      "precision": 0.822764,
+      "recall": 0.984205,
+      "f1": 0.896273,
+      "false_positive_rate": 0.259757,
+      "mean_detection_latency_ms": 0.004002,
+      "calibrated_threshold": 0.894429,
+      "calibration_target_fpr": 0.01,
+      "precision_at_calibrated_threshold": 0.973719,
+      "recall_at_calibrated_threshold": 0.899034,
+      "f1_at_calibrated_threshold": 0.934887,
+      "fpr_at_calibrated_threshold": 0.02973
+    },
+    "without_ttl": {
+      "roc_auc": 0.983782,
+      "pr_auc": 0.988083,
+      "recall_at_0.01_fpr": 0.855533,
+      "precision": 0.823566,
+      "recall": 0.983058,
+      "f1": 0.896272,
+      "false_positive_rate": 0.258027,
+      "mean_detection_latency_ms": 0.004267,
+      "calibrated_threshold": 0.892506,
+      "calibration_target_fpr": 0.01,
+      "precision_at_calibrated_threshold": 0.97244,
+      "recall_at_calibrated_threshold": 0.892791,
+      "f1_at_calibrated_threshold": 0.930915,
+      "fpr_at_calibrated_threshold": 0.031
+    }
+  },
+  "held_out_dos": {
+    "n_dos_rows_removed_from_train": 12264,
+    "n_dos_rows_confirmed_zero_in_train_after_removal": 0,
+    "n_dos_rows_in_test": 4089,
+    "held_out_recall": 0.99731,
+    "top_shap_features_driving_dos_detection": [
+      {
+        "feature": "sttl",
+        "mean_abs_shap": 2.5610648589942486
+      },
+      {
+        "feature": "ct_state_ttl",
+        "mean_abs_shap": 1.0405588318223569
+      },
+      {
+        "feature": "sbytes",
+        "mean_abs_shap": 0.7041917967894552
+      },
+      {
+        "feature": "proto=unas",
+        "mean_abs_shap": 0.7006756013507551
+      },
+      {
+        "feature": "service=dns",
+        "mean_abs_shap": 0.5999204941799894
+      },
+      {
+        "feature": "ct_dst_sport_ltm",
+        "mean_abs_shap": 0.5852374190505003
+      },
+      {
+        "feature": "ct_srv_dst",
+        "mean_abs_shap": 0.30277183993471923
+      },
+      {
+        "feature": "smean",
+        "mean_abs_shap": 0.26840578528405007
+      },
+      {
+        "feature": "proto=udp",
+        "mean_abs_shap": 0.17055511752998037
+      },
+      {
+        "feature": "dttl",
+        "mean_abs_shap": 0.1700088735152794
+      },
+      {
+        "feature": "dbytes",
+        "mean_abs_shap": 0.16559554809745314
+      },
+      {
+        "feature": "ct_srv_src",
+        "mean_abs_shap": 0.14341874046482836
+      },
+      {
+        "feature": "proto=ospf",
+        "mean_abs_shap": 0.11413960563867362
+      },
+      {
+        "feature": "ct_dst_src_ltm",
+        "mean_abs_shap": 0.1131626331058619
+      },
+      {
+        "feature": "tcprtt",
+        "mean_abs_shap": 0.09262434549431152
+      }
+    ]
+  }
+}

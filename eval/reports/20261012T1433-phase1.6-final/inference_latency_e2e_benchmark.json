@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-10-12T18:10:06.652600+00:00",
+  "what_this_measures": "real sm_ml_inference FastAPI app via TestClient (ASGITransport, in-process -- no real OS socket/network hop), real routing+auth+pydantic validation+model lookup+scoring+serialization. NOT the same as scripts/benchmark_inference_latency.py's bare in-process model.score() loop.",
+  "endpoint": "POST /api/v1/infer/gradient_boosting_network_flow",
+  "eval_file": "C:\\Sentinel_Mesh\\archive\\KDDTest+.txt",
+  "n_single_requests": 2000,
+  "single_request_latency_ms": {
+    "p50": 3.6411997862160206,
+    "p99": 4.700700053945184,
+    "mean": 3.7095802043331787
+  },
+  "single_request_throughput_requests_per_s": 269.5,
+  "n_batch_requests": 1000,
+  "batch_note": "no batch endpoint exists -- InferRequest.features is one flow's vector, not a list of vectors, so 'batch' here is N real SEQUENTIAL HTTP calls to the same single-flow endpoint, not one vectorised call",
+  "batch_sequential_latency_ms": {
+    "p50": 3.6033999640494585,
+    "p99": 4.618299892172217
+  },
+  "batch_sequential_throughput_requests_per_s": 272.0
+}

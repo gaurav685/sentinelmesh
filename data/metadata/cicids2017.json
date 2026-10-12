@@ -1,0 +1,78 @@
+{
+  "dataset": "cicids2017",
+  "checked_at": "2026-10-12T14:01:31.497874+00:00",
+  "files": [
+    {
+      "name": "Monday-WorkingHours.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "852c4beb34eda186f32561fa79df7a0747e92e1a6535b01270820dd9ffe17f34",
+      "size_bytes": 176927918,
+      "row_count": 529919,
+      "note": ""
+    },
+    {
+      "name": "Tuesday-WorkingHours.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "52b8692ae8c7d2ed04671fe2b98335693c0a92c7ab157d8c8b534d6523080851",
+      "size_bytes": 135078995,
+      "row_count": 445910,
+      "note": ""
+    },
+    {
+      "name": "Wednesday-workingHours.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "893c27dc968bf7a8adef1689f90be55ca4a4dc3088fb63d6ff247ac56856df2a",
+      "size_bytes": 225166395,
+      "row_count": 692704,
+      "note": ""
+    },
+    {
+      "name": "Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "d67066211fb1689c78406f1506f4c44704ecb92088353d5c96d96d6474eb819d",
+      "size_bytes": 52023263,
+      "row_count": 170367,
+      "note": ""
+    },
+    {
+      "name": "Thursday-WorkingHours-Afternoon-Infilteration.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "6bcda3857c2504676034e3ea57762d38393cc734cb377a726bd5cb153961b1b5",
+      "size_bytes": 83102436,
+      "row_count": 288603,
+      "note": ""
+    },
+    {
+      "name": "Friday-WorkingHours-Morning.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "53a41c24d570ea83b7ac55b2e94df94e7a8216aeb80a2af0246b6bc8bb543000",
+      "size_bytes": 58316725,
+      "row_count": 191034,
+      "note": ""
+    },
+    {
+      "name": "Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b",
+      "size_bytes": 76906168,
+      "row_count": 286468,
+      "note": ""
+    },
+    {
+      "name": "Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv",
+      "present": true,
+      "required": true,
+      "sha256": "6ff1580f5f81c0ae28a26f7631721018577f5f7c5e0feac28b795fcfe7b411ee",
+      "size_bytes": 77123859,
+      "row_count": 225746,
+      "note": ""
+    }
+  ]
+}

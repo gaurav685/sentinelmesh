@@ -256,14 +256,21 @@ cluster rollout.
   freshness/expiry, and (optional, feature-flagged) live provider polling.
 - **`services/correlation-engine`** — attack-chain reconstruction and threat
   scoring from correlated detections, with a graph write-back.
-- **`services/ml-inference`** — serves the structural graph-anomaly detector
-  (always available) and named GNN artifacts (503 when one is missing, never
-  a fabricated score).
+- **`services/ml-inference`** — serves the structural graph-anomaly detector,
+  Isolation Forest (production fallback, ADR-013), and named GNN artifacts.
+  A LightGBM network-flow model exists behind `SM_ML_ENABLE_GRADIENT_BOOSTING`
+  (off by default) but is **offline-benchmark only** — `detection-engine`
+  never requests it and this platform's only real event producer
+  (`simulation-service`) doesn't yet feed it real features; see
+  `docs/models/gradient_boosting_network_flow.md`. 503 when a model is
+  missing or disabled, never a fabricated score.
 - **`services/ml-training`** — offline training/artifact tooling, plus the
   reproducible benchmark harness (`sm_ml_training.benchmark`): dataset
-  adapters, stdlib-only metrics, real executed runs against NSL-KDD (a
-  statistical baseline and an Isolation Forest comparison), never a claimed
-  number until the benchmark actually ran.
+  adapters for NSL-KDD, CICIDS2017 (original + corrected WTMC-2021 release),
+  and UNSW-NB15 (official author split); real executed runs comparing a
+  statistical baseline, Isolation Forest, an autoencoder, and LightGBM —
+  never a claimed number until the benchmark actually ran. Full results:
+  `docs/ML_BENCHMARK_REPORT.md`.
 - **`services/ai-analyst`** — grounded LLM explanations (evidence-only
   prompting, prompt-injection resistant), the natural-language hunt planner
   (LLM → closed `QueryPlan` schema only, never raw Cypher), and a guarded
@@ -533,11 +540,16 @@ especially its Verification-status section.
 
 ## Datasets
 
-Benchmark datasets (NSL-KDD, UNSW-NB15, CTU-13, EMBER, LANL unified host/network)
-are staged **outside** this repository at `C:\Sentinel_Mesh` and referenced by
-`SM_DATASET_ROOT`. They are never committed. NSL-KDD has real, executed
-benchmark runs (Phase 15); CICIDS2017/UNSW-NB15/LANL are present on disk but
-not locally usable in labeled form, and no adapter or number exists for them.
+Benchmark datasets (NSL-KDD, CICIDS2017, UNSW-NB15, CTU-13, EMBER, LANL unified
+host/network) are staged **outside** this repository at `C:\Sentinel_Mesh` /
+`data/raw/` and referenced by `SM_DATASET_ROOT`; raw files are never committed
+(`data/README.md` has exact mirror/source URLs, licences, and sha256s).
+NSL-KDD, CICIDS2017 (both the original Kaggle-mirror labels and the corrected
+WTMC-2021 release), and UNSW-NB15 (official author split) all have real
+adapters and real, executed benchmark runs — results table, leakage audit,
+and methodology: `docs/ML_BENCHMARK_REPORT.md`. CTU-13/LANL are present on
+disk but not locally usable in labeled form, and no adapter or number exists
+for them yet.
 
 ## Authoritative sources
 

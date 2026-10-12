@@ -1,0 +1,492 @@
+{
+  "generated_at": "2026-10-12T07:15:32.905712+00:00",
+  "feature_audit": {
+    "feature_columns_used": [
+      "dur",
+      "proto",
+      "service",
+      "state",
+      "spkts",
+      "dpkts",
+      "sbytes",
+      "dbytes",
+      "rate",
+      "sttl",
+      "dttl",
+      "sload",
+      "dload",
+      "sloss",
+      "dloss",
+      "sinpkt",
+      "dinpkt",
+      "sjit",
+      "djit",
+      "swin",
+      "stcpb",
+      "dtcpb",
+      "dwin",
+      "tcprtt",
+      "synack",
+      "ackdat",
+      "smean",
+      "dmean",
+      "trans_depth",
+      "response_body_len",
+      "ct_srv_src",
+      "ct_state_ttl",
+      "ct_dst_ltm",
+      "ct_src_dport_ltm",
+      "ct_dst_sport_ltm",
+      "ct_dst_src_ltm",
+      "is_ftp_login",
+      "ct_ftp_cmd",
+      "ct_flw_http_mthd",
+      "ct_src_ltm",
+      "ct_srv_dst",
+      "is_sm_ips_ports"
+    ],
+    "leaky_columns_confirmed_absent": [
+      "srcip",
+      "dstip",
+      "sport",
+      "dsport",
+      "Stime",
+      "Ltime",
+      "id"
+    ],
+    "note": "this release never shipped srcip/dstip/sport/dsport/Stime/Ltime at all -- 'id' (a plain row counter) is the only identifier-shaped column, and it is dropped."
+  },
+  "near_duplicate_check": {
+    "method": "exact row-hash match on the real float32 feature vector, rounded to 6 decimals",
+    "n_train_unique_rows": 53939,
+    "n_test_unique_rows": 101028,
+    "n_exact_duplicate_feature_vectors_shared": 1295,
+    "fraction_of_test_rows_duplicated_in_train": 0.012818
+  },
+  "primary_runs": {
+    "isolation_forest": {
+      "dataset_id": "unsw-nb15-official",
+      "train_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+      "test_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+      "n_train": 82332,
+      "n_train_used_for_fit": 29660,
+      "n_test": 175341,
+      "n_test_anomalous": 119341,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 193
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.733151,
+        "pr_auc": 0.863872,
+        "recall_at_0.01_fpr": 0.214687,
+        "precision": 0.889944,
+        "recall": 0.374632,
+        "f1": 0.527294,
+        "false_positive_rate": 0.098732,
+        "mean_detection_latency_ms": 0.014807,
+        "calibrated_threshold": 0.075912,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.974311,
+        "recall_at_calibrated_threshold": 0.250115,
+        "f1_at_calibrated_threshold": 0.398048,
+        "fpr_at_calibrated_threshold": 0.014054
+      },
+      "per_class_recall": {
+        "Analysis": 0.07,
+        "Backdoor": 0.041237,
+        "DoS": 0.055855,
+        "Exploits": 0.089809,
+        "Fuzzers": 0.091014,
+        "Generic": 0.97575,
+        "Reconnaissance": 0.010676,
+        "Shellcode": 0.0,
+        "Worms": 0.123077
+      },
+      "roc_auc_ci95": [
+        0.725572,
+        0.739073
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "34853ed0610f16e307724bc958bc016b75ea01fd"
+      },
+      "generated_at": "2026-10-12T07:16:07.809746Z",
+      "executed": true
+    },
+    "autoencoder": {
+      "dataset_id": "unsw-nb15-official",
+      "train_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+      "test_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+      "n_train": 82332,
+      "n_train_used_for_fit": 29660,
+      "n_test": 175341,
+      "n_test_anomalous": 119341,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          48,
+          24
+        ],
+        "epochs": 10,
+        "chunk_rows": 50000,
+        "error_quantile": 0.99,
+        "n_features": 193,
+        "source": "in-memory (not Parquet-streamed)",
+        "scaling": "log1p+standardize(benign-train)"
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.753158,
+        "pr_auc": 0.869708,
+        "recall_at_0.01_fpr": 0.318776,
+        "precision": 0.974366,
+        "recall": 0.323284,
+        "f1": 0.485488,
+        "false_positive_rate": 0.018125,
+        "mean_detection_latency_ms": 0.005023,
+        "calibrated_threshold": 1.328454,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.970391,
+        "recall_at_calibrated_threshold": 0.324876,
+        "f1_at_calibrated_threshold": 0.486782,
+        "fpr_at_calibrated_threshold": 0.021125
+      },
+      "per_class_recall": {
+        "Analysis": 0.0545,
+        "Backdoor": 0.085338,
+        "DoS": 0.06621,
+        "Exploits": 0.073758,
+        "Fuzzers": 0.020733,
+        "Generic": 0.861925,
+        "Reconnaissance": 0.018492,
+        "Shellcode": 0.0,
+        "Worms": 0.0
+      },
+      "roc_auc_ci95": [
+        0.745747,
+        0.759062
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "34853ed0610f16e307724bc958bc016b75ea01fd"
+      },
+      "generated_at": "2026-10-12T07:16:36.597533Z",
+      "executed": true
+    },
+    "gradient_boosting": {
+      "dataset_id": "unsw-nb15-official",
+      "train_sha256": "734fe6642edf758f7c94d7d9149426b49d202fe8e7bf0bef47392489c3c0a559",
+      "test_sha256": "bec7dd5ec88dc2a0ccc7a07879d338395ed7421750f675fd0339e07dfe0648fa",
+      "n_train": 82332,
+      "n_train_used_for_fit": 65866,
+      "n_test": 175341,
+      "n_test_anomalous": 119341,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 193,
+        "free_raw_data": true
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.986397,
+        "pr_auc": 0.993491,
+        "recall_at_0.01_fpr": 0.829824,
+        "precision": 0.989039,
+        "recall": 0.861933,
+        "f1": 0.921122,
+        "false_positive_rate": 0.020357,
+        "mean_detection_latency_ms": 0.002809,
+        "calibrated_threshold": 0.624875,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.991317,
+        "recall_at_calibrated_threshold": 0.851401,
+        "f1_at_calibrated_threshold": 0.916047,
+        "fpr_at_calibrated_threshold": 0.015893
+      },
+      "per_class_recall": {
+        "Analysis": 0.7385,
+        "Backdoor": 0.985682,
+        "DoS": 0.976027,
+        "Exploits": 0.964394,
+        "Fuzzers": 0.229048,
+        "Generic": 0.998575,
+        "Reconnaissance": 0.985893,
+        "Shellcode": 0.805825,
+        "Worms": 0.984615
+      },
+      "roc_auc_ci95": [
+        0.986104,
+        0.988185
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "34853ed0610f16e307724bc958bc016b75ea01fd"
+      },
+      "generated_at": "2026-10-12T07:16:56.366296Z",
+      "executed": true
+    }
+  },
+  "lightgbm_top15_gain": [
+    {
+      "feature": "sttl",
+      "gain": 367837.83495378494
+    },
+    {
+      "feature": "ct_dst_src_ltm",
+      "gain": 151561.40489721298
+    },
+    {
+      "feature": "ct_dst_sport_ltm",
+      "gain": 96369.97277092934
+    },
+    {
+      "feature": "smean",
+      "gain": 60104.63345384598
+    },
+    {
+      "feature": "tcprtt",
+      "gain": 58771.426197052
+    },
+    {
+      "feature": "sbytes",
+      "gain": 52683.827052116394
+    },
+    {
+      "feature": "dbytes",
+      "gain": 43037.06277894974
+    },
+    {
+      "feature": "ct_srv_dst",
+      "gain": 29056.096430540085
+    },
+    {
+      "feature": "proto=udp",
+      "gain": 27374.59832048416
+    },
+    {
+      "feature": "sloss",
+      "gain": 22520.474009513855
+    },
+    {
+      "feature": "synack",
+      "gain": 20778.837744951248
+    },
+    {
+      "feature": "ct_srv_src",
+      "gain": 17591.56551527977
+    },
+    {
+      "feature": "service=dns",
+      "gain": 15562.52664732933
+    },
+    {
+      "feature": "service=-",
+      "gain": 10746.17085981369
+    },
+    {
+      "feature": "rate",
+      "gain": 10610.318246126175
+    }
+  ],
+  "lightgbm_top15_shap": [
+    {
+      "feature": "sttl",
+      "mean_abs_shap": 9.077399719956277
+    },
+    {
+      "feature": "ct_dst_sport_ltm",
+      "mean_abs_shap": 0.5128452048035816
+    },
+    {
+      "feature": "dbytes",
+      "mean_abs_shap": 0.5015256894725322
+    },
+    {
+      "feature": "service=dns",
+      "mean_abs_shap": 0.39596602654992114
+    },
+    {
+      "feature": "sbytes",
+      "mean_abs_shap": 0.36910628521764277
+    },
+    {
+      "feature": "ct_dst_src_ltm",
+      "mean_abs_shap": 0.3686699642560295
+    },
+    {
+      "feature": "service=-",
+      "mean_abs_shap": 0.20381950818827746
+    },
+    {
+      "feature": "ct_srv_src",
+      "mean_abs_shap": 0.12929329886981714
+    },
+    {
+      "feature": "ct_srv_dst",
+      "mean_abs_shap": 0.10785117055899127
+    },
+    {
+      "feature": "dmean",
+      "mean_abs_shap": 0.10085153152060572
+    },
+    {
+      "feature": "synack",
+      "mean_abs_shap": 0.09921726698663232
+    },
+    {
+      "feature": "proto=udp",
+      "mean_abs_shap": 0.09540802303346839
+    },
+    {
+      "feature": "smean",
+      "mean_abs_shap": 0.08962083789272055
+    },
+    {
+      "feature": "ct_src_ltm",
+      "mean_abs_shap": 0.0856918901467598
+    },
+    {
+      "feature": "sloss",
+      "mean_abs_shap": 0.08543944314916771
+    }
+  ],
+  "ttl_ablation": {
+    "dropped_features": [
+      "sttl",
+      "dttl",
+      "ct_state_ttl"
+    ],
+    "with_ttl": {
+      "roc_auc": 0.986397,
+      "pr_auc": 0.993491,
+      "recall_at_0.01_fpr": 0.829824,
+      "precision": 0.989039,
+      "recall": 0.861933,
+      "f1": 0.921122,
+      "false_positive_rate": 0.020357,
+      "mean_detection_latency_ms": 0.002809,
+      "calibrated_threshold": 0.624875,
+      "calibration_target_fpr": 0.01,
+      "precision_at_calibrated_threshold": 0.991317,
+      "recall_at_calibrated_threshold": 0.851401,
+      "f1_at_calibrated_threshold": 0.916047,
+      "fpr_at_calibrated_threshold": 0.015893
+    },
+    "without_ttl": {
+      "roc_auc": 0.984321,
+      "pr_auc": 0.992416,
+      "recall_at_0.01_fpr": 0.821813,
+      "precision": 0.986571,
+      "recall": 0.862461,
+      "f1": 0.920351,
+      "false_positive_rate": 0.025018,
+      "mean_detection_latency_ms": 0.0029,
+      "calibrated_threshold": 0.627976,
+      "calibration_target_fpr": 0.01,
+      "precision_at_calibrated_threshold": 0.989367,
+      "recall_at_calibrated_threshold": 0.849096,
+      "f1_at_calibrated_threshold": 0.913881,
+      "fpr_at_calibrated_threshold": 0.019446
+    }
+  },
+  "held_out_dos": {
+    "n_dos_rows_removed_from_train": 4089,
+    "n_dos_rows_confirmed_zero_in_train_after_removal": 0,
+    "n_dos_rows_in_test": 12264,
+    "held_out_recall": 0.972195,
+    "top_shap_features_driving_dos_detection": [
+      {
+        "feature": "sttl",
+        "mean_abs_shap": 2.6398407363950156
+      },
+      {
+        "feature": "sbytes",
+        "mean_abs_shap": 0.8356704905061484
+      },
+      {
+        "feature": "service=dns",
+        "mean_abs_shap": 0.8264779369915707
+      },
+      {
+        "feature": "ct_dst_src_ltm",
+        "mean_abs_shap": 0.754759016462176
+      },
+      {
+        "feature": "ct_dst_sport_ltm",
+        "mean_abs_shap": 0.6727481874750753
+      },
+      {
+        "feature": "proto=udp",
+        "mean_abs_shap": 0.4950445227868454
+      },
+      {
+        "feature": "proto=unas",
+        "mean_abs_shap": 0.4394322662827552
+      },
+      {
+        "feature": "smean",
+        "mean_abs_shap": 0.42843553968806874
+      },
+      {
+        "feature": "sloss",
+        "mean_abs_shap": 0.3664216754937073
+      },
+      {
+        "feature": "service=-",
+        "mean_abs_shap": 0.2562254750348128
+      },
+      {
+        "feature": "ct_state_ttl",
+        "mean_abs_shap": 0.20735380702549544
+      },
+      {
+        "feature": "dbytes",
+        "mean_abs_shap": 0.19804653533392888
+      },
+      {
+        "feature": "tcprtt",
+        "mean_abs_shap": 0.18523854220046776
+      },
+      {
+        "feature": "synack",
+        "mean_abs_shap": 0.1484033903011979
+      },
+      {
+        "feature": "ct_src_ltm",
+        "mean_abs_shap": 0.1307082243308048
+      }
+    ]
+  }
+}

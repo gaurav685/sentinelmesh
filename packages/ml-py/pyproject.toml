@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "sm-ml"
 version = "0.1.0"
-description = "SentinelMesh ML layer: versioned feature + graph-feature schemas with deterministic extractors, preprocessing, the anomaly-model + graph-model interfaces, always-available statistical + structural-graph detectors, the autoencoder boundary (optional sm-ml[autoencoder]), and the GNN boundary (GraphSAGE / GAT, optional sm-ml[gnn]). Trained models load from artifacts and are served by ml-inference. No accuracy figure is claimed anywhere."
+description = "SentinelMesh ML layer: versioned feature + graph-feature schemas with deterministic extractors, preprocessing, the anomaly-model + graph-model interfaces, always-available statistical + structural-graph detectors, the autoencoder boundary (optional sm-ml[autoencoder]), the GNN boundary (GraphSAGE / GAT, optional sm-ml[gnn]), the gradient-boosting boundary (optional sm-ml[boosting]), and modern flow-dataset adapters (sm_ml.datasets). Trained models load from artifacts and are served by ml-inference. No accuracy figure is claimed anywhere."
 requires-python = ">=3.11"
 dependencies = [
     "sm-contracts",
@@ -28,6 +28,16 @@ autoencoder = [
 gnn = [
     "torch>=2.2,<3",
     "torch-geometric>=2.5,<3",
+]
+# Supervised gradient-boosting (`ml-training` benchmark only -- Phase 1 modern-
+# dataset comparison). Not installed in CI by default; light enough it could be.
+boosting = [
+    "lightgbm>=4.3,<5",
+]
+# Modern flow-dataset adapters (CICIDS2017/UNSW-NB15) -- chunked/streaming CSV
+# reading so a multi-GB file never has to fit in memory at once.
+datasets = [
+    "polars>=1.9,<2",
 ]
 dev = [
     "pytest>=8",

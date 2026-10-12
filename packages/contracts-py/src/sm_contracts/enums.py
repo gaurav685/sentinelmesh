@@ -142,6 +142,7 @@ class AnomalyMethod(StrEnum):
     rolling_quantile = "rolling_quantile"
     isolation_forest = "isolation_forest"
     autoencoder = "autoencoder"
+    gradient_boosting = "gradient_boosting"
 
 
 class ScoringStatus(StrEnum):
