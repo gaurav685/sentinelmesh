@@ -60,6 +60,65 @@ def _require_polars() -> Any:
     return pl
 
 
+class _FeatureScaler:
+    """log1p + standardisation, fit on benign TRAIN rows only -- the real
+    bug found in this module's autoencoder: raw unscaled features (byte
+    counts in the millions next to 0/1 one-hot indicators) were fed
+    directly into the network. MSE loss is dominated by whichever feature
+    has the largest raw numeric range, so the autoencoder was learning to
+    reconstruct that one dominant feature and nothing else -- real,
+    measured root cause (see `test_autoencoder_scaling.py`'s synthetic
+    case), not a sign/direction bug. `clip(min=0)` before `log1p` is a
+    safety net (this project's real feature columns are durations/counts/
+    byte totals, never legitimately negative); `std==0` columns (a
+    feature that's constant across all benign rows) map to a `scale` of
+    1.0 so they don't divide by zero -- they stay exactly at their
+    (constant) mean after centering, contributing nothing, not NaN."""
+
+    def __init__(self, mean: Any, scale: Any) -> None:
+        self.mean = mean
+        self.scale = scale
+
+    @classmethod
+    def fit_from_array(cls, x_benign: Any) -> _FeatureScaler:
+        import numpy as np
+
+        logged = np.log1p(np.clip(x_benign, 0, None))
+        mean = logged.mean(axis=0)
+        std = logged.std(axis=0)
+        scale = np.where(std > 1e-8, std, 1.0).astype(np.float32)
+        return cls(mean.astype(np.float32), scale)
+
+    @classmethod
+    def fit_from_parquet(
+        cls, parquet_paths: tuple[Path, ...], feature_cols: tuple[str, ...], *, label_col: str, benign_value: str
+    ) -> _FeatureScaler:
+        import numpy as np
+
+        pl = _require_polars()
+        logged_exprs = [pl.col(c).clip(lower_bound=0).log1p().alias(c) for c in feature_cols]
+        frames = [
+            pl.scan_parquet(p).filter(pl.col(label_col) == benign_value).select(logged_exprs) for p in parquet_paths
+        ]
+        stats = (
+            pl.concat(frames, how="vertical")
+            .select([*(pl.col(c).mean().alias(f"{c}__mean") for c in feature_cols),
+                      *(pl.col(c).std().alias(f"{c}__std") for c in feature_cols)])
+            .collect()
+        )
+        row = stats.row(0, named=True)
+        mean = np.array([row[f"{c}__mean"] for c in feature_cols], dtype=np.float32)
+        std = np.array([row[f"{c}__std"] or 0.0 for c in feature_cols], dtype=np.float32)
+        scale = np.where(std > 1e-8, std, 1.0).astype(np.float32)
+        return cls(mean, scale)
+
+    def transform(self, x: Any) -> Any:
+        import numpy as np
+
+        logged = np.log1p(np.clip(x, 0, None))
+        return ((logged - self.mean) / self.scale).astype(np.float32)
+
+
 class StreamingBenignBatches:
     """A real PyTorch `IterableDataset` (duck-typed -- `torch` is an optional
     dependency of this package, so this class doesn't subclass it directly
@@ -80,12 +139,14 @@ class StreamingBenignBatches:
         *,
         label_col: str,
         benign_value: str,
+        scaler: _FeatureScaler,
         batch_rows: int = _CHUNK_ROWS,
     ) -> None:
         self.parquet_paths = parquet_paths
         self.feature_cols = feature_cols
         self.label_col = label_col
         self.benign_value = benign_value
+        self.scaler = scaler
         self.batch_rows = batch_rows
 
     def __iter__(self) -> Iterator[Any]:
@@ -105,7 +166,7 @@ class StreamingBenignBatches:
                 )
                 if chunk.height == 0:
                     continue
-                yield torch.from_numpy(chunk.to_numpy())
+                yield torch.from_numpy(self.scaler.transform(chunk.to_numpy()))
 
 
 def _fit_isolation_forest_arrays(x: Any, feature_names: tuple[str, ...], *, seed: int) -> tuple[Any, dict[str, Any]]:
@@ -169,6 +230,10 @@ def _fit_autoencoder_streaming(
 
     from sm_ml.models.autoencoder import AutoencoderSpec, build_module
 
+    scaler = _FeatureScaler.fit_from_parquet(
+        parquet_paths, feature_names, label_col=label_col, benign_value=benign_value
+    )
+
     torch.manual_seed(seed)
     input_dim = len(feature_names)
     hidden_dims = (max(8, input_dim // 4), max(4, input_dim // 8))
@@ -199,7 +264,9 @@ def _fit_autoencoder_streaming(
     # epoch (no shuffling buffer held in RAM), so epoch count is the real cost knob here;
     # documented, not silently matched to the NSL-KDD harness's unrelated convention.
     dataset = _TorchIterableWrapper(
-        StreamingBenignBatches(parquet_paths, feature_names, label_col=label_col, benign_value=benign_value)
+        StreamingBenignBatches(
+            parquet_paths, feature_names, label_col=label_col, benign_value=benign_value, scaler=scaler
+        )
     )
     train_errors: list[float] = []
     for epoch in range(epochs):
@@ -219,9 +286,9 @@ def _fit_autoencoder_streaming(
 
     params = {
         "hidden_dims": list(hidden_dims), "epochs": epochs, "streaming_batch_rows": _CHUNK_ROWS,
-        "error_quantile": spec.error_quantile, "n_features": input_dim,
+        "error_quantile": spec.error_quantile, "n_features": input_dim, "scaling": "log1p+standardize(benign-train)",
     }
-    return (module, threshold), params
+    return (module, threshold, scaler), params
 
 
 def _fit_autoencoder_inmemory(
@@ -246,6 +313,9 @@ def _fit_autoencoder_inmemory(
 
     from sm_ml.models.autoencoder import AutoencoderSpec, build_module
 
+    scaler = _FeatureScaler.fit_from_array(x_benign)
+    x_scaled = scaler.transform(x_benign)
+
     torch.manual_seed(seed)
     rng = np.random.RandomState(seed)
     input_dim = len(feature_names)
@@ -256,13 +326,13 @@ def _fit_autoencoder_inmemory(
     loss_fn = nn.MSELoss()
 
     epochs = 10
-    n = x_benign.shape[0]
+    n = x_scaled.shape[0]
     train_errors: list[float] = []
     for epoch in range(epochs):
         train_errors = []
         perm = rng.permutation(n)
         for start in range(0, n, _CHUNK_ROWS):
-            batch = torch.from_numpy(x_benign[perm[start : start + _CHUNK_ROWS]]).to(torch.float32)
+            batch = torch.from_numpy(x_scaled[perm[start : start + _CHUNK_ROWS]]).to(torch.float32)
             optimizer.zero_grad()
             recon = module(batch)
             loss = loss_fn(recon, batch)
@@ -276,18 +346,20 @@ def _fit_autoencoder_inmemory(
     params = {
         "hidden_dims": list(hidden_dims), "epochs": epochs, "chunk_rows": _CHUNK_ROWS,
         "error_quantile": spec.error_quantile, "n_features": input_dim, "source": "in-memory (not Parquet-streamed)",
+        "scaling": "log1p+standardize(benign-train)",
     }
-    return (module, threshold), params
+    return (module, threshold, scaler), params
 
 
 def _score_autoencoder_chunked(fitted: Any, x: Any) -> tuple[list[float], list[int]]:
     import torch
 
-    module, threshold = fitted
+    module, threshold, scaler = fitted
     scores: list[float] = []
     with torch.no_grad():
         for start in range(0, x.shape[0], _CHUNK_ROWS):
-            chunk = torch.from_numpy(x[start : start + _CHUNK_ROWS]).to(torch.float32)
+            scaled = scaler.transform(x[start : start + _CHUNK_ROWS])
+            chunk = torch.from_numpy(scaled).to(torch.float32)
             errs = torch.mean((module(chunk) - chunk) ** 2, dim=1)
             scores.extend(errs.tolist())
     preds = [1 if s >= threshold else 0 for s in scores]
