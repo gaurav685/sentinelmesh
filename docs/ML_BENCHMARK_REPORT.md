@@ -123,3 +123,74 @@ A real algorithmic bug was also found and fixed along the way: `sm_ml_training.b
 | UNSW-NB15 (random split, held-out DoS) | LightGBM | 0.9999 | Autoencoder | 0.434 |
 
 The autoencoder is the weakest model on all three real datasets tested in this project so far — a consistent, real, unflattering pattern, not cherry-picked. LightGBM (supervised) is the strongest where labels are available at train time, but CICIDS2017's day-based split shows plainly that a strong aggregate ROC-AUC does not guarantee generalisation to an attack category outside the training window — the held-out-recall column above is the number that actually tests that, and it is near zero for every CICIDS2017 model.
+
+**Superseded by Phase 1.5 below**: the autoencoder numbers in this section were measured before a real feature-scaling bug was found and fixed, and UNSW-NB15's "random split" result is now known to have real train/test leakage. Kept here as the honest historical record of what Phase 1 actually measured — not deleted or silently overwritten.
+
+## Phase 1.5: leakage audit, autoencoder fix, calibrated thresholds (real data)
+
+Run `20261012T0715-phase1.5` (CICIDS2017) + `34853ed0610f` (UNSW-NB15 audit, same branch). Full detail: `eval/reports/20261012T0715-phase1.5/{report.md,partial_cicids2017_v2.json,unsw_nb15_official_audit.json}`.
+
+### Autoencoder bug hunt
+
+Checked, in order, against the real failing case (UNSW-NB15 ROC-AUC 0.433965, below chance): **score direction** (correct — higher reconstruction error already meant "more anomalous"); **benign-only fit** (already correct on both datasets); **reconstruction-error computation** (correct, standard MSE). Root cause: **no feature scaling at all** — raw float32 values (byte counts in the millions next to 0/1 one-hot indicators) were fed directly into the network, so MSE loss was dominated by whichever feature had the largest raw numeric range.
+
+Fix: `sm_ml_training.benchmark.array_benchmark._FeatureScaler` — log1p + standardisation, fit on **benign TRAIN rows only**, applied consistently at fit and score time. `services/ml-training/tests/test_autoencoder_scaling.py` adds a synthetic dataset where the right answer is known by construction (one huge-range noise column with zero real signal, three small-range columns with a genuine 4-sigma shift for the anomaly class) and asserts the real `run_array_benchmark` code path recovers ROC-AUC > 0.9 on it.
+
+| | Before (raw features) | After (log1p + standardise, benign-train-fit) |
+|---|---|---|
+| CICIDS2017 day-split ROC-AUC | 0.617107 | 0.821515 |
+| UNSW-NB15 official-split ROC-AUC | 0.433965 (below chance) | 0.753158 |
+
+### UNSW-NB15 leakage audit — official train/test split now primary
+
+**Feature list used (42 real columns, read from the real file header, not hardcoded)**: `dur, proto, service, state, spkts, dpkts, sbytes, dbytes, rate, sttl, dttl, sload, dload, sloss, dloss, sinpkt, dinpkt, sjit, djit, swin, stcpb, dtcpb, dwin, tcprtt, synack, ackdat, smean, dmean, trans_depth, response_body_len, ct_srv_src, ct_state_ttl, ct_dst_ltm, ct_src_dport_ltm, ct_dst_sport_ltm, ct_dst_src_ltm, is_ftp_login, ct_ftp_cmd, ct_flw_http_mthd, ct_src_ltm, ct_srv_dst, is_sm_ips_ports`. `proto`/`service`/`state` are one-hot encoded (train-only vocabulary) → 193 total feature columns.
+
+**Leakage confirmed absent**: `srcip`, `dstip`, `sport`, `dsport`, `Stime`, `Ltime` do not exist anywhere in this official release (confirmed by reading the real CSV header, not assumed) — only `id` (a plain row counter) was ever present as an identifier-shaped column, and it is dropped.
+
+**Near-duplicate check** (exact row-hash match on the real float32 feature vector, rounded to 6 decimals — not a fuzzy/near-match): train has 53,939 unique rows out of 82,332 real rows; test has 101,028 unique out of 175,341. **1,295 of test's unique rows (1.28%) are exact duplicates of a train row** — a real, moderate, measured leakage signal in the dataset's own official release, not introduced by this project's splitting.
+
+**Primary results** (official split, calibrated at 1% FPR on a validation split carved from TRAIN only):
+
+| Model | ROC-AUC (95% CI) | PR-AUC | Precision@cal | Recall@cal | F1@cal | Recall@1%FPR |
+|---|---|---|---|---|---|---|
+| Isolation Forest | 0.733151 [0.726, 0.739] | 0.863872 | 0.974311 | 0.250115 | 0.398048 | 0.214687 |
+| Autoencoder | 0.753158 [0.746, 0.759] | 0.869708 | 0.970391 | 0.324876 | 0.486782 | 0.318776 |
+| LightGBM | 0.986397 [0.986, 0.988] | 0.993491 | 0.991317 | 0.851401 | 0.916047 | 0.829824 |
+
+**LightGBM top-5 feature importance (gain)**: `sttl` 367,838; `ct_dst_src_ltm` 151,561; `ct_dst_sport_ltm` 96,370; `smean` 60,105; `tcprtt` 58,771. **Top-5 by mean |SHAP|** (5,000-row test sample): `sttl` 9.08; `ct_dst_sport_ltm` 0.513; `dbytes` 0.502; `service=dns` 0.396; `sbytes` 0.369. `sttl` dominates both rankings by more than an order of magnitude — a documented criticism of UNSW-NB15 in the published literature (TTL correlating with label due to dataset-generation artifacts, not real attack behaviour).
+
+**TTL ablation** (drop `sttl`, `dttl`, `ct_state_ttl`): ROC-AUC 0.986397 → 0.984321 (−0.002), PR-AUC 0.993491 → 0.992416, recall@1%FPR 0.829824 → 0.821813. A real, small, measured cost — the model is not solely dependent on the TTL features despite `sttl`'s outsized importance ranking.
+
+**Held-out DoS**: 4,089 real DoS rows removed entirely from train (confirmed: 0 DoS rows remain in the post-removal train set); scored against 12,264 real DoS rows in test → **held-out recall 0.972195**. Top features driving this specific detection (mean |SHAP| on the held-out DoS rows): `sttl` 2.64, `sbytes` 0.836, `service=dns` 0.826, `ct_dst_src_ltm` 0.755, `ct_dst_sport_ltm` 0.673.
+
+**Secondary result (random 2-of-4-row-file split, kept for comparison only — not the primary number)**: LightGBM ROC-AUC 0.999857 vs. the official split's 0.986397; Isolation Forest 0.972234 vs. 0.733151. The gap is consistent with the near-duplicate finding above — a random split over the 4 raw files lets near-identical flows land on both sides more easily than the authors' own curated partition does.
+
+### CICIDS2017 — two separate questions, two separate splits
+
+**"Unseen-attack generalisation"** (train = Monday–Thursday, test = Friday — same split as Phase 1, relabelled; PortScan/DDoS/Bot are genuinely absent from the training days):
+
+| Model | ROC-AUC (95% CI) | Recall@cal (1% FPR) | Held-out (PortScan) | Bot recall | DDoS recall | PortScan recall |
+|---|---|---|---|---|---|---|
+| Isolation Forest | 0.596546 [0.589, 0.605] | 0.074186 | 0.001636 | 0.022889 | 0.635553 | 0.001636 |
+| Autoencoder | 0.821515 [0.817, 0.829] | 0.000433 | 0.000044 | 0.0 | 0.000422 | 0.000044 |
+| LightGBM | 0.753472 [0.750, 0.764] | 0.367319 | 0.001359 | 0.001017 | 0.185094 | 0.001359 |
+
+Bot and PortScan (training-day-absent) are missed by every model regardless of overall ROC-AUC; DDoS (also training-day-absent) fares better for Isolation Forest specifically. The fixed autoencoder now has the *best* ROC-AUC here (0.822) but still a near-zero calibrated recall — ranking ability and operating-point recall tell different stories.
+
+**"Known-attack" split** (stratified within all 8 real day files, grouped into 2,000-row contiguous blocks — this mirror ships no Timestamp column at all, confirmed by reading the real header, so row order is used as the real temporal-adjacency proxy; 1,419 real windows, 426 assigned to test):
+
+| Model | ROC-AUC (95% CI) | Recall@cal (1% FPR) |
+|---|---|---|
+| Isolation Forest | 0.727108 [0.720, 0.736] | 0.176634 |
+| Autoencoder | 0.868278 [0.862, 0.872] | 0.100833 |
+| LightGBM | 0.999983 [0.9999, 1.0] | 0.999984 |
+
+LightGBM is essentially perfect at recognising attack types it has already seen within the same capture days (0.999983) but collapses to 0.753472 the moment the attack type is confined to a day outside training (the split above) — real, direct evidence that CICIDS2017's real difficulty for this platform's models is day-boundary generalisation, not within-distribution classification. (CICIDS2017's synthetic, repetitive attack generation likely also inflates the known-attack number somewhat — flagged as a real limitation of the dataset, not claimed as a clean causal estimate.)
+
+### Corrected CICIDS2017 release (WTMC-2021) — not yet run, needs a decision
+
+Researched again for Phase 1.5: still no Kaggle mirror (confirmed). A direct, no-registration download exists at `https://intrusion-detection.distrinet-research.be/WTMC2021/Dataset/dataset.zip` (~318 MB, verified live), and a PyPI package (`idsdata`) can fetch it the same way. **Not downloaded yet** — a new ~318 MB download needs the user's explicit go-ahead before it happens; this report proceeds without it. If approved, the real next step is a direct LightGBM rerun on it for comparison against this section's Mon-Thu/Fri numbers.
+
+### Real test counts (this session's CI, not estimated)
+
+`main`@`d2b760c` (before this work): 1099 unit/contract passed, 174 integration passed (1 pre-existing flaky failure, unrelated). `feat/ml-detector-upgrade`@`b400600` (after): **1109 unit/contract passed, 175 integration passed**, 0 failures.
