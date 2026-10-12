@@ -20,6 +20,16 @@ Real, documented structure:
   real binary ground truth, used directly rather than re-derived from
   `attack_cat`'s string value (its exact benign spelling has been
   inconsistent across UNSW-NB15 releases; `Label` has not been).
+- **A real, verified spelling inconsistency in `attack_cat` across this
+  mirror's own 4 row files**: `UNSW-NB15_1.csv` spells one category
+  `"Backdoors"`; `UNSW-NB15_2/3/4.csv` spell the same real category
+  `"Backdoor"` (confirmed by a real per-file value-count audit, not
+  assumed). Loading only file 4 (as the reduced-scope Phase 1 run did)
+  never hits this; loading multiple files together would otherwise split
+  one real attack category into two `attack_types` buckets, corrupting
+  `per_class_recall` and the held-out-attack-type selection.
+  `_CANONICAL_ATTACK_CAT` normalises this -- the only such variant found
+  by the audit; it is not a general fuzzy-matcher.
 - `proto`/`state` are one-hot encoded against a vocabulary built from the
   TRAIN split only (`common.build_categorical_vocab`), with an
   `__unknown` bucket for a value only the test split has -- same
@@ -40,6 +50,14 @@ _CATEGORICAL_COLUMNS = ("proto", "state")
 _LABEL_COLUMN = "Label"
 _ATTACK_CAT_COLUMN = "attack_cat"
 _ROW_FILES = ("UNSW-NB15_1.csv", "UNSW-NB15_2.csv", "UNSW-NB15_3.csv", "UNSW-NB15_4.csv")
+# Real spelling variant found by auditing every row file's own attack_cat
+# value counts (UNSW-NB15_1.csv alone uses "Backdoors"; _2/_3/_4 use
+# "Backdoor" for the same real category) -- not a guess.
+_CANONICAL_ATTACK_CAT = {"Backdoors": "Backdoor"}
+
+
+def _canonical_attack_cat(value: str) -> str:
+    return _CANONICAL_ATTACK_CAT.get(value, value)
 
 
 def _require_polars() -> Any:
@@ -140,7 +158,7 @@ def load_unsw_nb15(
         LabelledRow(
             values=_row_values(record),
             label=1 if _to_float(record.get(_LABEL_COLUMN)) >= 1.0 else 0,
-            attack_type=(str(record.get(_ATTACK_CAT_COLUMN) or "").strip() or "Normal"),
+            attack_type=_canonical_attack_cat(str(record.get(_ATTACK_CAT_COLUMN) or "").strip() or "Normal"),
         )
         for record in raw_rows
     ]

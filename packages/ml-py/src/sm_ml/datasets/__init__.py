@@ -8,12 +8,15 @@ from __future__ import annotations
 
 from .cicids2017 import DAY_FILES, load_cicids2017
 from .common import FlowDataset, LabelledRow, holdout_attack_type, split_indices, train_test_split_rows
+from .parquet_convert import convert_cicids2017_to_parquet, convert_unsw_nb15_to_parquet
 from .unsw_nb15 import load_unsw_nb15
 
 __all__ = [
     "DAY_FILES",
     "FlowDataset",
     "LabelledRow",
+    "convert_cicids2017_to_parquet",
+    "convert_unsw_nb15_to_parquet",
     "holdout_attack_type",
     "load_cicids2017",
     "load_unsw_nb15",
