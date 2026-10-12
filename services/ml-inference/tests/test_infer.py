@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from sm_contracts import CanonicalKind
 from sm_ml import schema_for
 
@@ -81,3 +83,73 @@ def test_serves_a_statistical_artifact(client: Any, model_dir: Path) -> None:
         headers=auth(),
     ).json()
     assert outlier["is_anomaly"] is True
+
+
+def _network_flow_body(features: list[float]) -> dict[str, Any]:
+    return {
+        "kind": CanonicalKind.network_flow.value,
+        "feature_schema_version": schema_for(CanonicalKind.network_flow).version,
+        "features": features,
+    }
+
+
+def _write_gradient_boosting_artifact(model_dir: Path, name: str) -> None:
+    from sm_ml.models.gradient_boosting import GradientBoostingModel
+
+    network_flow_n = len(schema_for(CanonicalKind.network_flow).names)
+    rows = [[float((i + j) % 5) for j in range(network_flow_n)] for i in range(50)]
+    labels = [i % 2 for i in range(50)]
+    model = GradientBoostingModel.fit(
+        schema_for(CanonicalKind.network_flow).names, rows, labels, seed=1, model_version="0.1.0"
+    )
+    vdir = model_dir / name / "0.1.0"
+    model.save(vdir)
+    import json as _json
+
+    meta = _json.loads((vdir / "metadata.json").read_text(encoding="utf-8"))
+    meta["feature_schema_version"] = schema_for(CanonicalKind.network_flow).version
+    meta["task"] = "anomaly_score"
+    (vdir / "metadata.json").write_text(_json.dumps(meta), encoding="utf-8")
+
+
+def test_gradient_boosting_hidden_from_catalog_when_flag_off(
+    model_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("lightgbm")
+    _write_gradient_boosting_artifact(model_dir, "gb_network_flow")
+    monkeypatch.delenv("SM_ML_ENABLE_GRADIENT_BOOSTING", raising=False)
+    from fastapi.testclient import TestClient
+    from sm_ml_inference.app import create_app
+
+    from .conftest import build_settings
+
+    with TestClient(create_app(settings=build_settings())) as c:
+        catalog = c.get("/api/v1/models", headers=auth()).json()["models"]
+        assert catalog == []
+        r = c.post(
+            "/api/v1/infer/gb_network_flow",
+            json=_network_flow_body([0.0] * len(schema_for(CanonicalKind.network_flow).names)),
+            headers=auth(),
+        )
+        assert r.status_code == 503
+
+
+def test_gradient_boosting_served_when_flag_on(model_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("lightgbm")
+    _write_gradient_boosting_artifact(model_dir, "gb_network_flow")
+    monkeypatch.setenv("SM_ML_ENABLE_GRADIENT_BOOSTING", "true")
+    from fastapi.testclient import TestClient
+    from sm_ml_inference.app import create_app
+
+    from .conftest import build_settings
+
+    with TestClient(create_app(settings=build_settings())) as c:
+        catalog = c.get("/api/v1/models", headers=auth()).json()["models"]
+        assert [m["name"] for m in catalog] == ["gb_network_flow"]
+        r = c.post(
+            "/api/v1/infer/gb_network_flow",
+            json=_network_flow_body([1.0] * len(schema_for(CanonicalKind.network_flow).names)),
+            headers=auth(),
+        )
+        assert r.status_code == 200
+        assert r.json()["method"] == "gradient_boosting"

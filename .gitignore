@@ -50,6 +50,10 @@ mlartifacts/
 *.onnx
 *.pkl
 *.joblib
+# LightGBM's own text save format -- same "reproduce via training script,
+# never commit the binary" convention as *.joblib/*.pt above. Scoped to
+# ml/artifacts specifically, not a blanket *.txt (too generic repo-wide).
+ml/artifacts/**/model.txt
 ml/datasets/**/data/
 ml/notebooks/**/*.ipynb_checkpoints/
 # Benchmark datasets live outside the repo (C:\Sentinel_Mesh). Never commit them.
