@@ -14,13 +14,19 @@ the subset smoke test) and are not replaced.
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .common import file_sha256, split_indices
 
-__all__ = ["ArrayFlowDataset", "load_cicids2017_arrays", "load_unsw_nb15_arrays"]
+__all__ = [
+    "ArrayFlowDataset",
+    "load_cicids2017_arrays",
+    "load_cicids2017_known_attack_split",
+    "load_unsw_nb15_arrays",
+]
 
 
 def _require_polars() -> Any:
@@ -179,3 +185,77 @@ def load_unsw_nb15_arrays(
     test_array = _to_array(test_df)
     del test_df
     return train_array, test_array, {}
+
+
+def load_cicids2017_known_attack_split(
+    parquet_dir: Path,
+    *,
+    files: tuple[str, ...],
+    test_fraction: float = 0.3,
+    window_rows: int = 2000,
+    seed: int = 1337,
+) -> tuple[ArrayFlowDataset, ArrayFlowDataset, dict[str, Any]]:
+    """The "known-attack" counterpart to the day-based split: a stratified
+    split WITHIN the same files, grouped so near-identical flows can't
+    cross train/test. CICIDS2017's real capture Timestamp does not exist
+    in this mirror at all (confirmed by reading the real CSV header --
+    stripped before upload, unlike the original UNB release) -- real
+    contiguous row-order blocks of `window_rows` rows are used as the
+    temporal-adjacency proxy instead (CICFlowMeter writes rows in capture
+    order, so row position is a real, if coarser, stand-in for time).
+    Whole blocks, never individual rows, are assigned to train or test, so
+    two near-identical flows from the same attack burst can't land on
+    both sides. This complements (does not replace) the Mon-Thu/Fri
+    day-based "unseen-attack generalisation" split -- it answers "can the
+    model recognise attack types it DID see during training," while the
+    day split answers "does it generalise to attack types it never saw.\""""
+    pl = _require_polars()
+    feat_cols: list[str] | None = None
+    hashes: list[str] = []
+    frames = []
+    for name in files:
+        path = parquet_dir / name
+        if not path.exists():
+            raise FileNotFoundError(f"missing CICIDS2017 parquet file: {path}")
+        cols = sorted(c for c in pl.scan_parquet(path).collect_schema().names() if c != "Label")
+        if feat_cols is None:
+            feat_cols = cols
+        elif cols != feat_cols:
+            raise ValueError(f"{path}: column set {cols} differs from the first file's {feat_cols}")
+        df = pl.scan_parquet(path).collect()
+        window_ids = [f"{name}:{i // window_rows}" for i in range(df.height)]
+        frames.append(df.with_columns(pl.Series("__window", window_ids)))
+        hashes.append(file_sha256(path))
+    if feat_cols is None:
+        raise ValueError("no files given")
+
+    combined = pl.concat(frames, how="vertical")
+    windows = sorted(combined["__window"].unique().to_list())
+    rng = random.Random(seed)  # noqa: S311 - seeded reproducible split, not crypto
+    rng.shuffle(windows)
+    n_test_windows = max(1, round(len(windows) * test_fraction))
+    test_windows = set(windows[:n_test_windows])
+    is_test = combined["__window"].is_in(test_windows)
+    train_df = combined.filter(~is_test)
+    test_df = combined.filter(is_test)
+
+    def _to_array(df: Any) -> ArrayFlowDataset:
+        x = df.select(feat_cols).to_numpy()
+        y = (df["Label"] != "BENIGN").cast(pl.Int8).to_numpy()
+        return ArrayFlowDataset(
+            dataset_id="cicids2017-known-attack", sha256="+".join(sorted(hashes)),
+            feature_names=tuple(feat_cols), X=x, y=y, attack_types=tuple(df["Label"].to_list()),
+        )
+
+    train_array = _to_array(train_df)
+    test_array = _to_array(test_df)
+    info: dict[str, Any] = {
+        "window_rows": window_rows,
+        "n_windows": len(windows),
+        "n_test_windows": n_test_windows,
+        "grouping_note": (
+            "no real Timestamp column exists in this mirror -- contiguous row-order "
+            "blocks per file used as a real proxy for temporal adjacency"
+        ),
+    }
+    return train_array, test_array, info
