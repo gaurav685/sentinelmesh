@@ -1,0 +1,496 @@
+{
+  "dataset": "cicids2017_corrected (WTMC-2021)",
+  "memory_steps": [
+    {
+      "step": "convert_cicids2017_to_parquet (5 corrected files)",
+      "elapsed_s": 7.0,
+      "rss_mb": 519.7,
+      "peak_wset_mb": 800.7
+    },
+    {
+      "step": "load_cicids2017_arrays (day split, corrected)",
+      "elapsed_s": 2.0,
+      "rss_mb": 2334.3,
+      "peak_wset_mb": 2338.7
+    },
+    {
+      "step": "day_split_corrected/isolation_forest",
+      "elapsed_s": 51.5,
+      "rss_mb": 1381.4,
+      "peak_wset_mb": 3155.5
+    },
+    {
+      "step": "day_split_corrected/autoencoder",
+      "elapsed_s": 64.3,
+      "rss_mb": 1646.0,
+      "peak_wset_mb": 3155.5
+    },
+    {
+      "step": "day_split_corrected/gradient_boosting",
+      "elapsed_s": 39.8,
+      "rss_mb": 1676.5,
+      "peak_wset_mb": 3155.5
+    },
+    {
+      "step": "after day_split_corrected (freed)",
+      "elapsed_s": 0.0,
+      "rss_mb": 1521.3,
+      "peak_wset_mb": 3155.5
+    },
+    {
+      "step": "load_cicids2017_known_attack_split (corrected)",
+      "elapsed_s": 3.3,
+      "rss_mb": 3887.2,
+      "peak_wset_mb": 3917.6
+    },
+    {
+      "step": "known_attack_corrected/isolation_forest",
+      "elapsed_s": 47.3,
+      "rss_mb": 1591.0,
+      "peak_wset_mb": 4268.5
+    },
+    {
+      "step": "known_attack_corrected/autoencoder",
+      "elapsed_s": 53.5,
+      "rss_mb": 1587.2,
+      "peak_wset_mb": 4268.5
+    },
+    {
+      "step": "known_attack_corrected/gradient_boosting",
+      "elapsed_s": 43.3,
+      "rss_mb": 1596.4,
+      "peak_wset_mb": 4268.5
+    },
+    {
+      "step": "after known_attack_corrected (freed)",
+      "elapsed_s": 0.0,
+      "rss_mb": 1459.1,
+      "peak_wset_mb": 4268.5
+    }
+  ],
+  "day_split_benign_sampling_info": {
+    "benign_sample_fraction": null,
+    "n_benign_total": 1366260,
+    "n_benign_sampled": 1366260
+  },
+  "known_attack_split_info": {
+    "window_rows": 2000,
+    "n_windows": 1053,
+    "n_test_windows": 316,
+    "grouping_note": "no real Timestamp column exists in this mirror -- contiguous row-order blocks per file used as a real proxy for temporal adjacency"
+  },
+  "day_split_runs": {
+    "isolation_forest": {
+      "dataset_id": "cicids2017",
+      "train_sha256": "08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "test_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274",
+      "n_train": 1552899,
+      "n_train_used_for_fit": 1093209,
+      "n_test": 547915,
+      "n_test_anomalous": 256482,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 79
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.749729,
+        "pr_auc": 0.640134,
+        "recall_at_0.01_fpr": 0.000168,
+        "precision": 0.773084,
+        "recall": 0.371188,
+        "f1": 0.501558,
+        "false_positive_rate": 0.095885,
+        "mean_detection_latency_ms": 0.013506,
+        "calibrated_threshold": 0.108156,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.013087,
+        "recall_at_calibrated_threshold": 0.000179,
+        "f1_at_calibrated_threshold": 0.000354,
+        "fpr_at_calibrated_threshold": 0.011903
+      },
+      "per_class_recall": {
+        "Bot": 0.059621,
+        "Bot - Attempted": 0.0,
+        "DDoS": 0.999474,
+        "PortScan": 0.00054
+      },
+      "roc_auc_ci95": [
+        0.741012,
+        0.754731
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 0.00054,
+      "n_held_out": 159151,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ee95b5a11f7e922411df091dfe6b1649c049baff"
+      },
+      "generated_at": "2026-10-12T14:08:46.012193Z",
+      "executed": true
+    },
+    "autoencoder": {
+      "dataset_id": "cicids2017",
+      "train_sha256": "08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "test_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274",
+      "n_train": 1552899,
+      "n_train_used_for_fit": 1093209,
+      "n_test": 547915,
+      "n_test_anomalous": 256482,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          19,
+          9
+        ],
+        "epochs": 10,
+        "chunk_rows": 50000,
+        "error_quantile": 0.99,
+        "n_features": 79,
+        "source": "in-memory (not Parquet-streamed)",
+        "scaling": "log1p+standardize(benign-train)"
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.75231,
+        "pr_auc": 0.670575,
+        "recall_at_0.01_fpr": 0.000183,
+        "precision": 0.019543,
+        "recall": 0.000183,
+        "f1": 0.000363,
+        "false_positive_rate": 0.008091,
+        "mean_detection_latency_ms": 0.00266,
+        "calibrated_threshold": 1.259658,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.033016,
+        "recall_at_calibrated_threshold": 0.00046,
+        "f1_at_calibrated_threshold": 0.000907,
+        "fpr_at_calibrated_threshold": 0.011859
+      },
+      "per_class_recall": {
+        "Bot": 0.059621,
+        "Bot - Attempted": 0.0,
+        "DDoS": 0.0,
+        "PortScan": 1.9e-05
+      },
+      "roc_auc_ci95": [
+        0.744028,
+        0.758065
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 1.9e-05,
+      "n_held_out": 159151,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ee95b5a11f7e922411df091dfe6b1649c049baff"
+      },
+      "generated_at": "2026-10-12T14:09:50.283412Z",
+      "executed": true
+    },
+    "gradient_boosting": {
+      "dataset_id": "cicids2017",
+      "train_sha256": "08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "test_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274",
+      "n_train": 1552899,
+      "n_train_used_for_fit": 1242319,
+      "n_test": 547915,
+      "n_test_anomalous": 256482,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 79,
+        "free_raw_data": true
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.953734,
+        "pr_auc": 0.945528,
+        "recall_at_0.01_fpr": 0.388394,
+        "precision": 0.999788,
+        "recall": 0.349818,
+        "f1": 0.51829,
+        "false_positive_rate": 6.5e-05,
+        "mean_detection_latency_ms": 0.002055,
+        "calibrated_threshold": 6.8e-05,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.941801,
+        "recall_at_calibrated_threshold": 0.392316,
+        "f1_at_calibrated_threshold": 0.5539,
+        "fpr_at_calibrated_threshold": 0.021336
+      },
+      "per_class_recall": {
+        "Bot": 0.0,
+        "Bot - Attempted": 0.0,
+        "DDoS": 0.942306,
+        "PortScan": 0.000547
+      },
+      "roc_auc_ci95": [
+        0.95148,
+        0.956611
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": "PortScan",
+      "held_out_recall": 0.000547,
+      "n_held_out": 159151,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ee95b5a11f7e922411df091dfe6b1649c049baff"
+      },
+      "generated_at": "2026-10-12T14:10:30.133201Z",
+      "executed": true
+    }
+  },
+  "known_attack_split_runs": {
+    "isolation_forest": {
+      "dataset_id": "cicids2017-known-attack",
+      "train_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274+08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "test_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274+08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "n_train": 1469065,
+      "n_train_used_for_fit": 933836,
+      "n_test": 631749,
+      "n_test_anomalous": 141446,
+      "model_name": "isolation_forest",
+      "params": {
+        "n_estimators": 100,
+        "random_state": 1337,
+        "n_features": 79
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.806498,
+        "pr_auc": 0.432076,
+        "recall_at_0.01_fpr": 0.001838,
+        "precision": 0.549573,
+        "recall": 0.377388,
+        "f1": 0.447488,
+        "false_positive_rate": 0.089231,
+        "mean_detection_latency_ms": 0.01345,
+        "calibrated_threshold": 0.11159,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.051846,
+        "recall_at_calibrated_threshold": 0.001965,
+        "f1_at_calibrated_threshold": 0.003787,
+        "fpr_at_calibrated_threshold": 0.010369
+      },
+      "per_class_recall": {
+        "Bot": 0.031496,
+        "Bot - Attempted": 0.0,
+        "DDoS": 0.70217,
+        "DoS GoldenEye": 0.530528,
+        "DoS GoldenEye - Attempted": 0.0,
+        "DoS Hulk": 0.590149,
+        "DoS Hulk - Attempted": 0.684932,
+        "DoS Slowhttptest": 0.916335,
+        "DoS Slowhttptest - Attempted": 0.681254,
+        "DoS slowloris": 0.676316,
+        "DoS slowloris - Attempted": 0.0,
+        "FTP-Patator": 0.0,
+        "FTP-Patator - Attempted": 0.0,
+        "Heartbleed": 1.0,
+        "Infiltration": 0.9,
+        "PortScan": 0.001001,
+        "SSH-Patator": 0.005425,
+        "Web Attack - Brute Force": 0.433333,
+        "Web Attack - Brute Force - Attempted": 0.0,
+        "Web Attack - Sql Injection": 0.0,
+        "Web Attack - XSS": 0.714286,
+        "Web Attack - XSS - Attempted": 0.0
+      },
+      "roc_auc_ci95": [
+        0.804052,
+        0.816095
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ee95b5a11f7e922411df091dfe6b1649c049baff"
+      },
+      "generated_at": "2026-10-12T14:11:20.919294Z",
+      "executed": true
+    },
+    "autoencoder": {
+      "dataset_id": "cicids2017-known-attack",
+      "train_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274+08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "test_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274+08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "n_train": 1469065,
+      "n_train_used_for_fit": 933836,
+      "n_test": 631749,
+      "n_test_anomalous": 141446,
+      "model_name": "autoencoder",
+      "params": {
+        "hidden_dims": [
+          19,
+          9
+        ],
+        "epochs": 10,
+        "chunk_rows": 50000,
+        "error_quantile": 0.99,
+        "n_features": 79,
+        "source": "in-memory (not Parquet-streamed)",
+        "scaling": "log1p+standardize(benign-train)"
+      },
+      "seed": 1337,
+      "supervised": false,
+      "metrics": {
+        "roc_auc": 0.805071,
+        "pr_auc": 0.423328,
+        "recall_at_0.01_fpr": 0.001562,
+        "precision": 0.039803,
+        "recall": 0.001598,
+        "f1": 0.003072,
+        "false_positive_rate": 0.01112,
+        "mean_detection_latency_ms": 0.002666,
+        "calibrated_threshold": 1.77289,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.04094,
+        "recall_at_calibrated_threshold": 0.001577,
+        "f1_at_calibrated_threshold": 0.003036,
+        "fpr_at_calibrated_threshold": 0.010655
+      },
+      "per_class_recall": {
+        "Bot": 0.031496,
+        "Bot - Attempted": 0.0,
+        "DDoS": 0.0,
+        "DoS GoldenEye": 0.001026,
+        "DoS GoldenEye - Attempted": 0.0,
+        "DoS Hulk": 2.1e-05,
+        "DoS Hulk - Attempted": 0.0,
+        "DoS Slowhttptest": 0.314741,
+        "DoS Slowhttptest - Attempted": 0.00196,
+        "DoS slowloris": 0.048684,
+        "DoS slowloris - Attempted": 0.0,
+        "FTP-Patator": 0.0,
+        "FTP-Patator - Attempted": 0.0,
+        "Heartbleed": 0.875,
+        "Infiltration": 0.9,
+        "PortScan": 1.8e-05,
+        "SSH-Patator": 0.0,
+        "Web Attack - Brute Force": 0.0,
+        "Web Attack - Brute Force - Attempted": 0.0,
+        "Web Attack - Sql Injection": 0.0,
+        "Web Attack - XSS": 0.0,
+        "Web Attack - XSS - Attempted": 0.0
+      },
+      "roc_auc_ci95": [
+        0.801404,
+        0.812853
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ee95b5a11f7e922411df091dfe6b1649c049baff"
+      },
+      "generated_at": "2026-10-12T14:12:14.390444Z",
+      "executed": true
+    },
+    "gradient_boosting": {
+      "dataset_id": "cicids2017-known-attack",
+      "train_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274+08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "test_sha256": "06019c293d9ab2bb9c79f89f2e709db3bc68fd34af76cbe553f176f8318a3274+08538052fdeea8f3271dcf4fb2f6661d20a9883740964bcd4e019cd543d247d5+291ab8aa37e57e47c8addb33d2e33ec383c0e107aaacb1d404f2dc9307abeb0c+62b7270539dc9a86460bb820b9fe6125370d3f7d0e4cc2ff48c7ce4a0f443825+f6711efbb1a2406d59addfc909258fcda08105dc45f0597e1d9794a844053df6",
+      "n_train": 1469065,
+      "n_train_used_for_fit": 1175252,
+      "n_test": 631749,
+      "n_test_anomalous": 141446,
+      "model_name": "gradient_boosting",
+      "params": {
+        "num_leaves": 31,
+        "n_estimators": 200,
+        "learning_rate": 0.05,
+        "seed": 1337,
+        "n_features": 79,
+        "free_raw_data": true
+      },
+      "seed": 1337,
+      "supervised": true,
+      "metrics": {
+        "roc_auc": 0.999976,
+        "pr_auc": 0.999929,
+        "recall_at_0.01_fpr": 0.999915,
+        "precision": 0.996313,
+        "recall": 0.997257,
+        "f1": 0.996785,
+        "false_positive_rate": 0.001065,
+        "mean_detection_latency_ms": 0.002378,
+        "calibrated_threshold": 0.010872,
+        "calibration_target_fpr": 0.01,
+        "precision_at_calibrated_threshold": 0.954765,
+        "recall_at_calibrated_threshold": 0.999936,
+        "f1_at_calibrated_threshold": 0.976829,
+        "fpr_at_calibrated_threshold": 0.013667
+      },
+      "per_class_recall": {
+        "Bot": 1.0,
+        "Bot - Attempted": 0.847701,
+        "DDoS": 1.0,
+        "DoS GoldenEye": 1.0,
+        "DoS GoldenEye - Attempted": 1.0,
+        "DoS Hulk": 1.0,
+        "DoS Hulk - Attempted": 1.0,
+        "DoS Slowhttptest": 0.994024,
+        "DoS Slowhttptest - Attempted": 0.996734,
+        "DoS slowloris": 0.998684,
+        "DoS slowloris - Attempted": 1.0,
+        "FTP-Patator": 1.0,
+        "FTP-Patator - Attempted": 1.0,
+        "Heartbleed": 1.0,
+        "Infiltration": 0.5,
+        "PortScan": 0.994323,
+        "SSH-Patator": 0.998192,
+        "Web Attack - Brute Force": 0.95,
+        "Web Attack - Brute Force - Attempted": 0.995294,
+        "Web Attack - Sql Injection": 0.5,
+        "Web Attack - XSS": 0.857143,
+        "Web Attack - XSS - Attempted": 1.0
+      },
+      "roc_auc_ci95": [
+        0.999964,
+        0.999988
+      ],
+      "roc_auc_ci_sample_n": 20000,
+      "held_out_attack_type": null,
+      "held_out_recall": null,
+      "n_held_out": null,
+      "environment": {
+        "python_version": "3.11.5",
+        "platform": "Windows-10-10.0.26200-SP0",
+        "sm_ml_version": "0.1.0",
+        "sm_ml_training_version": "0.1.0",
+        "git_commit": "ee95b5a11f7e922411df091dfe6b1649c049baff"
+      },
+      "generated_at": "2026-10-12T14:12:57.703672Z",
+      "executed": true
+    }
+  }
+}

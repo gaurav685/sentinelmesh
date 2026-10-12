@@ -30,6 +30,37 @@ Flagged here, in `scripts/download_datasets.md`, and should be flagged again in
 | Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv | `ca1824c51bfbb7b3c72290a11be04366ba8815878c6a1cc5c44cb1cee269e99b` | 76,906,168 B | 286,468 |
 | Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv | `6ff1580f5f81c0ae28a26f7631721018577f5f7c5e0feac28b795fcfe7b411ee` | 77,123,859 B | 225,746 |
 
+## CICIDS2017, corrected release (WTMC-2021) — downloaded 2026-10-12
+
+Approved by the user and downloaded this session, superseding the "no Kaggle mirror found"
+blocker noted above — **this is a direct download from the official project page, not a
+mirror.**
+
+- **Source**: Gints Engelen, Vera Rimmer, Wouter Joosen, *"Troubleshooting an Intrusion
+  Detection Dataset: the CICIDS2017 Case Study,"* IEEE Security and Privacy Workshops (SPW)
+  2021. Project page: <https://intrusion-detection.distrinet-research.be/WTMC2021/>.
+- **Direct URL**: `https://intrusion-detection.distrinet-research.be/WTMC2021/Dataset/dataset.zip`
+  (no registration). Real downloaded zip: 333,841,436 bytes, sha256
+  `4d535da19795d85376ae1397d161329e3b06fc47d9a5a68cd9be2cd7ecee0f2a`.
+- **Licence**: as published by the Distrinet research group (KU Leuven); research/academic
+  use — see the project page for exact terms. Citation required if used in anything published.
+  No SPDX identifier is declared by the publisher.
+- **Real structure, different from the Kaggle mirror above**: 5 files, one per capture day
+  (no morning/afternoon split) — `Monday-WorkingHours.csv` … `Friday-WorkingHours.csv`, ~2.1M
+  rows total. Real column set still includes `Flow ID`/`Src IP`/`Dst IP`/`Timestamp` (dropped
+  as leaky by `sm_ml.datasets.parquet_convert`, same as the other release). A real, documented
+  correction visible directly in the data: distinguishes `"Bot"` from `"Bot - Attempted"` as
+  separate labels (the original release conflated them) — a genuine fix this release makes,
+  confirmed by reading the real label values, not just the paper's abstract.
+
+| file | sha256 | size | rows |
+|---|---|---|---|
+| Monday-WorkingHours.csv | `580bc5b3a48ccaa9b61d6936bb88adb00a6a069a02c974e946bd324bc09971bc` | 208,244,807 B | 371,750 |
+| Tuesday-WorkingHours.csv | `59d60eff01526b511fa575a08a9a0e241674276adf1aa07471c947f7d733e19a` | 178,453,210 B | 322,004 |
+| Wednesday-WorkingHours.csv | `820446eb19713031827a1893871e30fb9da4c3b21ad5cd15d9a2ef6686a37583` | 291,529,516 B | 496,780 |
+| Thursday-WorkingHours.csv | `3db32a8e9a4da80aa15fd0bbf69733c8de8c6e6147fe279770eec1be6c263d65` | 187,707,525 B | 362,369 |
+| Friday-WorkingHours.csv | `8bf5a79222d2a553b75fe1ee81cc3ddff89b87befaef52e62368fdb2e3a79def` | 282,607,319 B | 547,916 |
+
 ## UNSW-NB15
 
 - **Mirror used**: [`mrwellsdavid/unsw-nb15`](https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15) on Kaggle — already the documented fallback in `scripts/download_datasets.md`.

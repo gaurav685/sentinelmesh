@@ -21,12 +21,15 @@ It checks every expected file exists, computes a real sha256 and row count for e
 
 ### What was actually used on this machine
 
-The corrected release above was not used — no Kaggle mirror of it exists (searched
-2026-10-12, none found). Instead, the Kaggle mirror
+Both. The Phase 1/1.5 primary runs used the Kaggle mirror
 [`shadman1028/cicids2017-official-flow-feature-csv-files`](https://www.kaggle.com/datasets/shadman1028/cicids2017-official-flow-feature-csv-files)
-was used (CC BY 4.0, original uncorrected 2017 labels, unmodified CSVs, filenames
-matching exactly what's listed above). Full provenance, sha256s and the licence
-note: see `data/README.md`.
+(CC BY 4.0, original uncorrected 2017 labels, unmodified CSVs, filenames matching
+exactly what's listed above) — no Kaggle mirror of the corrected release exists
+(searched 2026-10-12, none found). **Phase 1.6**: the real corrected release above was
+then downloaded directly (approved by the user, no registration needed) and used for a
+real LightGBM comparison against the mirror's uncorrected numbers — see
+`docs/ML_BENCHMARK_REPORT.md`'s Phase 1.6 section. Full provenance, sha256s and the
+licence note for both: see `data/README.md`.
 
 ### Known alternative, not used here: LYCOS-IDS2017
 

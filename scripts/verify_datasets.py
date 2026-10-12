@@ -52,11 +52,10 @@ DATASETS: tuple[DatasetSpec, ...] = (
         key="cicids2017",
         dir_name="cicids2017",
         files=(
-            # The Engelen et al. (WTMC-2021) corrected release ships one CSV
-            # per capture day. Exact filenames inside dataset.zip -- verified
-            # against the archive's own naming once unzipped; adjust here if
-            # a future release renames them (this script fails clearly on a
-            # missing name rather than guessing a fuzzy match).
+            # Real correction: these are the Kaggle mirror's ORIGINAL
+            # (uncorrected) 2017 labels, not the WTMC-2021 corrected release
+            # -- see data/README.md. The real corrected release is the
+            # separate "cicids2017_corrected" entry below.
             ExpectedFile("Monday-WorkingHours.pcap_ISCX.csv"),
             ExpectedFile("Tuesday-WorkingHours.pcap_ISCX.csv"),
             ExpectedFile("Wednesday-workingHours.pcap_ISCX.csv"),
@@ -65,6 +64,22 @@ DATASETS: tuple[DatasetSpec, ...] = (
             ExpectedFile("Friday-WorkingHours-Morning.pcap_ISCX.csv"),
             ExpectedFile("Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv"),
             ExpectedFile("Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv"),
+        ),
+    ),
+    DatasetSpec(
+        key="cicids2017_corrected",
+        dir_name="cicids2017_corrected",
+        files=(
+            # The REAL WTMC-2021 corrected release (Engelen, Rimmer, Joosen),
+            # downloaded and unzipped this session -- 5 real files, one per
+            # capture day (no morning/afternoon split, unlike the Kaggle
+            # mirror's 8-file layout above), no "pcap_ISCX" suffix. Exact
+            # names confirmed from the real unzipped archive, not guessed.
+            ExpectedFile("Monday-WorkingHours.csv"),
+            ExpectedFile("Tuesday-WorkingHours.csv"),
+            ExpectedFile("Wednesday-WorkingHours.csv"),
+            ExpectedFile("Thursday-WorkingHours.csv"),
+            ExpectedFile("Friday-WorkingHours.csv"),
         ),
     ),
     DatasetSpec(

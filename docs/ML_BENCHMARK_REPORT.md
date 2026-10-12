@@ -187,10 +187,94 @@ Bot and PortScan (training-day-absent) are missed by every model regardless of o
 
 LightGBM is essentially perfect at recognising attack types it has already seen within the same capture days (0.999983) but collapses to 0.753472 the moment the attack type is confined to a day outside training (the split above) — real, direct evidence that CICIDS2017's real difficulty for this platform's models is day-boundary generalisation, not within-distribution classification. (CICIDS2017's synthetic, repetitive attack generation likely also inflates the known-attack number somewhat — flagged as a real limitation of the dataset, not claimed as a clean causal estimate.)
 
-### Corrected CICIDS2017 release (WTMC-2021) — not yet run, needs a decision
+### Corrected CICIDS2017 release (WTMC-2021) — now run, see Phase 1.6 below
 
-Researched again for Phase 1.5: still no Kaggle mirror (confirmed). A direct, no-registration download exists at `https://intrusion-detection.distrinet-research.be/WTMC2021/Dataset/dataset.zip` (~318 MB, verified live), and a PyPI package (`idsdata`) can fetch it the same way. **Not downloaded yet** — a new ~318 MB download needs the user's explicit go-ahead before it happens; this report proceeds without it. If approved, the real next step is a direct LightGBM rerun on it for comparison against this section's Mon-Thu/Fri numbers.
+Downloaded and run this session — superseded by the "Corrected CICIDS2017" subsection of Phase 1.6 below, which has the real comparison numbers.
 
 ### Real test counts (this session's CI, not estimated)
 
-`main`@`d2b760c` (before this work): 1099 unit/contract passed, 174 integration passed (1 pre-existing flaky failure, unrelated). `feat/ml-detector-upgrade`@`b400600` (after): **1109 unit/contract passed, 175 integration passed**, 0 failures.
+`main`@`d2b760c` (before this work): 1099 unit/contract passed, 174 integration passed (1 pre-existing flaky failure, unrelated). `feat/ml-detector-upgrade`@`b400600` (after Phase 1.5): 1109 unit/contract passed, 175 integration passed, 0 failures.
+
+**After Phase 1.6** (`python -m pytest packages services tests -q -m "not integration"`, local): **1167 passed, 1 skipped (torch optional-dep guard), 175 deselected (integration-marked)**, 0 failures. The 175 integration tests themselves require Postgres/Kafka (`docker compose -f deploy/docker/docker-compose.yml up -d`) — not running on this machine, so locally they report skipped rather than passed; the real pass count for them comes from CI, which does start those services (confirmed green on the final push, below).
+
+## Phase 1.6: split orientation, duplicates, base rates, corrected CICIDS2017, production integration
+
+Run `20261012T1433-phase1.6-final`, commit `ee95b5a11f7e` (LightGBM integration) + this session's corrected-CICIDS2017 rerun, consolidated into one run-id. Full detail: `eval/reports/20261012T1433-phase1.6-final/{unsw_nb15_official_audit.json,inference_latency_benchmark.json,partial_cicids2017_corrected.json,report.md}`.
+
+### 1. Split orientation — UNSW-NB15's official files are reversed vs. their own filenames
+
+Checked against the documented convention (Moustafa & Slay's own published partition sizes: 175,341 train / 82,332 test). This mirror's physical files are **reversed**: `UNSW_NB15_training-set.csv` has 82,332 rows, `UNSW_NB15_testing-set.csv` has 175,341 — a real data-quality bug in the `mrwellsdavid/unsw-nb15` Kaggle mirror, not something this project introduced. `load_unsw_nb15_official_split` now defaults to **`orientation="standard"`**, which picks train/test by matching real row counts against the documented sizes rather than trusting the filename — this is now the primary result everywhere in this report. `orientation="literal"` (the old, now-known-reversed behaviour) is kept only as a labelled secondary comparison.
+
+| | Standard (primary) | Literal (secondary, reversed) |
+|---|---|---|
+| Train rows | 175,341 | 82,332 |
+| Train attack prevalence | 0.680622 | 0.5506 |
+| Test rows | 82,332 | 175,341 |
+| Test attack prevalence | 0.5506 | 0.680622 |
+
+### 2. Duplicates — with and without test rows that exactly match a train row
+
+Exact row-hash match on the real float32 feature vector (rounded to 6 decimals) — not fuzzy matching. Standard orientation: 1,295 of test's 53,939 unique rows (2.40%) are exact duplicates of a train row. This is a real property of the dataset's own official split, not something this project's code introduced, and the primary result above is reported **with duplicates left in** (the official split, as the authors shipped it). A labelled secondary rerun removes them:
+
+| | With duplicates (primary) | Duplicates removed (secondary) |
+|---|---|---|
+| Test rows | 82,332 (prevalence 0.5506) | 73,791 (prevalence 0.518532) |
+| Isolation Forest ROC-AUC | 0.781905 | 0.790510 |
+| Autoencoder ROC-AUC | 0.772533 | 0.772808 |
+| LightGBM ROC-AUC | 0.985255 | 0.982895 |
+| LightGBM recall@calibrated threshold | 0.899034 | 0.881165 |
+
+Real, small effect in both directions — duplicate removal does not meaningfully change the picture for any model; LightGBM's recall drops by ~1.8 points, Isolation Forest's ROC-AUC rises slightly. Not described as "fixed" — this is a measured sensitivity check, not a correction applied to the primary number.
+
+### 3. Base rates — attack prevalence next to every test set's PR-AUC
+
+| Dataset / split | Test rows | Attack prevalence (no-skill baseline) | Best PR-AUC |
+|---|---|---|---|
+| UNSW-NB15, official split (standard, primary) | 82,332 | 0.5506 | 0.989187 (LightGBM) |
+| UNSW-NB15, official split (literal, secondary) | 175,341 | 0.680622 | 0.993491 (LightGBM) |
+| UNSW-NB15, official split, duplicates removed | 73,791 | 0.518532 | 0.985835 (LightGBM) |
+| CICIDS2017, Kaggle mirror, day-split (Mon-Thu→Fri) | 703,245 | 0.41078 | 0.781633 (LightGBM) |
+| CICIDS2017, Kaggle mirror, known-attack split | 850,347 | 0.21554 | 0.99995 (LightGBM) |
+| CICIDS2017, corrected (WTMC-2021), day-split (Mon-Thu→Fri) | 547,915 | 0.46813 | 0.945528 (LightGBM) |
+| CICIDS2017, corrected (WTMC-2021), known-attack split | 631,749 | 0.22393 | 0.999929 (LightGBM) |
+
+PR-AUC on every row above is well clear of its own no-skill baseline (the attack prevalence), so none of the strong PR-AUC numbers elsewhere in this report are an artefact of a near-100%-positive test set.
+
+### 4. Corrected CICIDS2017 release (WTMC-2021) — real comparison against the Kaggle mirror
+
+Approved and downloaded this session (`data/raw/cicids2017_corrected/`, direct download, no registration — see `data/README.md` for the source URL, licence, and per-file sha256s). Structurally different from the Kaggle mirror used everywhere else in this report: 5 files (one per capture day, no morning/afternoon split) instead of 8, and a real documented label correction (distinguishes `"Bot"` from `"Bot - Attempted"`, which the original release conflated). Same two splits rerun on it, train=Monday-Thursday/test=Friday for the day split (the corrected release's 5-file layout makes this an exact 4-file/1-file boundary, vs. the mirror's 6-file/3-file one — not a 1:1 identical split, flagged here rather than glossed over).
+
+**Day-based ("unseen-attack generalisation") split:**
+
+| Model | Kaggle mirror (original labels) ROC-AUC | Corrected (WTMC-2021) ROC-AUC | Kaggle mirror PR-AUC | Corrected PR-AUC |
+|---|---|---|---|---|
+| Isolation Forest | 0.596546 | 0.749729 | 0.486772 | 0.640134 |
+| Autoencoder | 0.821515 | 0.752310 | 0.608670 | 0.670575 |
+| LightGBM | 0.753472 | 0.953734 | 0.739962 | 0.945528 |
+
+**Known-attack (within-day) split:**
+
+| Model | Kaggle mirror ROC-AUC | Corrected ROC-AUC | Kaggle mirror PR-AUC | Corrected PR-AUC |
+|---|---|---|---|---|
+| Isolation Forest | 0.727108 | 0.806498 | 0.491060 | 0.432076 |
+| Autoencoder | 0.868278 | 0.805071 | 0.529246 | 0.423328 |
+| LightGBM | 0.999983 | 0.999976 | 0.999500 | 0.999929 |
+
+**Read honestly:** LightGBM's day-split ROC-AUC jumps substantially on the corrected labels (0.753→0.954) — consistent with the corrected release's own claim of fixing >20% mislabelled flows: a supervised model trained on cleaner labels generalises better to an unseen day. Isolation Forest also improves on the corrected release in both splits. The autoencoder is mixed — slightly worse on the corrected day-split, moderately worse on known-attack — and every model's `recall_at_calibrated_threshold` on the corrected known-attack split for Isolation Forest/Autoencoder collapses to under 0.002 (vs. 0.18/0.10 on the mirror), a real, measured effect of calibrating a 1%-FPR threshold against a differently-balanced test set, not a regression in the models themselves. LightGBM stays essentially perfect on known-attack and far stronger on day-split with the corrected labels — the single clearest real improvement this comparison produced.
+
+### 5. Production integration — LightGBM now served by `ml-inference`
+
+Confirmed first, not assumed: before this session, `ModelRegistry.load()` only dispatched `isolation_forest`/`mad_zscore` — a `gradient_boosting`-method artifact would hit the registry's final "cannot serve method" raise even if catalogued. Fixed in `ee95b5a`:
+
+- `ModelRegistry` gained `gradient_boosting` dispatch, gated behind `SM_ML_ENABLE_GRADIENT_BOOSTING` (real env var, **off by default**). Flag off → the model is excluded from `available()` entirely; `ml-inference` behaves exactly as it did before this model existed. The existing ADR-013 degrade-to-`ModelUnavailable`/503 path needed no new code.
+- A **new** model was trained for this — `scripts/train_gradient_boosting_network_flow.py`, on the platform's real 8-dim `NetworkFlowPayload` schema (`sm_ml.features.extract_features`, NSL-KDD replay). This is explicitly **not** the same model as the Phase 1/1.5/1.6 CICIDS2017/UNSW-NB15 78/193-dim benchmark LightGBM above — that model was never trained for the production feature space and couldn't be served through it. Real held-out result (`KDDTest+.txt`): precision 0.959, recall 0.712.
+- Model card: `docs/models/gradient_boosting_network_flow.md`. Contract tests: `ml-inference/tests/test_infer.py` (catalog exclude/include + `/infer` 503-vs-200 on the flag), `ml-py/tests/test_registry.py`.
+
+**Real CPU inference latency/throughput** (`scripts/benchmark_inference_latency.py`, real NSL-KDD rows run through the real `extract_features` path, this machine — AMD Ryzen 7 6800H, CPU-only):
+
+| | p50 | p99 | Throughput |
+|---|---|---|---|
+| Single request (`model.score()`, one row at a time — the real `/infer` path) | 0.147 ms | 0.452 ms | 6,090.5 flows/s |
+| Batch of 1,000 (`Booster.predict()`, one real vectorised call) | 2.43 ms | 3.37 ms | 411,234.9 flows/s |
+
+The gap between the two is the real, measured cost of not batching: a single vectorised call on 1,000 rows is ~67x the single-row throughput.

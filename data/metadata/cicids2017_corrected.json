@@ -1,0 +1,51 @@
+{
+  "dataset": "cicids2017_corrected",
+  "checked_at": "2026-10-12T14:01:33.733078+00:00",
+  "files": [
+    {
+      "name": "Monday-WorkingHours.csv",
+      "present": true,
+      "required": true,
+      "sha256": "580bc5b3a48ccaa9b61d6936bb88adb00a6a069a02c974e946bd324bc09971bc",
+      "size_bytes": 208244807,
+      "row_count": 371750,
+      "note": ""
+    },
+    {
+      "name": "Tuesday-WorkingHours.csv",
+      "present": true,
+      "required": true,
+      "sha256": "59d60eff01526b511fa575a08a9a0e241674276adf1aa07471c947f7d733e19a",
+      "size_bytes": 178453210,
+      "row_count": 322004,
+      "note": ""
+    },
+    {
+      "name": "Wednesday-WorkingHours.csv",
+      "present": true,
+      "required": true,
+      "sha256": "820446eb19713031827a1893871e30fb9da4c3b21ad5cd15d9a2ef6686a37583",
+      "size_bytes": 291529516,
+      "row_count": 496780,
+      "note": ""
+    },
+    {
+      "name": "Thursday-WorkingHours.csv",
+      "present": true,
+      "required": true,
+      "sha256": "3db32a8e9a4da80aa15fd0bbf69733c8de8c6e6147fe279770eec1be6c263d65",
+      "size_bytes": 187707525,
+      "row_count": 362369,
+      "note": ""
+    },
+    {
+      "name": "Friday-WorkingHours.csv",
+      "present": true,
+      "required": true,
+      "sha256": "8bf5a79222d2a553b75fe1ee81cc3ddff89b87befaef52e62368fdb2e3a79def",
+      "size_bytes": 282607319,
+      "row_count": 547916,
+      "note": ""
+    }
+  ]
+}
