@@ -257,10 +257,13 @@ cluster rollout.
 - **`services/correlation-engine`** — attack-chain reconstruction and threat
   scoring from correlated detections, with a graph write-back.
 - **`services/ml-inference`** — serves the structural graph-anomaly detector,
-  Isolation Forest (production fallback, ADR-013), and, behind the
-  `SM_ML_ENABLE_GRADIENT_BOOSTING` flag (off by default), a LightGBM
-  network-flow model; named GNN artifacts too. 503 when a model is missing or
-  disabled, never a fabricated score.
+  Isolation Forest (production fallback, ADR-013), and named GNN artifacts.
+  A LightGBM network-flow model exists behind `SM_ML_ENABLE_GRADIENT_BOOSTING`
+  (off by default) but is **offline-benchmark only** — `detection-engine`
+  never requests it and this platform's only real event producer
+  (`simulation-service`) doesn't yet feed it real features; see
+  `docs/models/gradient_boosting_network_flow.md`. 503 when a model is
+  missing or disabled, never a fabricated score.
 - **`services/ml-training`** — offline training/artifact tooling, plus the
   reproducible benchmark harness (`sm_ml_training.benchmark`): dataset
   adapters for NSL-KDD, CICIDS2017 (original + corrected WTMC-2021 release),

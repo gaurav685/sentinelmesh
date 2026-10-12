@@ -199,7 +199,7 @@ Downloaded and run this session — superseded by the "Corrected CICIDS2017" sub
 
 ## Phase 1.6: split orientation, duplicates, base rates, corrected CICIDS2017, production integration
 
-Run `20261012T1433-phase1.6-final`, commit `ee95b5a11f7e` (LightGBM integration) + this session's corrected-CICIDS2017 rerun, consolidated into one run-id. Full detail: `eval/reports/20261012T1433-phase1.6-final/{unsw_nb15_official_audit.json,inference_latency_benchmark.json,partial_cicids2017_corrected.json,report.md}`.
+Run `20261012T1433-phase1.6-final`, commit `ee95b5a11f7e` (LightGBM integration) + this session's corrected-CICIDS2017 rerun and live-wiring/feature-compatibility audit, consolidated into one run-id. Full detail: `eval/reports/20261012T1433-phase1.6-final/{unsw_nb15_official_audit.json,inference_latency_benchmark.json,inference_latency_e2e_benchmark.json,partial_cicids2017_corrected.json,report.md}`.
 
 ### 1. Split orientation — UNSW-NB15's official files are reversed vs. their own filenames
 
@@ -211,6 +211,16 @@ Checked against the documented convention (Moustafa & Slay's own published parti
 | Train attack prevalence | 0.680622 | 0.5506 |
 | Test rows | 82,332 | 175,341 |
 | Test attack prevalence | 0.5506 | 0.680622 |
+
+**All three models, same primary split** (standard orientation, 82,332 test rows, attack prevalence 0.5506 — the no-skill PR-AUC baseline for the PR-AUC column):
+
+| Model | ROC-AUC | PR-AUC (base rate 0.5506) | Recall@1%FPR |
+|---|---|---|---|
+| Isolation Forest | 0.781905 | 0.820115 | 0.214683 |
+| Autoencoder | 0.772533 | 0.801370 | 0.240823 |
+| LightGBM | 0.985255 | 0.989187 | 0.872673 |
+
+Isolation Forest and the autoencoder are close to each other on every column (within ~0.01 ROC-AUC, ~0.02 PR-AUC) — neither is a clear second-best on this primary split — while LightGBM remains far ahead of both, consistent with its supervised advantage everywhere else in this report.
 
 ### 2. Duplicates — with and without test rows that exactly match a train row
 
@@ -240,29 +250,47 @@ Real, small effect in both directions — duplicate removal does not meaningfull
 
 PR-AUC on every row above is well clear of its own no-skill baseline (the attack prevalence), so none of the strong PR-AUC numbers elsewhere in this report are an artefact of a near-100%-positive test set.
 
-### 4. Corrected CICIDS2017 release (WTMC-2021) — real comparison against the Kaggle mirror
+### 4. Corrected CICIDS2017 release (WTMC-2021) is now PRIMARY; the Kaggle mirror is secondary
 
-Approved and downloaded this session (`data/raw/cicids2017_corrected/`, direct download, no registration — see `data/README.md` for the source URL, licence, and per-file sha256s). Structurally different from the Kaggle mirror used everywhere else in this report: 5 files (one per capture day, no morning/afternoon split) instead of 8, and a real documented label correction (distinguishes `"Bot"` from `"Bot - Attempted"`, which the original release conflated). Same two splits rerun on it, train=Monday-Thursday/test=Friday for the day split (the corrected release's 5-file layout makes this an exact 4-file/1-file boundary, vs. the mirror's 6-file/3-file one — not a 1:1 identical split, flagged here rather than glossed over).
+The corrected release (`data/raw/cicids2017_corrected/`, direct download, no registration — see `data/README.md` for the source URL, licence, and per-file sha256s) fixes real, published errors (>20% of flows relabelled) that the Kaggle mirror used everywhere earlier in this report does not have. **From this point on, the corrected release is the primary CICIDS2017 result; the Kaggle mirror's original-label numbers are kept only as a labelled secondary comparison**, same convention as UNSW-NB15's standard/literal split above. Structurally different from the mirror: 5 files (one per capture day, no morning/afternoon split) instead of 8, and a real documented label correction (distinguishes `"Bot"` from `"Bot - Attempted"`, which the original release conflated). Same two splits rerun on it, train=Monday-Thursday/test=Friday for the day split (the corrected release's 5-file layout makes this an exact 4-file/1-file boundary, vs. the mirror's 6-file/3-file one — not a 1:1 identical split, flagged here rather than glossed over).
 
-**Day-based ("unseen-attack generalisation") split:**
+**Day-based ("unseen-attack generalisation") split — ROC-AUC / PR-AUC:**
 
-| Model | Kaggle mirror (original labels) ROC-AUC | Corrected (WTMC-2021) ROC-AUC | Kaggle mirror PR-AUC | Corrected PR-AUC |
+| Model | Corrected (WTMC-2021, primary) ROC-AUC | Mirror (secondary) ROC-AUC | Corrected PR-AUC | Mirror PR-AUC |
 |---|---|---|---|---|
-| Isolation Forest | 0.596546 | 0.749729 | 0.486772 | 0.640134 |
-| Autoencoder | 0.821515 | 0.752310 | 0.608670 | 0.670575 |
-| LightGBM | 0.753472 | 0.953734 | 0.739962 | 0.945528 |
+| Isolation Forest | 0.749729 | 0.596546 | 0.640134 | 0.486772 |
+| Autoencoder | 0.752310 | 0.821515 | 0.670575 | 0.608670 |
+| LightGBM | 0.953734 | 0.753472 | 0.945528 | 0.739962 |
+
+**Day-based split — recall at 1% FPR** (test-set attack prevalence: corrected 0.46813, mirror 0.41078 — see base-rate table above):
+
+| Model | Recall@1%FPR, corrected (primary) | Recall@1%FPR, mirror (secondary) |
+|---|---|---|
+| Isolation Forest | 0.000168 | 0.000273 |
+| Autoencoder | 0.000183 | 0.000021 |
+| LightGBM | 0.388394 | 0.287025 |
+
+**Day-based split — per-attack recall on the Friday held-out test day** (PortScan/DDoS/Bot are genuinely absent from the Monday-Thursday training days in both releases; the corrected release additionally splits `"Bot"` from `"Bot - Attempted"`, which the mirror conflates into one `Bot` label):
+
+| Model | Bot recall, corrected | Bot recall, mirror | Bot-Attempted recall, corrected | DDoS recall, corrected | DDoS recall, mirror | PortScan recall, corrected | PortScan recall, mirror |
+|---|---|---|---|---|---|---|---|
+| Isolation Forest | 0.059621 | 0.022889 | 0.0 | 0.999474 | 0.635553 | 0.000540 | 0.001636 |
+| Autoencoder | 0.059621 | 0.0 | 0.0 | 0.0 | 0.000422 | 0.000019 | 0.000044 |
+| LightGBM | 0.0 | 0.001017 | 0.0 | 0.942306 | 0.185094 | 0.000547 | 0.001359 |
+
+**Read honestly:** `"Bot - Attempted"` — the label the corrected release newly splits out — is missed completely (recall 0.0) by every model; the models fare somewhat better on the now-cleanly-labelled `"Bot"` itself. DDoS recall is strong for Isolation Forest and LightGBM on the corrected data (0.999/0.942) but PortScan stays near-zero for every model on both releases — a real, specific, attack-type-dependent generalisation gap, not a uniform failure.
 
 **Known-attack (within-day) split:**
 
-| Model | Kaggle mirror ROC-AUC | Corrected ROC-AUC | Kaggle mirror PR-AUC | Corrected PR-AUC |
+| Model | Corrected (primary) ROC-AUC | Mirror (secondary) ROC-AUC | Corrected PR-AUC | Mirror PR-AUC |
 |---|---|---|---|---|
-| Isolation Forest | 0.727108 | 0.806498 | 0.491060 | 0.432076 |
-| Autoencoder | 0.868278 | 0.805071 | 0.529246 | 0.423328 |
-| LightGBM | 0.999983 | 0.999976 | 0.999500 | 0.999929 |
+| Isolation Forest | 0.806498 | 0.727108 | 0.432076 | 0.491060 |
+| Autoencoder | 0.805071 | 0.868278 | 0.423328 | 0.529246 |
+| LightGBM | 0.999976 | 0.999983 | 0.999929 | 0.999500 |
 
-**Read honestly:** LightGBM's day-split ROC-AUC jumps substantially on the corrected labels (0.753→0.954) — consistent with the corrected release's own claim of fixing >20% mislabelled flows: a supervised model trained on cleaner labels generalises better to an unseen day. Isolation Forest also improves on the corrected release in both splits. The autoencoder is mixed — slightly worse on the corrected day-split, moderately worse on known-attack — and every model's `recall_at_calibrated_threshold` on the corrected known-attack split for Isolation Forest/Autoencoder collapses to under 0.002 (vs. 0.18/0.10 on the mirror), a real, measured effect of calibrating a 1%-FPR threshold against a differently-balanced test set, not a regression in the models themselves. LightGBM stays essentially perfect on known-attack and far stronger on day-split with the corrected labels — the single clearest real improvement this comparison produced.
+**Read honestly:** LightGBM's day-split ROC-AUC jumps substantially on the corrected labels (0.753→0.954) — consistent with the corrected release's own claim of fixing >20% mislabelled flows: a supervised model trained on cleaner labels generalises better to an unseen day. Isolation Forest also improves on the corrected release in both splits. The autoencoder is mixed — slightly worse on the corrected day-split, moderately worse on known-attack — and every model's `recall_at_calibrated_threshold` on the corrected known-attack split for Isolation Forest/Autoencoder collapses to under 0.002 (vs. 0.18/0.10 on the mirror), a real, measured effect of calibrating a 1%-FPR threshold against a differently-balanced test set, not a regression in the models themselves. LightGBM stays essentially perfect on known-attack and far stronger on day-split with the corrected labels — the single clearest real improvement this comparison produced. **Every number in this report's other sections that referred to "CICIDS2017" without specifying a release should now be read as the mirror (secondary); this subsection's "corrected (primary)" columns are the ones to cite going forward.**
 
-### 5. Production integration — LightGBM now served by `ml-inference`
+### 5. Production integration — served, but **not wired into live detection, and not fed real live features**
 
 Confirmed first, not assumed: before this session, `ModelRegistry.load()` only dispatched `isolation_forest`/`mad_zscore` — a `gradient_boosting`-method artifact would hit the registry's final "cannot serve method" raise even if catalogued. Fixed in `ee95b5a`:
 
@@ -270,11 +298,27 @@ Confirmed first, not assumed: before this session, `ModelRegistry.load()` only d
 - A **new** model was trained for this — `scripts/train_gradient_boosting_network_flow.py`, on the platform's real 8-dim `NetworkFlowPayload` schema (`sm_ml.features.extract_features`, NSL-KDD replay). This is explicitly **not** the same model as the Phase 1/1.5/1.6 CICIDS2017/UNSW-NB15 78/193-dim benchmark LightGBM above — that model was never trained for the production feature space and couldn't be served through it. Real held-out result (`KDDTest+.txt`): precision 0.959, recall 0.712.
 - Model card: `docs/models/gradient_boosting_network_flow.md`. Contract tests: `ml-inference/tests/test_infer.py` (catalog exclude/include + `/infer` 503-vs-200 on the flag), `ml-py/tests/test_registry.py`.
 
-**Real CPU inference latency/throughput** (`scripts/benchmark_inference_latency.py`, real NSL-KDD rows run through the real `extract_features` path, this machine — AMD Ryzen 7 6800H, CPU-only):
+**Checked directly against the real code, not assumed either way — two separate real gaps, both documented in full in the model card:**
+
+1. **`detection-engine` never requests this model, flag or no flag.** `inference_client.py`'s `MODEL_FOR_KIND` hardcodes `network_flow -> "isolation_forest_network_flow"`. The flag only makes `ml-inference` willing to *serve* `/infer/gradient_boosting_network_flow` if called directly (which is what both latency benchmarks below do) — it does not route any real detection-flow traffic to this model.
+2. **This repo's only real end-to-end event producer (`simulation-service`) feeds it mostly-constant input.** Checked feature-by-feature against `sm_simulation_service/pipeline.py` and `extract_features`: 6 of the model's 8 real feature dimensions (`bytes_received_log`, `packets_total_log`, `dst_port`, `dst_port_is_system`, `dst_port_is_ephemeral`, `proto_tcp`) are degenerate constants (always 0 or always 1) for every simulated event this platform actually generates — `services/ingestion-gateway` *could* carry full real features from a genuine external flow collector, but no such collector is built or deployed here. Full per-feature table: `docs/models/gradient_boosting_network_flow.md`.
+
+**Conclusion: this model is an offline benchmark result only, not a live detector.** Both gaps must close (real routing in `detection-engine`, and real non-degenerate input — either a real collector or a richer simulation payload) before `SM_ML_ENABLE_GRADIENT_BOOSTING` should ever be turned on outside a benchmark. It stays off by default. The CICIDS2017/UNSW-NB15 numbers throughout this report are a genuine offline evaluation of the model's learning capability — they are not a claim about what SentinelMesh detects live today.
+
+**Real CPU latency/throughput — two different things, measured separately and not interchangeable:**
+
+**(a) In-process, `scripts/benchmark_inference_latency.py`** — calls `GradientBoostingModel.score()` / `Booster.predict()` directly in a bare Python loop. Real NSL-KDD rows through the real `extract_features` path, this machine (AMD Ryzen 7 6800H, CPU-only), but **bypasses the FastAPI app entirely** — no routing, no auth, no pydantic validation, no `ModelHost` lookup:
 
 | | p50 | p99 | Throughput |
 |---|---|---|---|
-| Single request (`model.score()`, one row at a time — the real `/infer` path) | 0.147 ms | 0.452 ms | 6,090.5 flows/s |
+| Single call (`model.score()`, one row at a time) | 0.147 ms | 0.452 ms | 6,090.5 flows/s |
 | Batch of 1,000 (`Booster.predict()`, one real vectorised call) | 2.43 ms | 3.37 ms | 411,234.9 flows/s |
 
-The gap between the two is the real, measured cost of not batching: a single vectorised call on 1,000 rows is ~67x the single-row throughput.
+**(b) End-to-end through the real service API, `scripts/benchmark_inference_latency_e2e.py`** — builds the real `sm_ml_inference` FastAPI app (`create_app`) and drives real `POST /api/v1/infer/gradient_boosting_network_flow` calls through `fastapi.testclient.TestClient`: real routing, real internal-JWT auth, real pydantic request/response validation, the real `ModelHost`/`ModelRegistry` lookup, real model scoring, real response serialization — everything `/infer` actually does in production **except the OS network socket/TCP hop itself** (`TestClient` uses httpx's in-process ASGI transport, not a real deployed network path):
+
+| | p50 | p99 | Throughput |
+|---|---|---|---|
+| Single request | 3.64 ms | 4.70 ms | 269.5 req/s |
+| "Batch" of 1,000 (**no batch endpoint exists** — `InferRequest.features` is one flow's vector, not a list; this is 1,000 real sequential HTTP calls to the same single-flow endpoint) | 3.60 ms | 4.62 ms | 272.0 req/s |
+
+**Read honestly:** (a) and (b) are not the same measurement and do not agree — (b) is ~25x slower at p50 for a single request, because it includes real FastAPI routing, middleware, auth-token verification, and pydantic validation that (a) skips entirely; that gap is the real, measured cost of the parts of the request path (a) doesn't exercise. (b)'s "batch" number is nearly identical to its single-request number because **no batch endpoint exists in the real API** — the ~67x speedup (a) shows for batching only applies to a direct in-process `Booster.predict()` call on a pre-assembled array, not to anything the real `/infer` endpoint can currently do for 1,000 separate flows. Full reports: `eval/reports/20261012T1433-phase1.6-final/{inference_latency_benchmark.json,inference_latency_e2e_benchmark.json}`.
