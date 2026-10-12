@@ -104,12 +104,12 @@ def main() -> int:
     os.environ.setdefault("SM_ML_MODEL_DIR", "ml/artifacts")
 
     from fastapi.testclient import TestClient
+    from sm_ml_inference.app import create_app
 
     from sm_common.config import AppSettings
     from sm_common.security import mint_internal_token
     from sm_contracts import CanonicalKind
     from sm_ml import schema_for
-    from sm_ml_inference.app import create_app
 
     settings = AppSettings(
         _env_file=None, service_name="ml-inference", pg_password="x",

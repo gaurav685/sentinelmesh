@@ -40,7 +40,10 @@ extend-immutable-calls = [
 "tests/**" = ["S101", "S105", "S106"]
 "**/tests/**" = ["S101", "S105", "S106"]
 # scripts are CLI tools: printing to stdout and invoking pinned local tools is intended.
-"scripts/**" = ["T201", "S603", "S607"]
+# S105/S106 matches tests/**'s own override -- a script that builds an in-process
+# AppSettings for a local benchmark harness needs the same dummy credential strings
+# a test fixture does (scripts/benchmark_inference_latency_e2e.py), not a real secret.
+"scripts/**" = ["T201", "S603", "S607", "S105", "S106"]
 # Domain exception names read better without an "Error" suffix at call sites
 # (`raise NotFound()`, `raise TenantForbidden()`); the module is clearly errors.
 "**/errors.py" = ["N818"]
