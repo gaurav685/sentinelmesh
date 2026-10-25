@@ -48,12 +48,49 @@ Approved and attempted. Real findings:
      same Bearer-token request at the raw CDM file IDs** (not PIDSMaker's pre-built Postgres
      dump, which would reintroduce a Postgres dependency and skip the parsing step the plan
      calls for) — worth trying if you want to unblock immediately rather than wait.
-- **Decision needed**: wait for quota to clear (I can retry on a schedule), or get a token via
-  the OAuth Playground yourself and run the authenticated download (I'll give the exact command
-  once you have one) — your call.
+- **Decision made: copy the files into your own Google Drive** (a fresh account gets its own
+  download quota, separate from the exhausted public one). Steps, templates, and a Colab
+  server-side-copy fallback: `docs/DOWNLOAD_VIA_OWN_DRIVE.md`.
+
+### Real file inventory (fetched directly from the Drive folder listing, not guessed)
+
+The folder has 6 real named archives — confirmed via direct fetch of
+`drive.google.com/drive/folders/179uDuz62Aw61Ehft6MoJCpPeBEz16VFy`:
+
+| # | File | Size | Needed? |
+|---|---|---|---|
+| 1 | CDM schema `.avsc` (Drive ID `1oGMbSIZ73lh0xs8PUg--3Bj_wtC1q85-`) | unconfirmed (small) | **Pilot-essential** |
+| 2 | CDM schema `.avdl` (Drive ID `1zVKApkZwuPsk3y8BnR1bWTqze929y1qp`) | unconfirmed (small) | **Pilot-essential** |
+| 3 | `ta1-cadets-e3-official-2.json.tar.gz` | 341.6 MB | **Pilot-essential** (smallest; validates the parser cheaply) |
+| 4 | `ta1-cadets-e3-official.json.tar.gz` | 558.6 MB | Full run only |
+| 5 | `ta1-cadets-e3-official-1.json.tar.gz` | 905.9 MB | Full run only |
+| 6 | `ta1-cadets-e3-official.bin.tar.gz` | 376 MB | **Not needed** |
+| 7 | `ta1-cadets-e3-official-1.bin.tar.gz` | 605.8 MB | **Not needed** |
+| 8 | `ta1-cadets-e3-official-2.bin.tar.gz` | 228.9 MB | **Not needed** |
+| 9 | `ta3-java-consumer.tar.gz` (Drive ID `1Yg_487Ynr9gV3oRy3KmS2tOj8RNomVY6`) | unconfirmed | Optional reference only (Java tool; we write our own Python parser) |
+
+Real total need: items 1–5, **~1.76 GB compressed** — not the full ~2.95 GB folder. The
+`.bin` skip is a confirmed finding, not a guess: read PIDSMaker's own working CDM parser
+(`dataset_preprocessing/darpa_tc/filelist.py`'s `cadets_e3_list`) directly — it only ever
+reads `.json` archives for CADETS_E3, never `.bin`. **Honest gap**: the 6 bare Drive IDs in
+`download_cadets_e3.sh` carry no filename — Google only reveals a file's real name via
+`Content-Disposition` on a successful fetch, which hasn't happened yet. ID→filename pairing
+is confirmed once the first real download succeeds, not assumed from ID order.
+
+### Alternative official source — checked, none found
+
+Searched directly (not assumed): a dataset-cataloging site (`fkie-cad.github.io/COMIDDS`'s
+DARPA TC3 entry) and a general web search both point only at this same Google Drive folder —
+no IEEE DataPort, academic-torrent, Zenodo, or university mirror of the raw CADETS_E3 CDM
+data exists. The only real alternative download *mechanism* found is PIDSMaker's own
+OAuth-token-authenticated Drive-API method (`download_datasets.sh`) — but that fetches
+their own pre-built Postgres dump (1.4 GB compressed/10 GB loaded), a different,
+already-processed artifact, not the raw CDM records this plan's step 2 parses itself. Not
+used for that reason, not because it doesn't work.
 
 Everything else not blocked by the raw download continues in parallel (this doc, ground truth
-integration, Parquet/DuckDB schema design, parser scaffolding, small synthetic-fixture tests).
+integration — done, see above — Parquet/DuckDB schema design, parser scaffolding against
+small synthetic fixtures, baseline/evaluation scaffolding).
 
 ## 1. Reference repo + licence
 

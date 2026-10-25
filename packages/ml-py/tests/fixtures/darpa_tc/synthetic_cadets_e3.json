@@ -1,0 +1,10 @@
+{"datum":{"com.bbn.tc.schema.avro.cdm18.Subject":{"uuid":"S1","cmdLine":"nginx"}}}
+{"datum":{"com.bbn.tc.schema.avro.cdm18.FileObject":{"uuid":"F1","baseObject":{"properties":{"map":{"path":"/var/attacker/evil"}}}}}}
+{"datum":{"com.bbn.tc.schema.avro.cdm18.NetFlowObject":{"uuid":"N1","localAddress":{"string":"10.0.0.1"},"localPort":{"int":1234},"remoteAddress":{"string":"8.8.8.8"},"remotePort":{"int":80}}}}
+{"datum":{"com.bbn.tc.schema.avro.cdm18.Principal":{"uuid":"P1"}}}
+not valid json, skip me
+{"datum":{"com.bbn.tc.schema.avro.cdm18.Event":{"uuid":"E1","type":"EVENT_WRITE","subject":{"com.bbn.tc.schema.avro.cdm18.UUID":"S1"},"predicateObject":{"com.bbn.tc.schema.avro.cdm18.UUID":"F1"},"timestampNanos":100}}}
+{"datum":{"com.bbn.tc.schema.avro.cdm18.Event":{"uuid":"E2","type":"EVENT_READ","subject":{"com.bbn.tc.schema.avro.cdm18.UUID":"S1"},"predicateObject":{"com.bbn.tc.schema.avro.cdm18.UUID":"F1"},"timestampNanos":200}}}
+{"datum":{"com.bbn.tc.schema.avro.cdm18.Event":{"uuid":"E3","type":"EVENT_OTHER","subject":{"com.bbn.tc.schema.avro.cdm18.UUID":"S1"},"predicateObject":{"com.bbn.tc.schema.avro.cdm18.UUID":"F1"},"timestampNanos":300}}}
+{"datum":{"com.bbn.tc.schema.avro.cdm18.Event":{"uuid":"E4","type":"EVENT_UNLINK","subject":{"com.bbn.tc.schema.avro.cdm18.UUID":"S1"},"predicateObject":{"com.bbn.tc.schema.avro.cdm18.UUID":"F1"},"timestampNanos":400}}}
+{"datum":{"com.bbn.tc.schema.avro.cdm18.Event":{"uuid":"E5","type":"EVENT_CONNECT","subject":{"com.bbn.tc.schema.avro.cdm18.UUID":"S1"},"predicateObject":{"com.bbn.tc.schema.avro.cdm18.UUID":"N1"},"timestampNanos":500}}}
